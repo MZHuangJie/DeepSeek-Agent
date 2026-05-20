@@ -181,7 +181,12 @@ export function setupAgentHandlers() {
           modelConfig,
           {
             onContent: (text) => {
-              win.webContents.send('agent:stream-chunk', { type: 'content', text });
+              win.webContents.send('agent:stream-chunk', {
+                type: 'content',
+                text,
+                step: turn + 1,
+                total: maxTurns,
+              });
             },
             onThinking: (text) => {
               win.webContents.send('agent:stream-chunk', { type: 'thinking', text });
@@ -364,6 +369,8 @@ export function setupAgentHandlers() {
           type: 'tool-call',
           name: tc.name,
           args: tc.arguments,
+          step: turn + 1,
+          total: maxTurns,
         });
       }
 
@@ -408,6 +415,8 @@ export function setupAgentHandlers() {
           name: tc.name,
           result: toolResult,
           status,
+          step: turn + 1,
+          total: maxTurns,
         });
         messages.push({
           role: 'tool',

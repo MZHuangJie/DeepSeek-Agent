@@ -44,10 +44,13 @@ export default function ChatPanel() {
       if (chunk.type === 'content') {
         update({ content: (lastMsg?.content ?? '') + chunk.text });
         const agentStore = useAgentStore.getState();
+        const step = chunk.step || 1;
+        const total = chunk.total || 1;
         agentStore.setCurrentStep({
-          step: 1, total: 1,
+          step,
+          total,
           description: (lastMsg?.content ?? '') + chunk.text,
-          progress: 50,
+          progress: Math.min(99, Math.round((step / total) * 100)),
         });
       } else if (chunk.type === 'thinking') {
         update({ thinkingContent: (lastMsg?.thinkingContent ?? '') + chunk.text });
@@ -70,9 +73,10 @@ export default function ChatPanel() {
           timestamp: Date.now(),
         });
         agentStore.setCurrentStep({
-          step: 1, total: 1,
+          step: chunk.step || 1,
+          total: chunk.total || 1,
           description: `正在调用工具: ${chunk.name}`,
-          progress: 70,
+          progress: chunk.total ? Math.min(99, Math.round(((chunk.step || 1) / chunk.total) * 100)) : 70,
         });
       } else if (chunk.type === 'tool-result') {
         const current = lastMsg?.toolCalls ?? [];
@@ -105,8 +109,10 @@ export default function ChatPanel() {
       } else if (chunk.type === 'done') {
         setStream(false);
         const agentStore = useAgentStore.getState();
+        const current = agentStore.currentStep;
         agentStore.setCurrentStep({
-          step: 1, total: 1,
+          step: current?.step || 1,
+          total: current?.total || 1,
           description: '已完成',
           progress: 100,
         });
