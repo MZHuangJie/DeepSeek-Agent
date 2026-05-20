@@ -71,13 +71,16 @@ export async function streamChat(
   }
   const isHttps = true;
 
-  const body = JSON.stringify({
+  const bodyObj: any = {
     model,
     messages,
-    tools,
     stream: true,
     stream_options: { include_usage: true },
-  });
+  };
+  if (tools.length > 0) {
+    bodyObj.tools = tools;
+  }
+  const body = JSON.stringify(bodyObj);
 
   return new Promise((resolve, reject) => {
     const options = {

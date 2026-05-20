@@ -4,6 +4,7 @@ import { useModelStore } from '../../stores/model';
 import { useAgentStore } from '../../stores/agent';
 import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
+import { useModeStore } from '../../stores/mode';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -253,6 +254,7 @@ export default function ChatPanel() {
     setStreaming(true);
 
     const modelConfig = getActiveModel();
+    const mode = useModeStore.getState().mode;
     try {
       await window.api.agent.send({
         messages: history,
@@ -263,6 +265,7 @@ export default function ChatPanel() {
         baseUrl: modelConfig.baseUrl,
         contextMax: modelConfig.contextWindow || 64000,
         commandPrompt: command?.systemPrompt,
+        mode,
       });
     } catch (err: any) {
       setStreaming(false);

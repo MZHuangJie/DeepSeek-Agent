@@ -5,6 +5,7 @@ import { useChatStore } from '../../stores/chat';
 import ModelSettings from '../settings/ModelSettings';
 import PluginManager from '../plugins/PluginManager';
 import { usePluginStore } from '../../stores/plugin';
+import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
 
 interface Props {
@@ -25,6 +26,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop, onTog
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);
+  const [showModeSelect, setShowModeSelect] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { openTabs } = useFilesStore();
   const { models, activeModelId, setActiveModel } = useModelStore();
@@ -32,6 +34,8 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop, onTog
   const { installedPlugins, loadInstalled } = usePluginStore();
 
   const activeModel = models.find(m => m.id === activeModelId) ?? models[0];
+  const { mode, setMode } = useModeStore();
+  const activeMode = MODES.find(m => m.id === mode) ?? MODES[0];
 
   useEffect(() => { loadInstalled(); }, []);
 
@@ -92,7 +96,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop, onTog
     if (e.key === '@') { setShowMention(true); }
     if (e.key === 'Escape') {
       if (isStreaming) { onStop(); return; }
-      setShowMention(false); setShowModelSelect(false);
+      setShowMention(false); setShowModelSelect(false); setShowModeSelect(false);
     }
   }, [value, onSend, isStreaming, onStop]);
 
@@ -294,6 +298,54 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop, onTog
             <ToolbarBtn title="终端" onClick={() => onToggleTerminal?.()}>
               <img src="/assets/3.png" alt="terminal" style={{ width: 16, height: 16, opacity: 0.7 }} />
             </ToolbarBtn>
+
+            {/* Mode selector */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowModeSelect(!showModeSelect)}
+                title={activeMode.description}
+                style={{
+                  background: 'transparent', border: 'none',
+                  color: 'var(--text-primary)', cursor: 'pointer',
+                  padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 12, fontWeight: 500, borderRadius: 4,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span>{activeMode.icon}</span>
+                <span>{activeMode.label}</span>
+                <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
+              </button>
+
+              {showModeSelect && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: 0, marginBottom: 4,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  borderRadius: 8, minWidth: 180, overflow: 'hidden',
+                  zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                }}>
+                  {MODES.map(m => (
+                    <div key={m.id}
+                      onClick={() => { setMode(m.id as AgentMode); setShowModeSelect(false); }}
+                      style={{
+                        padding: '8px 12px', cursor: 'pointer', fontSize: 12,
+                        background: m.id === mode ? 'rgba(124,58,237,0.15)' : 'transparent',
+                        color: m.id === mode ? 'var(--accent)' : 'var(--text-primary)',
+                        borderBottom: '1px solid var(--border)',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                      }}
+                    >
+                      <span style={{ fontSize: 14 }}>{m.icon}</span>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{m.label}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{m.description}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right: settings + send/stop */}

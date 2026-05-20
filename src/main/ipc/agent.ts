@@ -4,7 +4,7 @@ import { buildCachePrefix, buildMessages } from '../agent/cache';
 import { getAllTools, getToolSchemas, ToolDef } from '../agent/tools';
 import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
-import { SYSTEM_PROMPT } from '../agent/prompt';
+import { getSystemPrompt, AgentMode } from '../agent/prompt';
 
 
 let activeAbort: AbortController | null = null;
@@ -20,6 +20,7 @@ export function setupAgentHandlers() {
     baseUrl?: string;
     contextMax?: number;
     commandPrompt?: string;
+    mode?: AgentMode;
   }) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window');
@@ -33,10 +34,11 @@ export function setupAgentHandlers() {
     const subAgentManager = new SubAgentManager(win);
     activeSubAgentManager = subAgentManager;
 
-    // 如果有命令，将命令指令追加到 system prompt
+    // 根据模式选择 system prompt，命令 prompt 追加在后
+    const baseSystemPrompt = getSystemPrompt(payload.mode);
     const fullSystemPrompt = payload.commandPrompt
-      ? `${SYSTEM_PROMPT}\n\n## 当前命令模式\n${payload.commandPrompt}`
-      : SYSTEM_PROMPT;
+      ? `${baseSystemPrompt}\n\n## 当前命令模式\n${payload.commandPrompt}`
+      : baseSystemPrompt;
 
     const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
     let messages: any[] = buildMessages(prefix, payload.messages, payload.newMessage);
@@ -45,21 +47,24 @@ export function setupAgentHandlers() {
       model: payload.model || 'deepseek-chat',
       baseUrl: payload.baseUrl || 'https://api.deepseek.com',
     };
-    const toolSchemas = getToolSchemas(tools);
+    const enableTools = payload.mode === 'coding' || !payload.mode;
+    const toolSchemas = enableTools ? getToolSchemas(tools) : [];
 
     let totalPrompt = 0;
     let totalCompletion = 0;
     let totalTokens = 0;
 
-    // 动态计算最大轮次：根据项目文件数量
-    const glob = require('glob');
-    const allSourceFiles = glob.sync('**/*.{ts,tsx,js,jsx,json}', {
-      cwd: payload.projectDir,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
-      absolute: false,
-    });
-    const estimatedTurnsNeeded = Math.ceil(allSourceFiles.length / 3); // 假设每轮读 3 个文件
-    const maxTurns = Math.max(50, Math.min(estimatedTurnsNeeded, 200)); // 最少 50 轮，最多 200 轮
+    // 动态计算最大轮次：根据项目文件数量（仅编程模式启用多轮工具调用）
+    const maxTurns = enableTools ? (() => {
+      const glob = require('glob');
+      const allSourceFiles = glob.sync('**/*.{ts,tsx,js,jsx,json}', {
+        cwd: payload.projectDir,
+        ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
+        absolute: false,
+      });
+      const estimatedTurnsNeeded = Math.ceil(allSourceFiles.length / 3); // 假设每轮读 3 个文件
+      return Math.max(50, Math.min(estimatedTurnsNeeded, 200)); // 最少 50 轮，最多 200 轮
+    })() : 1;
 
     for (let turn = 0; turn < maxTurns; turn++) {
       if (abortController.signal.aborted) break;
