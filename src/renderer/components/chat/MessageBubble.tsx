@@ -180,6 +180,42 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
+function ImageGenerationProgress() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '8px 12px', marginTop: 8,
+      background: 'rgba(124,58,237,0.08)', borderRadius: 6,
+      border: '1px solid rgba(124,58,237,0.2)',
+      fontSize: 12, color: 'var(--accent)',
+    }}>
+      <span style={{
+        display: 'inline-block', width: 16, height: 16,
+        border: '2px solid rgba(124,58,237,0.2)',
+        borderTopColor: 'var(--accent)',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <span>🎨 正在生成图片，请稍候...</span>
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function ToolCallProgress({ toolCalls }: { toolCalls?: import('../../stores/chat').ToolCall[] }) {
+  if (!toolCalls) return null;
+  const running = toolCalls.filter(tc => tc.status === 'running');
+  const hasImageGen = running.some(tc => tc.name === 'generate_image');
+  if (hasImageGen) {
+    return <ImageGenerationProgress />;
+  }
+  return null;
+}
+
 export default function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user';
   const hasThinking = !isUser && !!message.thinkingContent;
@@ -211,6 +247,7 @@ export default function MessageBubble({ message }: Props) {
             fontSize: 13, lineHeight: 1.5,
           }}>
             <MessageContent content={message.content || '...'} />
+            <ToolCallProgress toolCalls={message.toolCalls} />
           </div>
         )}
       </div>
