@@ -4,8 +4,10 @@ import ChatPanel from './components/chat/ChatPanel';
 import AgentPanel from './components/agent/AgentPanel';
 import EditorTabs from './components/editor/EditorTabs';
 import CodeEditor from './components/editor/CodeEditor';
+import ImageViewer, { isImageFile } from './components/editor/ImageViewer';
 import TerminalPanel from './components/terminal/TerminalPanel';
 import TerminalTabs from './components/terminal/TerminalTabs';
+import TerminalList from './components/terminal/TerminalList';
 import StatusBar from './components/statusbar/StatusBar';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
@@ -104,13 +106,15 @@ export default function App() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <EditorTabs />
               <div style={{ flex: 1, overflow: 'hidden', display: activeFile ? 'block' : 'none' }}>
-                {activeFile && (
+                {activeFile && (isImageFile(activeFile.name) ? (
+                  <ImageViewer filePath={activeFile.path} />
+                ) : (
                   <CodeEditor
                     content={activeFile.content || '// Select a file to view its contents'}
                     language={getLanguage(activeFile.name)}
                     onChange={(value) => value !== undefined && updateTabContent(activeFile.path, value)}
                   />
-                )}
+                ))}
               </div>
             </div>
 
@@ -153,8 +157,12 @@ export default function App() {
               }}>
                 <TerminalTabs />
                 {bottomExpanded && activeTermId && (
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <TerminalPanel termId={activeTermId} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <TerminalPanel termId={activeTermId} />
+                    </div>
+                    {/* 多终端时右侧显示垂直列表 */}
+                    <TerminalList />
                   </div>
                 )}
               </div>

@@ -88,6 +88,19 @@ export function setupFileHandlers() {
     return fs.readFileSync(safePath, 'utf-8');
   });
 
+  ipcMain.handle('files:readBinary', async (_event, filePath: string) => {
+    const safePath = safeResolve(currentWorkspace, filePath);
+    const buf = fs.readFileSync(safePath);
+    const ext = path.extname(safePath).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+      '.bmp': 'image/bmp', '.ico': 'image/x-icon',
+    };
+    const mime = mimeMap[ext] || 'application/octet-stream';
+    return `data:${mime};base64,${buf.toString('base64')}`;
+  });
+
   ipcMain.handle('files:cwd', async () => {
     return currentWorkspace;
   });

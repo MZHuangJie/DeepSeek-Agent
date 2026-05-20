@@ -22,6 +22,7 @@ const api = {
     createDirectory: (dirPath: string) => ipcRenderer.invoke('files:create-directory', dirPath),
     delete: (targetPath: string) => ipcRenderer.invoke('files:delete', targetPath),
     write: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content),
+    readBinary: (filePath: string) => ipcRenderer.invoke('files:readBinary', filePath),
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),

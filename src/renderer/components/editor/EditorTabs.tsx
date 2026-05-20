@@ -38,9 +38,12 @@ export default function EditorTabs() {
           onClick={() => setActiveTab(tab.path)}
           style={{
             padding: '4px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
-            borderBottom: activeTab === tab.path ? '2px solid var(--accent)' : '2px solid transparent',
-            color: activeTab === tab.path ? 'var(--accent)' : 'var(--text-secondary)',
-            whiteSpace: 'nowrap', background: activeTab === tab.path ? 'rgba(124,58,237,0.08)' : 'transparent',
+            borderBottom: '1px solid transparent',
+            color: activeTab === tab.path ? '#fff' : 'var(--text-secondary)',
+            whiteSpace: 'nowrap',
+            background: activeTab === tab.path ? '#1e1e1e' : 'transparent',
+            borderTopLeftRadius: 4,
+            borderTopRightRadius: 4,
           }}
         >
           <FileIcon name={tab.name} />
