@@ -98,14 +98,16 @@ export const COMMANDS: Command[] = [
   },
 ];
 
-export function matchCommand(input: string): Command | null {
+export function matchCommand(input: string, dynamicCommands?: Command[]): Command | null {
   const trimmed = input.trim();
   if (!trimmed.startsWith('/')) return null;
   const spaceIndex = trimmed.indexOf(' ');
   const cmdName = (spaceIndex > 0 ? trimmed.slice(1, spaceIndex) : trimmed.slice(1)).toLowerCase();
-  return COMMANDS.find(c => c.name === cmdName) ?? null;
+  const allCommands = [...COMMANDS, ...(dynamicCommands || [])];
+  return allCommands.find(c => c.name === cmdName) ?? null;
 }
 
-export function getCommandList(): string {
-  return COMMANDS.map(c => `/${c.name} - ${c.description}`).join('\n');
+export function getCommandList(dynamicCommands?: Command[]): string {
+  const allCommands = [...COMMANDS, ...(dynamicCommands || [])];
+  return allCommands.map(c => `/${c.name} - ${c.description}`).join('\n');
 }

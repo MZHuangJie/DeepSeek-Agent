@@ -3,7 +3,9 @@ import { useFilesStore } from '../../stores/files';
 import { useModelStore } from '../../stores/model';
 import { useChatStore } from '../../stores/chat';
 import ModelSettings from '../settings/ModelSettings';
-import { COMMANDS, matchCommand, Command } from '../../commands';
+import PluginManager from '../plugins/PluginManager';
+import { usePluginStore } from '../../stores/plugin';
+import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
 
 interface Props {
   onSend: (message: string, command?: Command) => void;
@@ -21,12 +23,25 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const [showMention, setShowMention] = useState(false);
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
+  const [showPluginManager, setShowPluginManager] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { openTabs } = useFilesStore();
   const { models, activeModelId, setActiveModel } = useModelStore();
   const { createSession } = useChatStore();
+  const { installedPlugins, loadInstalled } = usePluginStore();
 
   const activeModel = models.find(m => m.id === activeModelId) ?? models[0];
+
+  useEffect(() => { loadInstalled(); }, []);
+
+  // 将已安装插件转换为动态命令
+  const pluginCommands: Command[] = useMemo(() =>
+    installedPlugins.map(p => ({
+      name: p.name,
+      description: p.description || '',
+      detail: `已安装插件: ${p.name}`,
+      systemPrompt: p.system_prompt,
+    })), [installedPlugins]);
 
   // auto-resize: only grow when content overflows current height
   useEffect(() => {
@@ -45,21 +60,27 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     setAtMaxHeight(newH >= MAX_HEIGHT - 2);
   }, [value]);
 
-  const activeCommand = useMemo(() => matchCommand(value), [value]);
+  const activeCommand = useMemo(() => matchCommand(value, pluginCommands), [value, pluginCommands]);
   const showCommandPalette = value.startsWith('/') && !value.includes(' ') && value.length >= 1;
   const filteredCommands = useMemo(() => {
     if (!showCommandPalette) return [];
     const query = value.slice(1).toLowerCase();
-    if (!query) return COMMANDS;
-    return COMMANDS.filter(c => c.name.includes(query));
-  }, [value, showCommandPalette]);
+    const allCommands = [...COMMANDS, ...pluginCommands];
+    if (!query) return allCommands;
+    return allCommands.filter(c => c.name.includes(query));
+  }, [value, showCommandPalette, pluginCommands]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const trimmed = value.trim();
+      if (trimmed === '/plugin') {
+        setShowPluginManager(true);
+        setValue('');
+        return;
+      }
       if (trimmed) {
-        const cmd = matchCommand(trimmed);
+        const cmd = matchCommand(trimmed, pluginCommands);
         const message = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
         onSend(message || trimmed, cmd || undefined);
         setValue('');
@@ -87,8 +108,13 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
   const handleSend = () => {
     const trimmed = value.trim();
+    if (trimmed === '/plugin') {
+      setShowPluginManager(true);
+      setValue('');
+      return;
+    }
     if (trimmed) {
-      const cmd = matchCommand(trimmed);
+      const cmd = matchCommand(trimmed, pluginCommands);
       const message = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
       onSend(message || trimmed, cmd || undefined);
       setValue('');
@@ -308,6 +334,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       </div>
 
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
+      {showPluginManager && <PluginManager onClose={() => setShowPluginManager(false)} />}
     </div>
   );
 }

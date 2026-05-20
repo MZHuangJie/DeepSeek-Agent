@@ -4,6 +4,7 @@ import { setupAgentHandlers } from './agent';
 import { setupTerminalHandlers } from './terminal';
 import { setupSettingsHandlers } from './settings';
 import { setupWindowHandlers } from './window';
+import { setupPluginHandlers } from './plugin';
 
 export function registerAllHandlers() {
   setupWindowHandlers();
@@ -11,4 +12,5 @@ export function registerAllHandlers() {
   setupAgentHandlers();
   setupTerminalHandlers();
   setupSettingsHandlers();
+  setupPluginHandlers();
 }

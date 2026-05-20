@@ -53,6 +53,26 @@ class MemDb implements DbLike {
         } else if (sql.includes('DELETE FROM sessions')) {
           const sessions = self.tables.get('sessions') || new Map();
           sessions.delete(args[0]);
+        } else if (sql.includes('INTO marketplaces')) {
+          const table = self.tables.get('marketplaces') || new Map();
+          table.set(args[0], { id: args[0], name: args[1], url: args[2], type: args[3] || 'github-repo', added_at: args[4] });
+          self.tables.set('marketplaces', table);
+        } else if (sql.includes('DELETE FROM marketplaces')) {
+          const table = self.tables.get('marketplaces') || new Map();
+          table.delete(args[0]);
+        } else if (sql.includes('INTO installed_plugins')) {
+          const table = self.tables.get('installed_plugins') || new Map();
+          table.set(args[0], { name: args[0], description: args[1], system_prompt: args[2], source: args[3], installed_at: args[4] });
+          self.tables.set('installed_plugins', table);
+        } else if (sql.includes('DELETE FROM installed_plugins')) {
+          const table = self.tables.get('installed_plugins') || new Map();
+          table.delete(args[0]);
+        } else if (sql.includes('INSERT INTO plugin_errors')) {
+          const table = self.tables.get('plugin_errors') || [];
+          table.push({ id: Date.now(), plugin_name: args[0], marketplace: args[1], error: args[2], timestamp: args[3] });
+          self.tables.set('plugin_errors', table);
+        } else if (sql.includes('DELETE FROM plugin_errors')) {
+          self.tables.set('plugin_errors', []);
         }
       },
       all: (...args: any[]) => {
@@ -66,6 +86,18 @@ class MemDb implements DbLike {
           const row = settings.get(key);
           return row ? [row] : [];
         }
+        if (sql.includes('FROM marketplaces')) {
+          const table = self.tables.get('marketplaces') || new Map();
+          return Array.from(table.values());
+        }
+        if (sql.includes('FROM installed_plugins')) {
+          const table = self.tables.get('installed_plugins') || new Map();
+          return Array.from(table.values()).sort((a: any, b: any) => b.installed_at - a.installed_at);
+        }
+        if (sql.includes('FROM plugin_errors')) {
+          const table = self.tables.get('plugin_errors') || [];
+          return table.sort((a: any, b: any) => b.timestamp - a.timestamp);
+        }
         return [];
       },
       get: (...args: any[]) => {
@@ -73,6 +105,11 @@ class MemDb implements DbLike {
           const key = args[0];
           const settings = self.tables.get('settings') || new Map();
           return settings.get(key) || null;
+        }
+        if (sql.includes('FROM installed_plugins')) {
+          const key = args[0];
+          const table = self.tables.get('installed_plugins') || new Map();
+          return table.get(key) || null;
         }
         return null;
       },
@@ -110,6 +147,27 @@ function initSchema() {
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS marketplaces (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'github-repo',
+      added_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS installed_plugins (
+      name TEXT PRIMARY KEY,
+      description TEXT,
+      system_prompt TEXT NOT NULL,
+      source TEXT,
+      installed_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS plugin_errors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plugin_name TEXT,
+      marketplace TEXT,
+      error TEXT NOT NULL,
+      timestamp INTEGER NOT NULL
     );
   `);
 }

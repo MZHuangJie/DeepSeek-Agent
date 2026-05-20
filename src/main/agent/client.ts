@@ -66,7 +66,10 @@ export async function streamChat(
 ): Promise<StreamResult> {
   const { model, baseUrl } = modelConfig;
   const url = new URL('/v1/chat/completions', baseUrl);
-  const isHttps = url.protocol === 'https:';
+  if (url.protocol !== 'https:') {
+    throw new Error('API base URL must use HTTPS for security');
+  }
+  const isHttps = true;
 
   const body = JSON.stringify({
     model,

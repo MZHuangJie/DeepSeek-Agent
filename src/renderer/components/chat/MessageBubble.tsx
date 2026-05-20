@@ -25,7 +25,7 @@ export default function MessageBubble({ message }: Props) {
       <div style={{ maxWidth: '75%', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {/* 1. Thinking chain displayed above content for AI messages */}
         {hasThinking && (
-          <ThinkingChain text={message.thinkingContent!} />
+          <ThinkingChain text={message.thinkingContent!} hasContent={hasContent} />
         )}
 
         {/* 2. Response content bubble rendered after thinking is done */}

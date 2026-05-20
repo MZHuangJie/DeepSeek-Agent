@@ -9,8 +9,8 @@ export default defineConfig({
     rollupOptions: {
       input: path.join(__dirname, 'src', 'renderer', 'index.html'),
     },
-    sourcemap: true,
-    minify: false,
+    sourcemap: process.env.NODE_ENV !== 'production',
+    minify: process.env.NODE_ENV === 'production',
   },
   plugins: [react()],
   define: {

@@ -40,8 +40,8 @@ export default defineConfig({
         },
       ],
     },
-    sourcemap: true,
-    minify: false,
+    sourcemap: process.env.NODE_ENV !== 'production',
+    minify: process.env.NODE_ENV === 'production',
   },
   define: {
     MAIN_WINDOW_VITE_DEV_SERVER_URL: JSON.stringify(process.env.VITE_DEV_SERVER_URL || ''),

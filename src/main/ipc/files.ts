@@ -38,7 +38,17 @@ function safeResolve(baseDir: string, targetPath: string): string {
   if (!resolved.startsWith(normalizedBase) && resolved !== path.resolve(baseDir)) {
     throw new Error(`路径越界: ${targetPath} 不在项目目录内`);
   }
-  return resolved;
+  try {
+    const realPath = fs.realpathSync(resolved);
+    const realBase = fs.realpathSync(baseDir);
+    if (!realPath.startsWith(realBase + path.sep) && realPath !== realBase) {
+      throw new Error(`路径越界: ${targetPath} 不在项目目录内`);
+    }
+    return realPath;
+  } catch (e: any) {
+    if (e.message?.includes('路径越界')) throw e;
+    return resolved;
+  }
 }
 
 function getRecentWorkspaces(): string[] {

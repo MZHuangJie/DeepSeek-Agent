@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface Props {
   text: string;
+  hasContent?: boolean;
 }
 
-export default function ThinkingChain({ text }: Props) {
-  const [expanded, setExpanded] = useState(true);
+export default function ThinkingChain({ text, hasContent }: Props) {
+  const [expanded, setExpanded] = useState(!hasContent);
+
+  useEffect(() => {
+    if (hasContent) setExpanded(false);
+  }, [hasContent]);
 
   return (
     <div style={{ marginTop: 6, fontSize: 12 }}>

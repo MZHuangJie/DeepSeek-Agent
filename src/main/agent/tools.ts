@@ -10,7 +10,19 @@ function safeResolve(baseDir: string, targetPath: string): string {
   if (!resolved.startsWith(normalizedBase) && resolved !== path.resolve(baseDir)) {
     throw new Error(`路径越界: ${targetPath} 不在项目目录内`);
   }
-  return resolved;
+  // 解析符号链接防止绕过
+  try {
+    const realPath = fs.realpathSync(resolved);
+    const realBase = fs.realpathSync(baseDir);
+    if (!realPath.startsWith(realBase + path.sep) && realPath !== realBase) {
+      throw new Error(`路径越界: ${targetPath} 不在项目目录内`);
+    }
+    return realPath;
+  } catch (e: any) {
+    if (e.message?.includes('路径越界')) throw e;
+    // 文件不存在时 realpathSync 会失败，回退到普通检查
+    return resolved;
+  }
 }
 
 export interface ToolDef {
@@ -43,6 +55,16 @@ export function getAllTools(projectDir: string): ToolDef[] {
         required: ['path'],
       },
       execute: async (args) => {
+        const fileName = path.basename(args.path as string);
+        const SENSITIVE_NAMES = ['.env', '.env.local', '.env.production', '.env.development',
+          'id_rsa', 'id_ed25519', 'id_ecdsa', 'credentials.json', '.credentials',
+          '.npmrc', '.pypirc', 'authorized_keys', 'known_hosts',
+        ];
+        const SENSITIVE_EXTS = ['.pem', '.key', '.pfx', '.p12', '.jks', '.keystore'];
+        const ext = path.extname(fileName);
+        if (SENSITIVE_NAMES.includes(fileName) || SENSITIVE_EXTS.includes(ext)) {
+          throw new Error('读取敏感文件被拒绝');
+        }
         const filePath = safeResolve(projectDir, args.path as string);
         const content = fs.readFileSync(filePath, 'utf-8');
         const lines = content.split('\n');
@@ -185,9 +207,28 @@ export function getAllTools(projectDir: string): ToolDef[] {
         const { spawnSync } = await import('child_process');
         const command = (args.command as string).trim();
         if (!command) throw new Error('命令不能为空');
-        const dangerous = /\b(rm\s+-rf\s+\/|sudo\s+|chmod\s+777|:\(\)|mkfs\.|dd\s+if=|>\/dev\/sda|\|.*sh\b)/i;
-        if (dangerous.test(command)) {
-          throw new Error('命令包含危险操作，已被拒绝');
+
+        const dangerousPatterns = [
+          // 权限提升
+          /\bsudo\b/i, /\bdoas\b/i,
+          // 破坏系统文件系统
+          /\brm\s+-rf\s+\//i, /\brm\s+-rf\s+~\//i,
+          /\bdd\s+if=/i, /\bmkfs\.?\s/i,
+          // 写磁盘设备
+          />[\s]*\/dev\/(sd|hd|nvme|xvd|vd|mmcblk)/i,
+          // chmod 777 递归
+          /\bchmod\s+-R\s+777\b/i,
+          // fork bomb
+          /:\(\)\s*\{/,
+          // 下载并管道到 shell
+          /\b(curl|wget)\b.+\|\s*(ba)?sh\b/i,
+          // 网络后门监听
+          /\bnc\s+-[e|l]\s/i, /\bncat\s+-[e|l]\s/i,
+        ];
+        for (const pattern of dangerousPatterns) {
+          if (pattern.test(command)) {
+            throw new Error('命令包含危险操作，已被拒绝');
+          }
         }
         const result = spawnSync(command, [], {
           cwd: projectDir,

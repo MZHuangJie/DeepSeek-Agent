@@ -7,19 +7,15 @@ const terminals = new Map<string, IPty>();
 export function setupTerminalHandlers() {
   ipcMain.handle('terminal:create', async (_event, requestedShell?: string) => {
     const id = `term-${Date.now()}`;
+    const ALLOWED_SHELLS = new Set(['powershell', 'powershell.exe', 'cmd', 'cmd.exe', 'bash', 'zsh', 'sh']);
     let shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
     if (requestedShell) {
-      if (requestedShell === 'powershell') {
-        shell = 'powershell.exe';
-      } else if (requestedShell === 'cmd') {
-        shell = 'cmd.exe';
-      } else if (requestedShell === 'bash') {
-        shell = 'bash';
-      } else if (requestedShell === 'zsh') {
-        shell = 'zsh';
-      } else {
-        shell = requestedShell;
+      if (!ALLOWED_SHELLS.has(requestedShell)) {
+        throw new Error(`不支持的 Shell: ${requestedShell}`);
       }
+      if (requestedShell === 'powershell') shell = 'powershell.exe';
+      else if (requestedShell === 'cmd') shell = 'cmd.exe';
+      else shell = requestedShell;
     }
     const pty = spawn(
       shell,

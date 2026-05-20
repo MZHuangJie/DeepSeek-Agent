@@ -55,6 +55,19 @@ const api = {
     loadAll: () => ipcRenderer.invoke('sessions:loadAll'),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
   },
+  marketplace: {
+    add: (url: string) => ipcRenderer.invoke('marketplace:add', url),
+    remove: (id: string) => ipcRenderer.invoke('marketplace:remove', id),
+    list: () => ipcRenderer.invoke('marketplace:list'),
+  },
+  plugins: {
+    discover: () => ipcRenderer.invoke('plugin:discover'),
+    install: (meta: { name: string; source: string; downloadUrl: string }) => ipcRenderer.invoke('plugin:install', meta),
+    uninstall: (name: string) => ipcRenderer.invoke('plugin:uninstall', name),
+    listInstalled: () => ipcRenderer.invoke('plugin:list-installed'),
+    getErrors: () => ipcRenderer.invoke('plugin:get-errors'),
+    clearErrors: () => ipcRenderer.invoke('plugin:clear-errors'),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

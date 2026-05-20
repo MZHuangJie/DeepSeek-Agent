@@ -13,7 +13,7 @@ export default defineConfig({
     rollupOptions: {
       external: ['electron'],
     },
-    sourcemap: true,
-    minify: false,
+    sourcemap: process.env.NODE_ENV !== 'production',
+    minify: process.env.NODE_ENV === 'production',
   },
 });

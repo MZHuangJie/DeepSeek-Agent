@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAgentStore, ToolCallEntry } from '../../stores/agent';
 
 function ToolCallRow({ tc }: { tc: ToolCallEntry }) {
@@ -46,6 +46,11 @@ function ToolCallRow({ tc }: { tc: ToolCallEntry }) {
 
 export default function ToolTimeline() {
   const { toolCalls } = useAgentStore();
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [toolCalls]);
 
   return (
     <div style={{ padding: 10, borderBottom: '1px solid var(--border)' }}>
@@ -57,6 +62,7 @@ export default function ToolTimeline() {
       )}
       <div style={{ maxHeight: 200, overflow: 'auto' }}>
         {toolCalls.map(tc => <ToolCallRow key={tc.id} tc={tc} />)}
+        <div ref={bottomRef} />
       </div>
     </div>
   );
