@@ -11,7 +11,7 @@ import ConfirmDialog from './ConfirmDialog';
 import { Command } from '../../commands';
 
 export default function ChatPanel() {
-  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, loadSessions } = useChatStore();
+  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions } = useChatStore();
   const { loadModels, getActiveModel, loadImageModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
@@ -22,6 +22,7 @@ export default function ChatPanel() {
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmReq, setConfirmReq] = useState<{ confirmId: string; name: string } | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set());
+  const currentStepRef = useRef(0);
 
   const projectDir = currentWorkspace || '';
 
@@ -51,9 +52,13 @@ export default function ChatPanel() {
       const lastMsg = sess?.messages.at(-1);
 
       if (chunk.type === 'content') {
+        const step = chunk.step || 1;
+        if (step > currentStepRef.current) {
+          currentStepRef.current = step;
+          useChatStore.getState().newAssistantMessage();
+        }
         update({ content: (lastMsg?.content ?? '') + chunk.text });
         const agentStore = useAgentStore.getState();
-        const step = chunk.step || 1;
         const total = chunk.total || 1;
         agentStore.setCurrentStep({
           step,
@@ -62,8 +67,18 @@ export default function ChatPanel() {
           progress: Math.min(99, Math.round((step / total) * 100)),
         });
       } else if (chunk.type === 'thinking') {
+        const step = chunk.step || 0;
+        if (step > 0 && step > currentStepRef.current) {
+          currentStepRef.current = step;
+          useChatStore.getState().newAssistantMessage();
+        }
         update({ thinkingContent: (lastMsg?.thinkingContent ?? '') + chunk.text });
       } else if (chunk.type === 'tool-call') {
+        const step = chunk.step || 1;
+        if (step > currentStepRef.current) {
+          currentStepRef.current = step;
+          useChatStore.getState().newAssistantMessage();
+        }
         let parsedArgs: Record<string, unknown> = {};
         try { parsedArgs = JSON.parse(chunk.args || '{}'); } catch { parsedArgs = { _raw: chunk.args }; }
         const current = lastMsg?.toolCalls ?? [];
@@ -249,6 +264,7 @@ export default function ChatPanel() {
     }
 
     agentStore.reset();
+    currentStepRef.current = 1;
     addMessage({ id: `msg-${Date.now()}`, role: 'user', content: displayContent, timestamp: Date.now() });
     const assistantId = `msg-${Date.now() + 1}`;
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });

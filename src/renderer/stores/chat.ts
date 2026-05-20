@@ -34,6 +34,7 @@ interface ChatState {
   addMessage: (msg: Message) => void;
   setStreaming: (v: boolean) => void;
   updateLastAssistant: (update: Partial<Message>) => void;
+  newAssistantMessage: () => void;
 }
 
 let sessionCounter = 0;
@@ -122,6 +123,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setStreaming: (v) => set({ isStreaming: v }),
+
+  newAssistantMessage: () => {
+    const { activeSessionId, sessions } = get();
+    const msg: Message = { id: `msg-${Date.now()}`, role: 'assistant', content: '', timestamp: Date.now() };
+    const newSessions = sessions.map(s => {
+      if (s.id !== activeSessionId) return s;
+      return { ...s, messages: [...s.messages, msg] };
+    });
+    const ordered = [newSessions.find(s => s.id === activeSessionId)!, ...newSessions.filter(s => s.id !== activeSessionId)];
+    set({ sessions: ordered });
+    persist(ordered);
+  },
 
   updateLastAssistant: (update) => {
     const { activeSessionId, sessions } = get();

@@ -87,7 +87,7 @@ export function setupAgentHandlers() {
               });
             },
             onThinking: (text) => {
-              win.webContents.send('agent:stream-chunk', { type: 'thinking', text });
+              win.webContents.send('agent:stream-chunk', { type: 'thinking', text, step: turn + 1, total: maxTurns });
             },
           },
           abortController.signal
