@@ -17,17 +17,24 @@ interface FilesState {
   tree: FileNode[];
   openTabs: OpenTab[];
   activeTab: string | null;
+  currentWorkspace: string | null;
+  recentWorkspaces: string[];
   setTree: (tree: FileNode[]) => void;
   openFile: (path: string, name: string) => void;
   closeTab: (path: string) => void;
   setActiveTab: (path: string) => void;
   updateTabContent: (path: string, content: string) => void;
+  loadWorkspace: () => Promise<void>;
+  openWorkspace: (workspacePath: string) => Promise<void>;
+  selectAndOpenWorkspace: () => Promise<void>;
 }
 
 export const useFilesStore = create<FilesState>((set, get) => ({
   tree: [],
   openTabs: [],
   activeTab: null,
+  currentWorkspace: null,
+  recentWorkspaces: [],
   setTree: (tree) => set({ tree }),
   openFile: async (path, name) => {
     const { openTabs } = get();
@@ -55,5 +62,38 @@ export const useFilesStore = create<FilesState>((set, get) => ({
     set(s => ({
       openTabs: s.openTabs.map(t => t.path === path ? { ...t, content } : t)
     }));
+  },
+  loadWorkspace: async () => {
+    try {
+      const cwd = await window.api.files.cwd();
+      const recents = await window.api.files.getRecentWorkspaces();
+      set({ currentWorkspace: cwd, recentWorkspaces: recents });
+    } catch (err) {
+      console.error('Failed to load workspace:', err);
+    }
+  },
+  openWorkspace: async (workspacePath) => {
+    try {
+      const success = await window.api.files.setWorkspace(workspacePath);
+      if (success) {
+        // Clear previous editor tabs and tree, and reload
+        set({ openTabs: [], activeTab: null, tree: [] });
+        await get().loadWorkspace();
+      }
+    } catch (err) {
+      console.error('Failed to open workspace:', err);
+    }
+  },
+  selectAndOpenWorkspace: async () => {
+    try {
+      const selected = await window.api.files.selectWorkspace();
+      if (selected) {
+        // Clear previous tabs and tree, and reload
+        set({ openTabs: [], activeTab: null, tree: [] });
+        await get().loadWorkspace();
+      }
+    } catch (err) {
+      console.error('Failed to select workspace:', err);
+    }
   },
 }));

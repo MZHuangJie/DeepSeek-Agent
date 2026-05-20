@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useChatStore } from '../../stores/chat';
 import { useModelStore } from '../../stores/model';
 import { useAgentStore } from '../../stores/agent';
+import { useFilesStore } from '../../stores/files';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import { Command } from '../../commands';
@@ -9,12 +10,14 @@ import { Command } from '../../commands';
 export default function ChatPanel() {
   const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, loadSessions } = useChatStore();
   const { loadModels, getActiveModel } = useModelStore();
+  const { currentWorkspace, loadWorkspace } = useFilesStore();
   const agentStore = useAgentStore();
   const endRef = useRef<HTMLDivElement>(null);
   const [apiKey, setApiKey] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
-  const [projectDir, setProjectDir] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const projectDir = currentWorkspace || '';
 
   const session = sessions.find(s => s.id === activeSessionId);
   const messages = session?.messages ?? [];
@@ -29,8 +32,7 @@ export default function ChatPanel() {
       const key = await window.api.settings.getApiKey();
       if (key) setApiKey(key);
       else setShowKeyInput(true);
-      const cwd = await window.api.files.cwd();
-      setProjectDir(cwd);
+      await loadWorkspace();
     })();
   }, []);
 

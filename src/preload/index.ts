@@ -10,6 +10,9 @@ const api = {
     list: (dirPath: string) => ipcRenderer.invoke('files:list', dirPath),
     read: (filePath: string) => ipcRenderer.invoke('files:read', filePath),
     cwd: () => ipcRenderer.invoke('files:cwd'),
+    selectWorkspace: () => ipcRenderer.invoke('files:select-workspace'),
+    setWorkspace: (workspacePath: string) => ipcRenderer.invoke('files:set-workspace', workspacePath),
+    getRecentWorkspaces: () => ipcRenderer.invoke('files:get-recent'),
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),

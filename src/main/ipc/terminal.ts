@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { spawn, IPty } from 'node-pty';
+import { getCurrentWorkspace } from './files';
 
 const terminals = new Map<string, IPty>();
 
@@ -10,7 +11,7 @@ export function setupTerminalHandlers() {
     const pty = spawn(
       shell,
       [],
-      { name: 'xterm-color', cols: 80, rows: 24, cwd: process.cwd() }
+      { name: 'xterm-color', cols: 80, rows: 24, cwd: getCurrentWorkspace() }
     );
     terminals.set(id, pty);
     pty.onData((data: string) => {
