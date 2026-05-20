@@ -82,9 +82,16 @@ export default function ChatPanel() {
         });
       } else if (chunk.type === 'tool-result') {
         const current = lastMsg?.toolCalls ?? [];
+        // 从后往前找第一个 status==='running' 且 name 匹配的 tool call
+        const matchedIdx = current.reduceRight((found: number, tc: any, idx: number) => {
+          if (found >= 0) return found;
+          if (tc.status === 'running' && tc.name === chunk.name) return idx;
+          return -1;
+        }, -1);
+        const targetIdx = matchedIdx >= 0 ? matchedIdx : current.length - 1;
         update({
           toolCalls: current.map((tc: any, idx: number) =>
-            idx === current.length - 1
+            idx === targetIdx
               ? { ...tc, result: chunk.result, status: chunk.status }
               : tc
           ),
@@ -104,7 +111,7 @@ export default function ChatPanel() {
           prompt: chunk.prompt,
           completion: chunk.completion,
           toolTokens: 0,
-          contextWindow: chunk.total,
+          contextWindow: chunk.currentPrompt || chunk.prompt || 0,
           contextMax: chunk.contextMax || 100000,
           cost: parseFloat((chunk.total * 0.000002).toFixed(3)),
         });
@@ -196,16 +203,20 @@ export default function ChatPanel() {
         entry.reasoning_content = m.thinkingContent;
       }
       if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
-        entry.tool_calls = m.toolCalls.map(tc => ({
-          id: `call_${tc.timestamp}`,
-          type: 'function',
-          function: { name: tc.name, arguments: JSON.stringify(tc.args) },
-        }));
+        // 只保留有 result 的 tool call（兼容旧数据中因 bug 缺失 result 的记录）
+        const validCalls = m.toolCalls.filter(tc => tc.result !== undefined);
+        if (validCalls.length > 0) {
+          entry.tool_calls = validCalls.map(tc => ({
+            id: `call_${tc.timestamp}`,
+            type: 'function',
+            function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+          }));
+        }
       }
       history.push(entry);
       // 每个带 tool_calls 的 assistant 消息后必须跟随 tool 消息
-      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
-        for (const tc of m.toolCalls) {
+      if (entry.tool_calls && entry.tool_calls.length > 0) {
+        for (const tc of (m.toolCalls ?? [])) {
           if (tc.result !== undefined) {
             history.push({
               role: 'tool',

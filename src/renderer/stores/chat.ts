@@ -82,7 +82,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [],
     };
     set(s => ({
-      sessions: [...s.sessions, session],
+      sessions: [session, ...s.sessions],
       activeSessionId: session.id,
     }));
     window.api.sessions.save(session.id, session.title, '[]');
@@ -102,6 +102,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   addMessage: (msg) => {
     const { activeSessionId, sessions } = get();
+    let modifiedSession: Session | null = null;
     const newSessions = sessions.map(s => {
       if (s.id !== activeSessionId) return s;
       const newMessages = [...s.messages, msg];
@@ -109,16 +110,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (s.messages.length === 0 && msg.role === 'user') {
         title = msg.content.slice(0, 40) + (msg.content.length > 40 ? '...' : '');
       }
-      return { ...s, title, messages: newMessages };
+      modifiedSession = { ...s, title, messages: newMessages };
+      return modifiedSession;
     });
-    set({ sessions: newSessions });
-    persist(newSessions);
+    // 把刚更新的会话移到最前面
+    const ordered = modifiedSession
+      ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
+      : newSessions;
+    set({ sessions: ordered });
+    persist(ordered);
   },
 
   setStreaming: (v) => set({ isStreaming: v }),
 
   updateLastAssistant: (update) => {
     const { activeSessionId, sessions } = get();
+    let modifiedSession: Session | null = null;
     const newSessions = sessions.map(s => {
       if (s.id !== activeSessionId) return s;
       const msgs = [...s.messages];
@@ -126,9 +133,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (last && last.role === 'assistant') {
         msgs[msgs.length - 1] = { ...last, ...update };
       }
-      return { ...s, messages: msgs };
+      modifiedSession = { ...s, messages: msgs };
+      return modifiedSession;
     });
-    set({ sessions: newSessions });
-    persist(newSessions);
+    const ordered = modifiedSession
+      ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
+      : newSessions;
+    set({ sessions: ordered });
+    persist(ordered);
   },
 }));

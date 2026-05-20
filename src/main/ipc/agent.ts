@@ -106,17 +106,19 @@ export function setupAgentHandlers() {
         totalPrompt += result.usage.prompt_tokens;
         totalCompletion += result.usage.completion_tokens;
         totalTokens += result.usage.total_tokens;
+        const currentPrompt = result.usage.prompt_tokens;
         win.webContents.send('agent:stream-chunk', {
           type: 'usage',
           prompt: totalPrompt,
           completion: totalCompletion,
           total: totalTokens,
+          currentPrompt,
           contextMax: payload.contextMax || 100000,
         });
 
         // 上下文压缩：当接近上下文限制时（80%），压缩早期的工具调用结果
         const contextMax = payload.contextMax || 100000;
-        if (totalPrompt > contextMax * 0.8) {
+        if (currentPrompt > contextMax * 0.8) {
           // 找到所有 tool 角色的消息
           const toolMessageIndices: number[] = [];
           for (let i = 0; i < messages.length; i++) {
@@ -211,8 +213,10 @@ export function setupAgentHandlers() {
           }
         }
 
-        // 如果模型在本次对话中使用了任何工具，判定为「探索模式」
-        const isExploreMode = totalToolCalls > 0;
+        // 判断是否为探索任务：使用了工具 && 没有产出实质回复
+        // 如果模型已经完成任务给出了回复，就不强制继续读文件
+        const hasSubstantialOutput = result.content && result.content.length > 200;
+        const isExploreMode = totalToolCalls > 0 && !hasSubstantialOutput;
 
         if (isExploreMode) {
           // 使用 glob 扫描实际的项目文件

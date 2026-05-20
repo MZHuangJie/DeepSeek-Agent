@@ -13,6 +13,14 @@ const api = {
     selectWorkspace: () => ipcRenderer.invoke('files:select-workspace'),
     setWorkspace: (workspacePath: string) => ipcRenderer.invoke('files:set-workspace', workspacePath),
     getRecentWorkspaces: () => ipcRenderer.invoke('files:get-recent'),
+    onTreeChanged: (cb: () => void) => {
+      const handler = () => cb();
+      ipcRenderer.on('files:tree-changed', handler);
+      return () => ipcRenderer.removeListener('files:tree-changed', handler);
+    },
+    createFile: (filePath: string) => ipcRenderer.invoke('files:create-file', filePath),
+    createDirectory: (dirPath: string) => ipcRenderer.invoke('files:create-directory', dirPath),
+    delete: (targetPath: string) => ipcRenderer.invoke('files:delete', targetPath),
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),

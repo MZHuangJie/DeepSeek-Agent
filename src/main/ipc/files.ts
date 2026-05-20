@@ -4,6 +4,29 @@ import path from 'path';
 import { getSetting, setSetting } from '../db/settings';
 
 let currentWorkspace = process.cwd();
+let fileWatcher: fs.FSWatcher | null = null;
+let watchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+function startWatching(win: BrowserWindow) {
+  stopWatching();
+  try {
+    fileWatcher = fs.watch(currentWorkspace, { recursive: true }, () => {
+      if (watchDebounce) clearTimeout(watchDebounce);
+      watchDebounce = setTimeout(() => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('files:tree-changed');
+        }
+      }, 300);
+    });
+  } catch {
+    // fs.watch 在某些系统上可能不可用，静默忽略
+  }
+}
+
+function stopWatching() {
+  if (watchDebounce) { clearTimeout(watchDebounce); watchDebounce = null; }
+  if (fileWatcher) { fileWatcher.close(); fileWatcher = null; }
+}
 
 export function getCurrentWorkspace(): string {
   return currentWorkspace;
@@ -72,13 +95,16 @@ export function setupFileHandlers() {
     const selectedPath = result.filePaths[0];
     currentWorkspace = selectedPath;
     addToRecentWorkspaces(selectedPath);
+    startWatching(win);
     return selectedPath;
   });
 
-  ipcMain.handle('files:set-workspace', async (_event, workspacePath: string) => {
+  ipcMain.handle('files:set-workspace', async (event, workspacePath: string) => {
     if (fs.existsSync(workspacePath)) {
       currentWorkspace = workspacePath;
       addToRecentWorkspaces(workspacePath);
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win) startWatching(win);
       return true;
     }
     return false;
@@ -86,5 +112,34 @@ export function setupFileHandlers() {
 
   ipcMain.handle('files:get-recent', async () => {
     return getRecentWorkspaces();
+  });
+
+  ipcMain.handle('files:create-file', async (_event, filePath: string) => {
+    const safePath = safeResolve(currentWorkspace, filePath);
+    if (fs.existsSync(safePath)) {
+      throw new Error(`文件已存在: ${filePath}`);
+    }
+    fs.writeFileSync(safePath, '');
+    return { success: true };
+  });
+
+  ipcMain.handle('files:create-directory', async (_event, dirPath: string) => {
+    const safePath = safeResolve(currentWorkspace, dirPath);
+    fs.mkdirSync(safePath, { recursive: true });
+    return { success: true };
+  });
+
+  ipcMain.handle('files:delete', async (_event, targetPath: string) => {
+    const safePath = safeResolve(currentWorkspace, targetPath);
+    if (!fs.existsSync(safePath)) {
+      throw new Error(`路径不存在: ${targetPath}`);
+    }
+    const stat = fs.statSync(safePath);
+    if (stat.isDirectory()) {
+      fs.rmSync(safePath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(safePath);
+    }
+    return { success: true };
   });
 }
