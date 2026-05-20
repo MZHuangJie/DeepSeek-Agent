@@ -17,6 +17,11 @@ export function setupTerminalHandlers() {
       const win = BrowserWindow.getAllWindows()[0];
       win?.webContents.send('terminal:data', { id, output: data });
     });
+    pty.onExit(({ exitCode, signal }) => {
+      terminals.delete(id);
+      const win = BrowserWindow.getAllWindows()[0];
+      win?.webContents.send('terminal:exit', { id, exitCode, signal });
+    });
     return id;
   });
 
