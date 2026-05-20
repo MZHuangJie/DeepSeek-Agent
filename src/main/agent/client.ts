@@ -1,5 +1,6 @@
 import https from 'https';
 import http from 'http';
+import { debugLog } from '../logger';
 
 function unwrapNetworkError(err: unknown, hostname: string): Error {
   if (err instanceof Error && err.name === 'AggregateError') {
@@ -81,6 +82,10 @@ export async function streamChat(
     bodyObj.tools = tools;
   }
   const body = JSON.stringify(bodyObj);
+
+  debugLog('[DEBUG streamChat] messages count:', messages.length, 'body size:', body.length, 'tools count:', tools.length);
+  const msgSummary = messages.map((m: any, i: number) => `[${i}] ${m.role}: ${(m.content ?? '').slice(0, 60)}...`).join('\n');
+  debugLog('[DEBUG streamChat] messages summary:\n' + msgSummary);
 
   return new Promise((resolve, reject) => {
     const options = {

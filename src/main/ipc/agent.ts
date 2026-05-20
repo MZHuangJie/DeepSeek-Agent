@@ -6,6 +6,7 @@ import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
 import { getSetting } from '../db/settings';
+import { debugLog } from '../logger';
 
 
 let activeAbort: AbortController | null = null;
@@ -29,6 +30,10 @@ export function setupAgentHandlers() {
     const abortController = new AbortController();
     activeAbort = abortController;
 
+    debugLog('[DEBUG agent:send] payload.messages.length:', payload.messages.length, 'newMessage.length:', payload.newMessage.length, 'mode:', payload.mode);
+    const payloadTotalChars = payload.messages.reduce((sum: number, m: any) => sum + (m.content?.length ?? 0) + (m.reasoning_content?.length ?? 0), 0);
+    debugLog('[DEBUG agent:send] payload messages total chars:', payloadTotalChars);
+
     try {
       const tools = getAllTools(payload.projectDir);
     const projectContext = buildProjectContext(payload.projectDir);
@@ -43,6 +48,9 @@ export function setupAgentHandlers() {
 
     const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
     let messages: any[] = buildMessages(prefix, payload.messages, payload.newMessage);
+
+    const builtTotalChars = messages.reduce((sum: number, m: any) => sum + (m.content?.length ?? 0), 0);
+    debugLog('[DEBUG agent:send] built messages.length:', messages.length, 'total chars:', builtTotalChars, 'sysPrompt length:', prefix.systemPrompt.length, 'projectContext length:', prefix.projectContext.length);
 
     const modelConfig = {
       model: payload.model || 'deepseek-chat',
@@ -59,6 +67,16 @@ export function setupAgentHandlers() {
     // 粗略估算工具调用 token：字符数 / 4（OpenAI tokenizer 近似值）
     function estimateTokens(str: string): number {
       return Math.max(1, Math.ceil(str.length / 4));
+    }
+
+    // 截断 tool result 中的 base64 图片数据，防止上下文膨胀
+    function truncateToolResult(result: string): string {
+      const base64Regex = /data:image\/\w+;base64,[A-Za-z0-9+/=]{500,}/g;
+      if (!base64Regex.test(result)) return result;
+      base64Regex.lastIndex = 0;
+      return result.replace(base64Regex, (match) =>
+        match.slice(0, 80) + `...[base64数据已截断，原长度${match.length}字符]`
+      );
     }
 
     // 动态计算最大轮次：根据项目文件数量（仅编程模式启用多轮工具调用）
@@ -101,15 +119,67 @@ export function setupAgentHandlers() {
       } catch (err: any) {
         if (abortController.signal.aborted) break;
         const message = err?.message || String(err);
-        win.webContents.send('agent:stream-chunk', {
-          type: 'error',
-          message,
-        });
-        win.webContents.send('agent:stream-chunk', { type: 'done' });
-        activeAbort = null;
-        activeSubAgentManager?.cancelAllSubAgents();
-        activeSubAgentManager = null;
-        return { success: false, error: message };
+
+        // 上下文溢出时，激进压缩消息后重试一次
+        const isContextOverflow = message.includes('maximum context length');
+        if (isContextOverflow) {
+          // 先截断过长的 system 消息
+          for (let i = 0; i < messages.length; i++) {
+            if (messages[i].role === 'system' && typeof messages[i].content === 'string' && messages[i].content.length > 500) {
+              messages[i].content = messages[i].content.slice(0, 500) + '\n...[已截断]...';
+            }
+          }
+          // 再压缩所有 tool 消息
+          let compressed = 0;
+          for (let i = 0; i < messages.length; i++) {
+            if (messages[i].role === 'tool' && typeof messages[i].content === 'string' && messages[i].content.length > 100) {
+              messages[i].content = messages[i].content.slice(0, 60) + '\n...[已压缩]...\n' + messages[i].content.slice(-60);
+              compressed++;
+            }
+          }
+          win.webContents.send('agent:stream-chunk', {
+            type: 'content',
+            text: `\n[系统提示：上下文溢出（${message.match(/requested (\d+)/)?.[1] || '?'} tokens），已压缩 ${compressed} 个工具调用结果，正在重试...]\n`,
+            step: turn + 1,
+            total: maxTurns,
+          });
+
+          // 重试本次 API 调用
+          try {
+            result = await streamChat(
+              payload.apiKey,
+              messages,
+              toolSchemas,
+              modelConfig,
+              {
+                onContent: (text) => {
+                  win.webContents.send('agent:stream-chunk', { type: 'content', text, step: turn + 1, total: maxTurns });
+                },
+                onThinking: (text) => {
+                  win.webContents.send('agent:stream-chunk', { type: 'thinking', text, step: turn + 1, total: maxTurns });
+                },
+              },
+              abortController.signal
+            );
+          } catch (retryErr: any) {
+            if (abortController.signal.aborted) break;
+            const retryMsg = retryErr?.message || String(retryErr);
+            win.webContents.send('agent:stream-chunk', { type: 'error', message: retryMsg });
+            win.webContents.send('agent:stream-chunk', { type: 'done' });
+            activeAbort = null;
+            activeSubAgentManager?.cancelAllSubAgents();
+            activeSubAgentManager = null;
+            return { success: false, error: retryMsg };
+          }
+          // 重试成功，跳过原来的 error 发送
+        } else {
+          win.webContents.send('agent:stream-chunk', { type: 'error', message });
+          win.webContents.send('agent:stream-chunk', { type: 'done' });
+          activeAbort = null;
+          activeSubAgentManager?.cancelAllSubAgents();
+          activeSubAgentManager = null;
+          return { success: false, error: message };
+        }
       }
 
       if (abortController.signal.aborted) break;
@@ -226,10 +296,10 @@ export function setupAgentHandlers() {
           }
         }
 
-        // 判断是否为探索任务：使用了工具 && 没有产出实质回复
-        // 如果模型已经完成任务给出了回复，就不强制继续读文件
+        // 判断是否为探索任务：使用了文件读取工具 && 没有产出实质回复
+        // 排除生图、执行命令等与文件探索无关的工具调用
         const hasSubstantialOutput = result.content && result.content.length > 200;
-        const isExploreMode = totalToolCalls > 0 && !hasSubstantialOutput;
+        const isExploreMode = readFileCount > 0 && !hasSubstantialOutput;
 
         if (isExploreMode) {
           // 使用 glob 扫描实际的项目文件
@@ -353,8 +423,9 @@ export function setupAgentHandlers() {
                 status = 'error';
                 win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
                 win.webContents.send('agent:stream-chunk', { type: 'tool-result', name: tc.name, result: toolResult, status, step: turn + 1, total: maxTurns });
-                totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(toolResult);
-                messages.push({ role: 'tool', tool_call_id: tc.id, content: toolResult });
+                const truncatedResult = truncateToolResult(toolResult);
+                totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(truncatedResult);
+                messages.push({ role: 'tool', tool_call_id: tc.id, content: truncatedResult });
                 continue;
               }
             }
@@ -395,11 +466,12 @@ export function setupAgentHandlers() {
           step: turn + 1,
           total: maxTurns,
         });
-        totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(toolResult);
+        const truncatedResult = truncateToolResult(toolResult);
+        totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(truncatedResult);
         messages.push({
           role: 'tool',
           tool_call_id: tc.id,
-          content: toolResult,
+          content: truncatedResult,
         });
       }
     }

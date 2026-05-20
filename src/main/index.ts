@@ -21,6 +21,7 @@ function createWindow() {
   });
 
   mainWindow.setMenu(null);
+  mainWindow.webContents.openDevTools();
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL || '';
   if (devServerUrl) {

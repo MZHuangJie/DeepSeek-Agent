@@ -243,7 +243,24 @@ export default function ChatPanel() {
     if (!apiKey) { setShowKeyInput(true); return; }
     setErrorMsg('');
 
+    console.log('[DEBUG handleSend] activeSessionId:', activeSessionId, 'messages.length:', messages.length);
+    const totalChars = messages.reduce((sum, m) => sum + m.content.length + (m.thinkingContent?.length ?? 0), 0);
+    console.log('[DEBUG handleSend] totalChars in messages:', totalChars);
+
     const displayContent = command ? `/${command.name} ${content}` : content;
+
+    // 截断 tool result 中的 base64 图片数据，避免历史消息膨胀
+    function truncateToolResult(result: string): string {
+      if (typeof result !== 'string') return result;
+      // 匹配 data:image/xxx;base64, 后跟大量 base64 字符
+      const base64Regex = /data:image\/\w+;base64,[A-Za-z0-9+/=]{500,}/g;
+      if (!base64Regex.test(result)) return result;
+      base64Regex.lastIndex = 0;
+      return result.replace(base64Regex, (match) =>
+        match.slice(0, 80) + `...[base64数据已截断，原长度${match.length}字符]`
+      );
+    }
+
     const history: any[] = [];
     for (const m of messages) {
       const entry: any = { role: m.role, content: m.content };
@@ -269,7 +286,7 @@ export default function ChatPanel() {
             history.push({
               role: 'tool',
               tool_call_id: `call_${tc.timestamp}`,
-              content: tc.result,
+              content: truncateToolResult(tc.result),
             });
           }
         }

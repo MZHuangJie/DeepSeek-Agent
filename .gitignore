@@ -21,3 +21,4 @@ SECURITY_AUDIT.md
 *.tgz
 .claude/
 src/renderer/public/vs/
+logs/

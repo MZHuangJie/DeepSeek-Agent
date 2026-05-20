@@ -91,10 +91,20 @@ function looksLikeImageLink(text: string): boolean {
 
 function ImageCard({ url, alt }: { url: string; alt: string }) {
   const [loaded, setLoaded] = useState(true);
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
 
   useEffect(() => {
     setLoaded(true);
+    // file:// URL 需要转成 data URI 才能被渲染进程加载
+    if (url.startsWith('file:///')) {
+      const filePath = url.replace('file:///', '').replace(/\//g, '\\');
+      window.api.files.readBinary(filePath).then(setResolvedSrc).catch(() => setLoaded(false));
+    } else {
+      setResolvedSrc(url);
+    }
   }, [url]);
+
+  const src = resolvedSrc || url;
 
   if (!loaded) {
     return (
@@ -146,6 +156,9 @@ function MessageContent({ content }: { content: string }) {
   const imageContext = isImageGenerationContext(content);
 
   if (parts.length === 1 && parts[0].type === 'text') {
+    if (isImageUrl(content.trim()) || content.trim().startsWith('data:image/')) {
+      return <ImageCard url={content.trim()} alt="" />;
+    }
     return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{content}</div>;
   }
 
@@ -238,7 +251,10 @@ export default function MessageBubble({ message }: Props) {
           <ThinkingChain text={message.thinkingContent!} hasContent={hasContent} />
         )}
 
-        {/* 2. Response content bubble rendered after thinking is done */}
+        {/* 2. Tool call progress — always show if running, even without content */}
+        <ToolCallProgress toolCalls={message.toolCalls} />
+
+        {/* 3. Response content bubble rendered after thinking is done */}
         {showContentBubble && (
           <div style={{
             padding: '10px 14px', borderRadius: 8,
@@ -247,7 +263,6 @@ export default function MessageBubble({ message }: Props) {
             fontSize: 13, lineHeight: 1.5,
           }}>
             <MessageContent content={message.content || '...'} />
-            <ToolCallProgress toolCalls={message.toolCalls} />
           </div>
         )}
       </div>
