@@ -1,0 +1,82 @@
+<h2>修订版布局 — 去除 Activity Bar</h2>
+<p class="subtitle">侧边栏直接分为文件树 + 会话列表，用 Tab 切换</p>
+
+<div class="mockup">
+  <div class="mockup-header">最终布局 — 四大区域</div>
+  <div class="mockup-body">
+    <div style="display:flex;height:500px;">
+      <!-- Sidebar -->
+      <div class="mock-sidebar" style="width:240px;flex-shrink:0;overflow:auto;">
+        <div style="display:flex;border-bottom:1px solid #444;">
+          <div style="flex:1;text-align:center;padding:8px;font-size:12px;border-bottom:2px solid #7c3aed;color:#7c3aed;font-weight:bold;">📁 文件</div>
+          <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:#888;">💬 会话</div>
+        </div>
+        <div style="padding:4px 8px;">📂 src/</div>
+        <div style="padding:4px 16px;">📄 main.py</div>
+        <div style="padding:4px 16px;">📄 agent.ts</div>
+        <div style="padding:4px 16px;">📄 ChatPanel.tsx</div>
+        <div style="padding:4px 8px;">📂 components/</div>
+        <div style="padding:4px 8px;">📂 utils/</div>
+      </div>
+      <!-- Main Content -->
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <div class="mock-nav" style="flex-shrink:0;">📄 main.py &nbsp; 📄 agent.ts &nbsp; 💬 会话 #3</div>
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <div class="mock-content" style="flex:1;padding:12px;">
+            <div style="display:flex;height:100%;gap:10px;">
+              <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid #e0e0e0;padding-right:10px;">
+                <div style="flex:1;overflow:auto;">
+                  <div class="placeholder" style="margin:4px;background:#e8f0fe;height:50px;">👤 帮我重构 main.py 里的 auth 逻辑</div>
+                  <div class="placeholder" style="margin:4px;background:#f5f5f5;height:90px;">🤖 DeepSeek:<br/>我来分析 auth 模块... [展开思考链]</div>
+                  <div class="placeholder" style="margin:4px;background:#e8f0fe;height:50px;">👤 请说明你的重构思路</div>
+                  <div class="placeholder" style="margin:4px;background:#f5f5f5;height:70px;">🤖 DeepSeek:<br/>1. 拆分 validate_token<br/>2. 提取配置...</div>
+                </div>
+                <div class="mock-input" style="margin-top:8px;">输入消息... (Shift+Enter 发送)</div>
+              </div>
+              <div style="flex:1;padding-left:10px;">
+                <pre style="font-size:13px;color:#ccc;">1  <span style="color:#569cd6;">import</span> jwt
+2  <span style="color:#569cd6;">from</span> datetime <span style="color:#569cd6;">import</span> datetime
+3
+4  <span style="color:#569cd6;">def</span> <span style="color:#dcdcaa;">validate_token</span>(token: str) -> dict:
+5      <span style="color:#6a9955;">"""验证 JWT token"""</span>
+6      <span style="color:#569cd6;">try</span>:
+7          payload = jwt.decode(
+8              token, key=SECRET_KEY,
+9              algorithms=[<span style="color:#ce9178;">"HS256"</span>]
+10         )
+11         <span style="color:#569cd6;">return</span> payload
+12     <span style="color:#569cd6;">except</span> jwt.ExpiredSignatureError:
+13         <span style="color:#569cd6;">raise</span> AuthError(<span style="color:#ce9178;">"Token 过期"</span>)</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="placeholder" style="height:100px;background:#0d0d0d;color:#0f0;font-family:monospace;padding:8px;">PS D:\projects> python main.py<br/>Server started on port 8000</div>
+      </div>
+      <!-- Agent Viz Panel -->
+      <div class="mock-sidebar" style="width:280px;flex-shrink:0;overflow:auto;border-left:2px solid #e0e0e0;">
+        <div style="padding:10px;font-weight:bold;font-size:13px;border-bottom:1px solid #e0e0e0;">🧠 Agent 可观测</div>
+        <div style="padding:8px;">
+          <div style="font-size:11px;color:#888;margin-bottom:6px;">当前步骤</div>
+          <div class="placeholder" style="background:#e8f0fe;padding:8px;font-size:12px;">💭 分析 auth 模块结构...</div>
+          <div style="font-size:11px;color:#888;margin:6px 0;">工具调用</div>
+          <div class="placeholder" style="background:#fff3e0;padding:6px;font-size:11px;margin:2px 0;">🔧 read_file("main.py")</div>
+          <div class="placeholder" style="background:#fff3e0;padding:6px;font-size:11px;margin:2px 0;">🔧 grep("validate_token")</div>
+          <div class="placeholder" style="background:#e8f5e9;padding:6px;font-size:11px;margin:2px 0;">✅ 完成: 找到 3 处引用</div>
+          <div style="font-size:11px;color:#888;margin:6px 0;">Token 消耗</div>
+          <div style="font-size:11px;">输入: 1,240 &nbsp; 输出: 856</div>
+          <div style="font-size:11px;color:#888;">💰 预估 ¥0.03</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <h3>变更说明</h3>
+  <ul>
+    <li>去掉了最左侧 44px 图标栏，节省空间给主区域</li>
+    <li>侧边栏顶部用 Tab 切换「文件」和「会话」两个视图</li>
+    <li>整体从五区域简化为四区域：侧边栏 | 编辑器+聊天 | Agent 面板 | 终端</li>
+  </ul>
+</div>
