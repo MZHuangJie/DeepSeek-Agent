@@ -83,6 +83,12 @@ function isImageUrl(url: string): boolean {
   return false;
 }
 
+function looksLikeImageLink(text: string): boolean {
+  const lower = text.toLowerCase();
+  const imageKeywords = ['图', '图片', '下载', 'image', 'photo', 'pic', 'download', '原图', '查看'];
+  return imageKeywords.some(k => lower.includes(k));
+}
+
 function ImageCard({ url, alt }: { url: string; alt: string }) {
   const [loaded, setLoaded] = useState(true);
 
@@ -142,8 +148,8 @@ function MessageContent({ content }: { content: string }) {
           return <ImageCard key={idx} url={part.url} alt={part.alt} />;
         }
         if (part.type === 'link') {
-          // 智能识别：链接如果指向图片，直接渲染为图片
-          if (isImageUrl(part.url)) {
+          // 智能识别：URL 明显是图片，或链接文字暗示是图片
+          if (isImageUrl(part.url) || looksLikeImageLink(part.text)) {
             return <ImageCard key={idx} url={part.url} alt={part.text} />;
           }
           return (
