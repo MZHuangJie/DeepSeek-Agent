@@ -85,7 +85,7 @@ function isImageUrl(url: string): boolean {
 
 function looksLikeImageLink(text: string): boolean {
   const lower = text.toLowerCase();
-  const imageKeywords = ['图', '图片', '下载', 'image', 'photo', 'pic', 'download', '原图', '查看'];
+  const imageKeywords = ['图', '图片', '下载', 'image', 'photo', 'pic', 'download', '原图', '查看', '生成'];
   return imageKeywords.some(k => lower.includes(k));
 }
 
@@ -131,8 +131,15 @@ function ImageCard({ url, alt }: { url: string; alt: string }) {
   );
 }
 
+function isImageGenerationContext(content: string): boolean {
+  const lower = content.toLowerCase();
+  return lower.includes('generate_image') || lower.includes('generateimage') ||
+    lower.includes('生成') && (lower.includes('图') || lower.includes('画') || lower.includes('image'));
+}
+
 function MessageContent({ content }: { content: string }) {
   const parts = parseMarkdown(content);
+  const imageContext = isImageGenerationContext(content);
 
   if (parts.length === 1 && parts[0].type === 'text') {
     return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{content}</div>;
@@ -148,8 +155,11 @@ function MessageContent({ content }: { content: string }) {
           return <ImageCard key={idx} url={part.url} alt={part.alt} />;
         }
         if (part.type === 'link') {
-          // 智能识别：URL 明显是图片，或链接文字暗示是图片
-          if (isImageUrl(part.url) || looksLikeImageLink(part.text)) {
+          // 智能识别：
+          // 1. URL 明显是图片
+          // 2. 链接文字暗示是图片
+          // 3. 整条消息处于生图上下文中（DeepSeek 调用 generate_image 后的回复）
+          if (isImageUrl(part.url) || looksLikeImageLink(part.text) || imageContext) {
             return <ImageCard key={idx} url={part.url} alt={part.text} />;
           }
           return (
