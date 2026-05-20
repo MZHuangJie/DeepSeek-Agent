@@ -128,6 +128,12 @@ export default function FileTree() {
           }
           nodes.push(node);
         }
+        // 排序：文件夹在上，文件在下，组内按字母表升序排序
+        nodes.sort((a, b) => {
+          if (a.isDirectory && !b.isDirectory) return -1;
+          if (!a.isDirectory && b.isDirectory) return 1;
+          return a.name.localeCompare(b.name);
+        });
         return nodes;
       };
       const treeData = await buildTree(entries);
