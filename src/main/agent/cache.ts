@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 export interface CachePrefix {
   systemPrompt: string;
   projectContext: string;
@@ -7,11 +9,7 @@ let cachedPrefix: CachePrefix | null = null;
 let lastHash = '';
 
 function hash(str: string): string {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  }
-  return h.toString(36);
+  return crypto.createHash('sha256').update(str).digest('hex');
 }
 
 export function buildCachePrefix(systemPrompt: string, projectContext: string): CachePrefix {
