@@ -3,7 +3,7 @@ import { useTerminalStore } from '../../stores/terminal';
 import { useLayoutStore } from '../../stores/layout';
 
 export default function TerminalTabs() {
-  const { terminals, activeTermId, createTerminal, closeTerminal, setActiveTerm } = useTerminalStore();
+  const { terminals, activeTermId, createTerminal, closeTerminal } = useTerminalStore();
   const { bottomExpanded, toggleBottomExpanded, setBottomClosed, setBottomExpanded, terminalHeight, setTerminalHeight } = useLayoutStore();
   const [shellOpen, setShellOpen] = useState(false);
   const isWin = navigator.userAgent.includes('Windows');
@@ -25,7 +25,7 @@ export default function TerminalTabs() {
       display: 'flex', alignItems: 'center', background: 'var(--bg-secondary)',
       borderBottom: '1px solid var(--border)', height: 28, flexShrink: 0,
     }}>
-      {/* Left: TERMINAL label + instance tabs */}
+      {/* Left: TERMINAL label */}
       <div style={{ display: 'flex', height: '100%', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
         <div style={{
           padding: '0 10px', display: 'flex', alignItems: 'center', height: '100%',
@@ -36,42 +36,6 @@ export default function TerminalTabs() {
         }}>
           TERMINAL
         </div>
-
-        <div style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 4px' }} />
-        {terminals.map(t => (
-          <div
-            key={t.id}
-            onClick={() => setActiveTerm(t.id)}
-            style={{
-              padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4,
-              height: '100%', cursor: 'pointer', fontSize: 11,
-              color: t.id === activeTermId ? '#fff' : 'var(--text-secondary)',
-              borderTop: t.id === activeTermId ? '1px solid #fff' : '1px solid transparent',
-              background: t.id === activeTermId ? 'var(--terminal-bg)' : 'transparent',
-            }}
-          >
-            <span style={{ opacity: 0.7, fontFamily: 'Consolas, monospace', fontSize: 10 }}>{'>'}</span>
-            <span>{t.name}</span>
-            <span
-              onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
-              style={{
-                marginLeft: 2, opacity: 0.5, cursor: 'pointer', fontSize: 12,
-                padding: '2px 4px', borderRadius: 3, transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.opacity = '1';
-                e.currentTarget.style.background = 'var(--bg-tertiary)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.opacity = '0.5';
-                e.currentTarget.style.background = 'transparent';
-              }}
-              title="关闭终端"
-            >
-              ×
-            </span>
-          </div>
-        ))}
       </div>
 
       {/* Right controls */}
@@ -105,7 +69,7 @@ export default function TerminalTabs() {
               borderRadius: 4, padding: '4px 0', minWidth: 100, zIndex: 100,
               boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
             }}>
-              {['bash', 'powershell', 'cmd', 'zsh'].map(s => (
+              {SHELLS.map(s => (
                 <div
                   key={s}
                   onClick={() => handleShellSelect(s)}

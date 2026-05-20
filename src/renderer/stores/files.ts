@@ -23,6 +23,9 @@ interface FilesState {
   setTree: (tree: FileNode[]) => void;
   openFile: (path: string, name: string) => void;
   closeTab: (path: string) => void;
+  closeTabsToRight: (path: string) => void;
+  closeOtherTabs: (path: string) => void;
+  closeAllTabs: () => void;
   setActiveTab: (path: string) => void;
   updateTabContent: (path: string, content: string) => void;
   saveFile: (path: string) => Promise<void>;
@@ -59,6 +62,22 @@ export const useFilesStore = create<FilesState>((set, get) => ({
       ? newTabs[Math.min(idx, newTabs.length - 1)]?.path ?? null
       : activeTab;
     set({ openTabs: newTabs, activeTab: newActive });
+  },
+  closeTabsToRight: (path) => {
+    const { openTabs, activeTab } = get();
+    const idx = openTabs.findIndex(t => t.path === path);
+    const newTabs = openTabs.slice(0, idx + 1);
+    const newActive = newTabs.find(t => t.path === activeTab) ? activeTab : path;
+    set({ openTabs: newTabs, activeTab: newActive });
+  },
+  closeOtherTabs: (path) => {
+    const tab = get().openTabs.find(t => t.path === path);
+    if (tab) {
+      set({ openTabs: [tab], activeTab: path });
+    }
+  },
+  closeAllTabs: () => {
+    set({ openTabs: [], activeTab: null });
   },
   setActiveTab: (path) => set({ activeTab: path }),
   updateTabContent: (path, content) => {

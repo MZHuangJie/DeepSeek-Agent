@@ -23,6 +23,7 @@ const api = {
     delete: (targetPath: string) => ipcRenderer.invoke('files:delete', targetPath),
     write: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content),
     readBinary: (filePath: string) => ipcRenderer.invoke('files:readBinary', filePath),
+    showInExplorer: (filePath: string) => ipcRenderer.invoke('files:show-in-explorer', filePath),
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),

@@ -21,7 +21,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const isWin = navigator.userAgent.includes('Windows');
     const shellName = shell || (isWin ? 'powershell' : 'bash');
     set(s => ({
-      terminals: [...s.terminals, { id, name: `${shellName} (${s.terminals.length + 1})` }],
+      terminals: [...s.terminals, { id, name: shellName }],
       activeTermId: id,
     }));
   },

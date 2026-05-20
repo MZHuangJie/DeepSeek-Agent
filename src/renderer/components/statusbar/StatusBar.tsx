@@ -6,7 +6,7 @@ interface Props {
 }
 
 export default function StatusBar({ language }: Props) {
-  const { line, column, insertSpaces, tabSize, eol, encoding } = useEditorStore();
+  const { line, column, insertSpaces, tabSize, eol, encoding, errorCount, warningCount } = useEditorStore();
   const [indentMenuOpen, setIndentMenuOpen] = useState(false);
   const [eolMenuOpen, setEolMenuOpen] = useState(false);
 
@@ -30,11 +30,11 @@ export default function StatusBar({ language }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <StatusItem>
           <span style={{ fontSize: 14, marginRight: 2 }}>×</span>
-          <span>0</span>
+          <span>{errorCount}</span>
         </StatusItem>
         <StatusItem>
           <span style={{ fontSize: 14, marginRight: 2 }}>⚠</span>
-          <span>0</span>
+          <span>{warningCount}</span>
         </StatusItem>
       </div>
 

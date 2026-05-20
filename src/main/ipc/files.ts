@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron';
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { getSetting, setSetting } from '../db/settings';
@@ -168,6 +168,14 @@ export function setupFileHandlers() {
       fs.rmSync(safePath, { recursive: true, force: true });
     } else {
       fs.unlinkSync(safePath);
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle('files:show-in-explorer', async (_event, filePath: string) => {
+    const safePath = safeResolve(currentWorkspace, filePath);
+    if (fs.existsSync(safePath)) {
+      shell.showItemInFolder(safePath);
     }
     return { success: true };
   });
