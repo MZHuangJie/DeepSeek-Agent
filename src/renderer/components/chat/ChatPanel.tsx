@@ -1,0 +1,266 @@
+import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { useChatStore } from '../../stores/chat';
+import { useModelStore } from '../../stores/model';
+import { useAgentStore } from '../../stores/agent';
+import MessageBubble from './MessageBubble';
+import ChatInput from './ChatInput';
+import { Command } from '../../commands';
+
+export default function ChatPanel() {
+  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, loadSessions } = useChatStore();
+  const { loadModels, getActiveModel } = useModelStore();
+  const agentStore = useAgentStore();
+  const endRef = useRef<HTMLDivElement>(null);
+  const [apiKey, setApiKey] = useState('');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [projectDir, setProjectDir] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const session = sessions.find(s => s.id === activeSessionId);
+  const messages = session?.messages ?? [];
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // Load API key & project dir & models & sessions on mount
+  useEffect(() => {
+    (async () => {
+      await loadModels();
+      await loadSessions();
+      const key = await window.api.settings.getApiKey();
+      if (key) setApiKey(key);
+      else setShowKeyInput(true);
+      const cwd = await window.api.files.cwd();
+      setProjectDir(cwd);
+    })();
+  }, []);
+
+  // Listen to agent stream chunks
+  useEffect(() => {
+    const unsubscribe = window.api.agent.onStreamChunk((chunk: any) => {
+      const { sessions, activeSessionId, updateLastAssistant: update, setStreaming: setStream } = useChatStore.getState();
+      const sess = sessions.find(s => s.id === activeSessionId);
+      const lastMsg = sess?.messages.at(-1);
+
+      if (chunk.type === 'content') {
+        update({ content: (lastMsg?.content ?? '') + chunk.text });
+        const agentStore = useAgentStore.getState();
+        agentStore.setCurrentStep({
+          step: 1, total: 1,
+          description: (lastMsg?.content ?? '') + chunk.text,
+          progress: 50,
+        });
+      } else if (chunk.type === 'thinking') {
+        update({ thinkingContent: (lastMsg?.thinkingContent ?? '') + chunk.text });
+      } else if (chunk.type === 'tool-call') {
+        let parsedArgs: Record<string, unknown> = {};
+        try { parsedArgs = JSON.parse(chunk.args || '{}'); } catch { parsedArgs = { _raw: chunk.args }; }
+        const current = lastMsg?.toolCalls ?? [];
+        update({
+          toolCalls: [
+            ...current,
+            { name: chunk.name, args: parsedArgs, status: 'running', timestamp: Date.now() },
+          ],
+        });
+        const agentStore = useAgentStore.getState();
+        agentStore.addToolCall({
+          id: `tc-${Date.now()}`,
+          name: chunk.name,
+          args: chunk.args || '{}',
+          status: 'running',
+          timestamp: Date.now(),
+        });
+        agentStore.setCurrentStep({
+          step: 1, total: 1,
+          description: `正在调用工具: ${chunk.name}`,
+          progress: 70,
+        });
+      } else if (chunk.type === 'tool-result') {
+        const current = lastMsg?.toolCalls ?? [];
+        update({
+          toolCalls: current.map((tc: any, idx: number) =>
+            idx === current.length - 1
+              ? { ...tc, result: chunk.result, status: chunk.status }
+              : tc
+          ),
+        });
+        const agentStore = useAgentStore.getState();
+        const lastTc = agentStore.toolCalls[agentStore.toolCalls.length - 1];
+        if (lastTc) {
+          agentStore.updateToolCall(lastTc.id, {
+            result: chunk.result,
+            status: chunk.status,
+          });
+        }
+      } else if (chunk.type === 'usage') {
+        const agentStore = useAgentStore.getState();
+        agentStore.setTokenStats({
+          total: chunk.total,
+          prompt: chunk.prompt,
+          completion: chunk.completion,
+          toolTokens: 0,
+          contextWindow: chunk.total,
+          contextMax: chunk.contextMax || 100000,
+          cost: parseFloat((chunk.total * 0.000002).toFixed(3)),
+        });
+      } else if (chunk.type === 'done') {
+        setStream(false);
+        const agentStore = useAgentStore.getState();
+        agentStore.setCurrentStep({
+          step: 1, total: 1,
+          description: '已完成',
+          progress: 100,
+        });
+      } else if (chunk.type === 'sub-agent-start') {
+        const agentStore = useAgentStore.getState();
+        agentStore.addSubAgent({
+          id: chunk.taskId,
+          type: chunk.subAgentType,
+          targetPath: chunk.targetPath || '',
+          status: 'running',
+          filesProcessed: 0,
+          tokenUsage: { prompt: 0, completion: 0, total: 0 },
+          findings: [],
+          startTime: Date.now(),
+        });
+      } else if (chunk.type === 'sub-agent-tool-call') {
+        const agentStore = useAgentStore.getState();
+        const sa = agentStore.subAgents.find(s => s.id === chunk.taskId);
+        if (sa && chunk.name === 'read_file') {
+          agentStore.updateSubAgent(chunk.taskId, {
+            filesProcessed: sa.filesProcessed + 1,
+          });
+        }
+      } else if (chunk.type === 'sub-agent-usage') {
+        const agentStore = useAgentStore.getState();
+        agentStore.updateSubAgent(chunk.taskId, {
+          tokenUsage: {
+            prompt: chunk.prompt,
+            completion: chunk.completion,
+            total: chunk.total,
+          },
+        });
+      } else if (chunk.type === 'sub-agent-complete') {
+        const agentStore = useAgentStore.getState();
+        agentStore.updateSubAgent(chunk.taskId, {
+          status: chunk.success ? 'completed' : 'failed',
+          summary: chunk.summary,
+          filesProcessed: chunk.filesProcessed ?? 0,
+          tokenUsage: chunk.tokenUsage ?? { prompt: 0, completion: 0, total: 0 },
+          endTime: Date.now(),
+        });
+      } else if (chunk.type === 'sub-agent-error') {
+        const agentStore = useAgentStore.getState();
+        agentStore.updateSubAgent(chunk.taskId, {
+          status: 'failed',
+          error: chunk.error,
+          endTime: Date.now(),
+        });
+      } else if (chunk.type === 'error') {
+        setStream(false);
+        setErrorMsg(chunk.message);
+      }
+    });
+    return () => { unsubscribe(); };
+  }, []);
+
+  const handleSaveKey = async () => {
+    if (!apiKey.trim()) return;
+    await window.api.settings.setApiKey(apiKey.trim());
+    setErrorMsg('');
+    setShowKeyInput(false);
+  };
+
+  const handleStop = useCallback(async () => {
+    await window.api.agent.cancel();
+    setStreaming(false);
+  }, []);
+
+  const handleSend = useCallback(async (content: string, command?: Command) => {
+    if (!activeSessionId) return;
+    if (!apiKey) { setShowKeyInput(true); return; }
+    setErrorMsg('');
+
+    const displayContent = command ? `/${command.name} ${content}` : content;
+    const history = messages.map(m => ({ role: m.role, content: m.content }));
+
+    agentStore.reset();
+    addMessage({ id: `msg-${Date.now()}`, role: 'user', content: displayContent, timestamp: Date.now() });
+    const assistantId = `msg-${Date.now() + 1}`;
+    addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });
+    setStreaming(true);
+
+    const modelConfig = getActiveModel();
+    try {
+      await window.api.agent.send({
+        messages: history,
+        apiKey,
+        projectDir,
+        newMessage: content || displayContent,
+        model: modelConfig.model,
+        baseUrl: modelConfig.baseUrl,
+        contextMax: modelConfig.contextWindow || 64000,
+        commandPrompt: command?.systemPrompt,
+      });
+    } catch (err: any) {
+      setStreaming(false);
+      setErrorMsg(err.message || '请求失败');
+    }
+  }, [activeSessionId, apiKey, projectDir, messages, addMessage, setStreaming]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
+            <div style={{ marginBottom: 12 }}><img src="/assets/logo.png" alt="ai" style={{ width: 48, height: 44 }} /></div>
+            <div style={{ fontSize: 14 }}>开始与 DeepSeek Agent 对话</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>输入消息或 @ 引用文件</div>
+          </div>
+        )}
+        {messages.map(msg => <MessageBubble key={msg.id} message={msg} />)}
+        {isStreaming && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--text-secondary)', fontSize: 12, padding: '4px 0' }}>
+            <span style={{ animation: 'pulse 1s infinite' }}><img src="/assets/8.png" alt="thinking" style={{ width: 16, height: 16 }} /></span>
+            <span>思考中...</span>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      {(showKeyInput || errorMsg) && (
+        <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+          {showKeyInput && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: errorMsg ? 8 : 0 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>API Key:</span>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
+                placeholder="输入 DeepSeek API Key"
+                style={{
+                  flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 4,
+                  color: 'var(--text-primary)', padding: '4px 8px', fontSize: 12, outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleSaveKey}
+                style={{
+                  background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 4,
+                  padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+                }}
+              >
+                保存
+              </button>
+            </div>
+          )}
+          {errorMsg && (
+            <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 4 }}>{errorMsg}</div>
+          )}
+        </div>
+      )}
+
+      <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} />
+    </div>
+  );
+}

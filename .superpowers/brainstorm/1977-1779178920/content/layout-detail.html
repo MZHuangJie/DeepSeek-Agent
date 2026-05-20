@@ -1,0 +1,97 @@
+<h2>详细布局设计</h2>
+<p class="subtitle">基于方案 A 的具体面板划分和尺寸比例</p>
+
+<div class="mockup">
+  <div class="mockup-header">整体布局 — 五大区域</div>
+  <div class="mockup-body">
+    <div style="display:flex;height:500px;">
+      <!-- Activity Bar -->
+      <div class="mock-sidebar" style="width:44px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:12px;padding-top:10px;font-size:18px;">
+        <span title="文件">📁</span>
+        <span title="搜索">🔍</span>
+        <span title="Agent">🤖</span>
+        <span title="设置">⚙️</span>
+      </div>
+      <!-- Sidebar -->
+      <div class="mock-sidebar" style="width:220px;flex-shrink:0;overflow:auto;">
+        <div style="padding:8px;font-weight:bold;font-size:12px;text-transform:uppercase;color:#888;">文件资源管理器</div>
+        <div style="padding:4px 8px;">📂 src/</div>
+        <div style="padding:4px 16px;">📄 main.py</div>
+        <div style="padding:4px 16px;">📄 agent.ts</div>
+        <div style="padding:4px 8px;">📂 components/</div>
+        <div style="padding:4px 16px;">📄 ChatPanel.tsx</div>
+        <div style="padding:4px 16px;">📄 VizPanel.tsx</div>
+        <div style="margin-top:20px;padding:8px;font-weight:bold;font-size:12px;text-transform:uppercase;color:#888;">会话列表</div>
+        <div style="padding:4px 8px;">💬 重构 user_auth</div>
+        <div style="padding:4px 8px;">💬 调试 API 接口</div>
+      </div>
+      <!-- Main Content -->
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <!-- Tabs -->
+        <div class="mock-nav" style="flex-shrink:0;">📄 main.py &nbsp; 📄 agent.ts &nbsp; 💬 会话 #3</div>
+        <!-- Editor + Chat split -->
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <div class="mock-content" style="flex:1;padding:12px;">
+            <div style="display:flex;height:100%;gap:10px;">
+              <!-- Chat Panel (left bottom) -->
+              <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid #e0e0e0;padding-right:10px;">
+                <div style="flex:1;overflow:auto;">
+                  <div class="placeholder" style="margin:4px;background:#e8f0fe;height:50px;">👤 帮我重构 main.py 里的 auth 逻辑</div>
+                  <div class="placeholder" style="margin:4px;background:#f5f5f5;height:90px;">🤖 DeepSeek:<br/>我来分析 auth 模块... [展开思考链]</div>
+                  <div class="placeholder" style="margin:4px;background:#e8f0fe;height:50px;">👤 请说明你的重构思路</div>
+                  <div class="placeholder" style="margin:4px;background:#f5f5f5;height:70px;">🤖 DeepSeek:<br/>1. 拆分 validate_token...<br/>2. 提取配置...</div>
+                </div>
+                <div class="mock-input" style="margin-top:8px;">输入消息... (Shift+Enter 发送)</div>
+              </div>
+              <!-- Code Editor (right top) -->
+              <div style="flex:1;padding-left:10px;overflow:auto;">
+                <pre style="font-size:13px;color:#333;">1  <span style="color:blue;">import</span> jwt
+2  <span style="color:blue;">from</span> datetime <span style="color:blue;">import</span> datetime
+3
+4  <span style="color:blue;">def</span> <span style="color:green;">validate_token</span>(token: str) -> dict:
+5      <span style="color:gray;">"""验证 JWT token"""</span>
+6      <span style="color:blue;">try</span>:
+7          payload = jwt.decode(
+8              token,
+9              key=SECRET_KEY,
+10             algorithms=[<span style="color:green;">"HS256"</span>]
+11         )
+12         <span style="color:blue;">return</span> payload
+13     <span style="color:blue;">except</span> jwt.ExpiredSignatureError:
+14         <span style="color:blue;">raise</span> AuthError(<span style="color:green;">"Token 已过期"</span>)</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Terminal -->
+        <div class="placeholder" style="height:100px;background:#1e1e1e;color:#0f0;font-family:monospace;padding:8px;">PS D:\projects&gt; python main.py<br/>Server started on port 8000</div>
+      </div>
+      <!-- Agent Viz Panel -->
+      <div class="mock-sidebar" style="width:280px;flex-shrink:0;overflow:auto;border-left:2px solid #e0e0e0;">
+        <div style="padding:10px;font-weight:bold;font-size:13px;border-bottom:1px solid #e0e0e0;">🧠 Agent 可观测面板</div>
+        <div style="padding:8px;">
+          <div style="font-size:11px;color:#888;margin-bottom:6px;">当前步骤</div>
+          <div class="placeholder" style="background:#e8f0fe;padding:8px;font-size:12px;">💭 分析 auth 模块结构...</div>
+          <div style="font-size:11px;color:#888;margin:6px 0;">工具调用历史</div>
+          <div class="placeholder" style="background:#fff3e0;padding:6px;font-size:11px;margin:2px 0;">🔧 read_file("main.py")</div>
+          <div class="placeholder" style="background:#fff3e0;padding:6px;font-size:11px;margin:2px 0;">🔧 grep("validate_token")</div>
+          <div class="placeholder" style="background:#e8f5e9;padding:6px;font-size:11px;margin:2px 0;">✅ 完成: 找到 3 处引用</div>
+          <div style="font-size:11px;color:#888;margin:6px 0;">Token 消耗</div>
+          <div style="font-size:11px;">输入: 1,240 tokens</div>
+          <div style="font-size:11px;">输出: 856 tokens</div>
+          <div style="font-size:11px;color:#888;">💰 预估: ¥0.03</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>关键设计决策</h3>
+  <ul>
+    <li><strong>Activity Bar（最左 44px）</strong>：切换主侧边栏内容（文件/搜索/Agent/设置），类似 VS Code 的图标栏</li>
+    <li><strong>编辑器+聊天上下分屏</strong>：上方代码编辑器，下方聊天面板，可拖拽调整比例。编辑器独占时聊天收缩到底部</li>
+    <li><strong>Agent 可观测面板（右侧 280px）</strong>：独立展示思考链、工具调用时间线、Token 统计。可折叠</li>
+    <li><strong>底部终端</strong>：集成终端，Agent 执行的命令在此显示</li>
+  </ul>
+</div>
