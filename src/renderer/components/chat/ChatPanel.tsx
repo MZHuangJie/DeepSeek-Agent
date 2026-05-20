@@ -71,14 +71,6 @@ export default function ChatPanel() {
           useChatStore.getState().newAssistantMessage();
         }
         update({ content: (lastMsg?.content ?? '') + chunk.text });
-        const agentStore = useAgentStore.getState();
-        const total = chunk.total || 1;
-        agentStore.setCurrentStep({
-          step,
-          total,
-          description: (lastMsg?.content ?? '') + chunk.text,
-          progress: Math.min(99, Math.round((step / total) * 100)),
-        });
       } else if (chunk.type === 'thinking') {
         const step = chunk.step || 0;
         if (step > 0 && step > currentStepRef.current) {
@@ -108,12 +100,6 @@ export default function ChatPanel() {
           args: chunk.args || '{}',
           status: 'running',
           timestamp: Date.now(),
-        });
-        agentStore.setCurrentStep({
-          step: chunk.step || 1,
-          total: chunk.total || 1,
-          description: `正在调用工具: ${chunk.name}`,
-          progress: chunk.total ? Math.min(99, Math.round(((chunk.step || 1) / chunk.total) * 100)) : 70,
         });
       } else if (chunk.type === 'tool-result') {
         const current = lastMsg?.toolCalls ?? [];
@@ -165,15 +151,20 @@ export default function ChatPanel() {
         setStream(false);
         const agentStore = useAgentStore.getState();
         const current = agentStore.currentStep;
-        agentStore.setCurrentStep({
-          step: current?.step || 1,
-          total: current?.total || 1,
-          description: '已完成',
-          progress: 100,
-          readPercentage: current?.readPercentage,
-          readFileCount: current?.readFileCount,
-          totalFiles: current?.totalFiles,
-        });
+        // 探索模式下保留完成状态，其他模式清空
+        if (current?.readPercentage !== undefined) {
+          agentStore.setCurrentStep({
+            step: current?.step || 1,
+            total: current?.total || 1,
+            description: '已完成',
+            progress: 100,
+            readPercentage: current?.readPercentage,
+            readFileCount: current?.readFileCount,
+            totalFiles: current?.totalFiles,
+          });
+        } else {
+          agentStore.setCurrentStep(null);
+        }
       } else if (chunk.type === 'sub-agent-start') {
         const agentStore = useAgentStore.getState();
         agentStore.addSubAgent({

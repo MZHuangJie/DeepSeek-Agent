@@ -7,6 +7,9 @@ export default function CurrentStep() {
 
   const isExplore = currentStep.readPercentage !== undefined && currentStep.totalFiles !== undefined;
 
+  // 非探索模式下不显示步骤（聊天/生图等场景没有有意义的进度）
+  if (!isExplore) return null;
+
   return (
     <div style={{ padding: 10, borderBottom: '1px solid var(--border)' }}>
       <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
