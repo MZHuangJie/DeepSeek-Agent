@@ -3,6 +3,7 @@ import path from 'path';
 import { SubAgentManager, SubAgentTask } from './sub-agent';
 import { TaskDecomposer } from './task-decomposer';
 import { ModelConfig } from './client';
+import { generateImage, ImageModelConfig } from '../services/imageGen';
 
 function safeResolve(baseDir: string, targetPath: string): string {
   const resolved = path.resolve(baseDir, targetPath);
@@ -38,6 +39,7 @@ export interface ToolContext {
   modelConfig: ModelConfig;
   contextMax: number;
   subAgentManager: SubAgentManager;
+  imageModelConfig?: ImageModelConfig;
 }
 
 export function getAllTools(projectDir: string): ToolDef[] {
@@ -437,6 +439,53 @@ ${results.map((r, idx) => `
 ${r.summary}
 `).join('\n')}
 `.trim();
+      },
+    },
+    {
+      name: 'generate_image',
+      description: '调用生图模型根据描述生成图片。当用户要求生成图片、绘画、创作图像时使用此工具。你需要将用户的描述翻译/优化为高质量的英文 prompt。',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: {
+            type: 'string',
+            description: '高质量的英文图片生成描述，建议详细描述画面内容、风格、构图、光影等',
+          },
+          size: {
+            type: 'string',
+            enum: ['1024x1024', '1792x1024', '1024x1792'],
+            description: '图片尺寸，默认 1024x1024',
+          },
+          quality: {
+            type: 'string',
+            enum: ['standard', 'hd'],
+            description: '图片质量，默认 standard',
+          },
+          n: {
+            type: 'number',
+            description: '生成图片数量（1-4），默认 1',
+          },
+        },
+        required: ['prompt'],
+      },
+      execute: async (args, context) => {
+        if (!context?.imageModelConfig) {
+          throw new Error('未配置生图模型，请在模型设置中配置生图 API');
+        }
+        const result = await generateImage(context.imageModelConfig, {
+          prompt: args.prompt as string,
+          size: (args.size as string) || undefined,
+          quality: (args.quality as string) || undefined,
+          n: (args.n as number) || undefined,
+        });
+        if (result.urls.length === 0) {
+          throw new Error('生图 API 未返回图片 URL');
+        }
+        return JSON.stringify({
+          urls: result.urls,
+          revisedPrompt: result.revisedPrompt,
+          hint: '请在回复中用 markdown 格式展示图片，例如：![描述](URL)。同时提供图片链接供用户复制下载。',
+        });
       },
     },
   ];

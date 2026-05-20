@@ -10,6 +10,13 @@ export interface ModelConfig {
   contextWindow?: number;
 }
 
+export interface ImageModelConfig {
+  enabled: boolean;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}
+
 const DEFAULT_MODELS: ModelConfig[] = [
   {
     id: 'deepseek-chat',
@@ -40,15 +47,26 @@ const DEFAULT_MODELS: ModelConfig[] = [
 interface ModelState {
   models: ModelConfig[];
   activeModelId: string;
+  imageModel: ImageModelConfig;
   loadModels: () => Promise<void>;
   saveModels: (models: ModelConfig[]) => Promise<void>;
   setActiveModel: (id: string) => Promise<void>;
   getActiveModel: () => ModelConfig;
+  loadImageModel: () => Promise<void>;
+  saveImageModel: (config: ImageModelConfig) => Promise<void>;
 }
+
+const DEFAULT_IMAGE_MODEL: ImageModelConfig = {
+  enabled: false,
+  baseUrl: 'https://api.openai.com',
+  model: 'gpt-image-1',
+  apiKey: '',
+};
 
 export const useModelStore = create<ModelState>((set, get) => ({
   models: DEFAULT_MODELS,
   activeModelId: 'deepseek-chat',
+  imageModel: DEFAULT_IMAGE_MODEL,
 
   loadModels: async () => {
     try {
@@ -84,6 +102,23 @@ export const useModelStore = create<ModelState>((set, get) => ({
   getActiveModel: () => {
     const { models, activeModelId } = get();
     return models.find(m => m.id === activeModelId) ?? DEFAULT_MODELS[0];
+  },
+
+  loadImageModel: async () => {
+    try {
+      const saved = await window.api.settings.get('imageModel');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        set({ imageModel: { ...DEFAULT_IMAGE_MODEL, ...parsed } });
+      }
+    } catch {
+      // use default
+    }
+  },
+
+  saveImageModel: async (config) => {
+    set({ imageModel: config });
+    await window.api.settings.set('imageModel', JSON.stringify(config));
   },
 }));
 

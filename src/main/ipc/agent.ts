@@ -5,6 +5,7 @@ import { getAllTools, getToolSchemas, ToolDef } from '../agent/tools';
 import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
+import { getSetting } from '../db/settings';
 
 
 let activeAbort: AbortController | null = null;
@@ -353,6 +354,8 @@ export function setupAgentHandlers() {
             // 发送 tool-call 事件（确认后或无需确认的工具）
             win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
 
+            const imageModelRaw = getSetting('imageModel');
+            const imageModelConfig = imageModelRaw ? JSON.parse(imageModelRaw) : null;
             const toolContext = {
               apiKey: payload.apiKey,
               modelConfig: {
@@ -361,6 +364,11 @@ export function setupAgentHandlers() {
               },
               contextMax: payload.contextMax || 100000,
               subAgentManager,
+              imageModelConfig: imageModelConfig?.enabled ? {
+                baseUrl: imageModelConfig.baseUrl,
+                model: imageModelConfig.model,
+                apiKey: imageModelConfig.apiKey,
+              } : undefined,
             };
             toolResult = await tool.execute(args, toolContext);
           } catch (err: any) {

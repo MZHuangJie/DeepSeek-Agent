@@ -12,7 +12,7 @@ import { Command } from '../../commands';
 
 export default function ChatPanel() {
   const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, loadSessions } = useChatStore();
-  const { loadModels, getActiveModel } = useModelStore();
+  const { loadModels, getActiveModel, loadImageModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
   const agentStore = useAgentStore();
@@ -34,6 +34,7 @@ export default function ChatPanel() {
   useEffect(() => {
     (async () => {
       await loadModels();
+      await loadImageModel();
       await loadSessions();
       const key = await window.api.settings.getApiKey();
       if (key) setApiKey(key);

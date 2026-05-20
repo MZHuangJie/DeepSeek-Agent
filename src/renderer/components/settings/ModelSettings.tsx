@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useModelStore, ModelConfig } from '../../stores/model';
+import { useModelStore, ModelConfig, ImageModelConfig } from '../../stores/model';
 
 interface Props {
   onClose: () => void;
 }
 
 export default function ModelSettings({ onClose }: Props) {
-  const { models, saveModels, getActiveModel, setActiveModel } = useModelStore();
+  const { models, saveModels, getActiveModel, setActiveModel, imageModel, loadImageModel, saveImageModel } = useModelStore();
   const [editing, setEditing] = useState<ModelConfig | null>(null);
   const [list, setList] = useState<ModelConfig[]>(models);
+  const [imageConfig, setImageConfig] = useState<ImageModelConfig>(imageModel);
+
+  useEffect(() => {
+    loadImageModel();
+  }, []);
+
+  useEffect(() => {
+    setImageConfig(imageModel);
+  }, [imageModel]);
 
   useEffect(() => {
     setList(models);
@@ -18,6 +27,7 @@ export default function ModelSettings({ onClose }: Props) {
 
   const handleSave = async () => {
     await saveModels(list);
+    await saveImageModel(imageConfig);
     onClose();
   };
 
@@ -102,6 +112,60 @@ export default function ModelSettings({ onClose }: Props) {
           }}>
             + 添加模型
           </button>
+        </div>
+
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>生图模型配置</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <input
+              type="checkbox"
+              id="img-enabled"
+              checked={imageConfig.enabled}
+              onChange={e => setImageConfig(c => ({ ...c, enabled: e.target.checked }))}
+            />
+            <label htmlFor="img-enabled" style={{ fontSize: 12, cursor: 'pointer' }}>启用生图功能</label>
+          </div>
+          {imageConfig.enabled && (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Base URL</div>
+                <input
+                  value={imageConfig.baseUrl}
+                  onChange={e => setImageConfig(c => ({ ...c, baseUrl: e.target.value }))}
+                  placeholder="https://api.openai.com"
+                  style={{
+                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>模型 ID</div>
+                <input
+                  value={imageConfig.model}
+                  onChange={e => setImageConfig(c => ({ ...c, model: e.target.value }))}
+                  placeholder="gpt-image-1"
+                  style={{
+                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>API Key</div>
+                <input
+                  type="password"
+                  value={imageConfig.apiKey}
+                  onChange={e => setImageConfig(c => ({ ...c, apiKey: e.target.value }))}
+                  placeholder="sk-..."
+                  style={{
+                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
