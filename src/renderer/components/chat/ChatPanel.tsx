@@ -45,6 +45,11 @@ export default function ChatPanel() {
       await loadModels();
       await loadImageModel();
       await loadSessions();
+      // 加载完会话后，如果没有历史会话，创建一个新的
+      const { sessions, activeSessionId } = useChatStore.getState();
+      if (sessions.length === 0 && !activeSessionId) {
+        useChatStore.getState().createSession();
+      }
       const key = await window.api.settings.getApiKey();
       if (key) setApiKey(key);
       else setShowKeyInput(true);

@@ -19,7 +19,7 @@ import ResizeHandle from './components/layout/ResizeHandle';
 export default function App() {
   const { activeTab, openTabs, updateTabContent, saveFile } = useFilesStore();
   const { activeTermId, createTerminal } = useTerminalStore();
-  const { activeSessionId, createSession } = useChatStore();
+  const { activeSessionId } = useChatStore();
   const {
     sidebarWidth, agentPanelWidth, terminalHeight, chatPanelWidth,
     bottomExpanded, bottomClosed, setBottomClosed, setBottomExpanded,
@@ -34,9 +34,6 @@ export default function App() {
   useEffect(() => {
     if (hasInitRef.current) return;
     hasInitRef.current = true;
-    if (!activeSessionId) {
-      createSession();
-    }
     if (!activeTermId) {
       createTerminal();
     }
