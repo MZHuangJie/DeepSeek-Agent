@@ -12,12 +12,13 @@ const original = code;
 
 code = code.replace(
   'const electron = require("electron");',
-  'const { app, BrowserWindow, ipcMain, safeStorage } = require("electron");'
+  'const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require("electron");'
 );
 code = code.replace(/electron\.app\b/g, 'app');
 code = code.replace(/electron\.BrowserWindow\b/g, 'BrowserWindow');
 code = code.replace(/electron\.ipcMain\b/g, 'ipcMain');
 code = code.replace(/electron\.safeStorage\b/g, 'safeStorage');
+code = code.replace(/electron\.dialog\b/g, 'dialog');
 
 if (code !== original) {
   fs.writeFileSync(file, code, 'utf-8');
