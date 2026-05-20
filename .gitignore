@@ -4,3 +4,6 @@ out/
 .deepseek-agent/
 .env
 *.db
+docs/
+image.png
+chi_sim.traineddata
