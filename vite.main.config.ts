@@ -18,6 +18,8 @@ export default defineConfig({
         'child_process',
         'fs',
         'path',
+        'crypto',
+        'http',
         'https',
         'os',
         'util',

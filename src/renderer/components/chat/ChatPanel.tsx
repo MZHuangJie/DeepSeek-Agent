@@ -189,7 +189,33 @@ export default function ChatPanel() {
     setErrorMsg('');
 
     const displayContent = command ? `/${command.name} ${content}` : content;
-    const history = messages.map(m => ({ role: m.role, content: m.content }));
+    const history: any[] = [];
+    for (const m of messages) {
+      const entry: any = { role: m.role, content: m.content };
+      if (m.role === 'assistant' && m.thinkingContent) {
+        entry.reasoning_content = m.thinkingContent;
+      }
+      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+        entry.tool_calls = m.toolCalls.map(tc => ({
+          id: `call_${tc.timestamp}`,
+          type: 'function',
+          function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+        }));
+      }
+      history.push(entry);
+      // 每个带 tool_calls 的 assistant 消息后必须跟随 tool 消息
+      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+        for (const tc of m.toolCalls) {
+          if (tc.result !== undefined) {
+            history.push({
+              role: 'tool',
+              tool_call_id: `call_${tc.timestamp}`,
+              content: tc.result,
+            });
+          }
+        }
+      }
+    }
 
     agentStore.reset();
     addMessage({ id: `msg-${Date.now()}`, role: 'user', content: displayContent, timestamp: Date.now() });

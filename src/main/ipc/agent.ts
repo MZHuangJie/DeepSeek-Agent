@@ -12,7 +12,7 @@ let activeSubAgentManager: SubAgentManager | null = null;
 
 export function setupAgentHandlers() {
   ipcMain.handle('agent:send', async (event, payload: {
-    messages: Array<{ role: string; content: string }>;
+    messages: Array<{ role: string; content: string; reasoning_content?: string; tool_calls?: any[] }>;
     apiKey: string;
     projectDir: string;
     newMessage: string;
@@ -172,10 +172,14 @@ export function setupAgentHandlers() {
 
         // 模型给出最终回复，推入 messages 以保存对话历史
         if (result.content || result.thinking) {
-          messages.push({
+          const assistantMsg: any = {
             role: 'assistant',
             content: result.content || '',
-          });
+          };
+          if (result.thinking) {
+            assistantMsg.reasoning_content = result.thinking;
+          }
+          messages.push(assistantMsg);
         }
 
         // 统计工具调用情况
@@ -303,11 +307,15 @@ export function setupAgentHandlers() {
         type: 'function' as const,
         function: { name: tc.name, arguments: tc.arguments },
       }));
-      messages.push({
+      const toolMsg: any = {
         role: 'assistant',
         content: result.content || '',
         tool_calls: assistantToolCalls,
-      });
+      };
+      if (result.thinking) {
+        toolMsg.reasoning_content = result.thinking;
+      }
+      messages.push(toolMsg);
 
       for (const tc of result.toolCalls) {
         const tool = tools.find(t => t.name === tc.name);
