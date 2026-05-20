@@ -24,7 +24,7 @@ const api = {
     },
   },
   terminal: {
-    create: () => ipcRenderer.invoke('terminal:create'),
+    create: (shell?: string) => ipcRenderer.invoke('terminal:create', shell),
     write: (id: string, data: string) => ipcRenderer.invoke('terminal:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('terminal:resize', id, cols, rows),
     destroy: (id: string) => ipcRenderer.invoke('terminal:destroy', id),

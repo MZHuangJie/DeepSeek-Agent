@@ -8,7 +8,7 @@ interface TermInstance {
 interface TerminalState {
   terminals: TermInstance[];
   activeTermId: string | null;
-  createTerminal: () => Promise<void>;
+  createTerminal: (shell?: string) => Promise<void>;
   closeTerminal: (id: string) => void;
   setActiveTerm: (id: string) => void;
 }
@@ -16,10 +16,12 @@ interface TerminalState {
 export const useTerminalStore = create<TerminalState>((set, get) => ({
   terminals: [],
   activeTermId: null,
-  createTerminal: async () => {
-    const id = await window.api.terminal.create();
+  createTerminal: async (shell) => {
+    const id = await window.api.terminal.create(shell);
+    const isWin = navigator.userAgent.includes('Windows');
+    const shellName = shell || (isWin ? 'powershell' : 'bash');
     set(s => ({
-      terminals: [...s.terminals, { id, name: `Terminal ${s.terminals.length + 1}` }],
+      terminals: [...s.terminals, { id, name: `${shellName} (${s.terminals.length + 1})` }],
       activeTermId: id,
     }));
   },

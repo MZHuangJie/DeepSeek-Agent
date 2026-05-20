@@ -15,11 +15,13 @@ export default function TerminalTabs() {
   const { terminals, activeTermId, createTerminal, closeTerminal, setActiveTerm } = useTerminalStore();
   const { bottomPanel, setBottomPanel, bottomExpanded, toggleBottomExpanded, setBottomClosed, terminalHeight, setTerminalHeight } = useLayoutStore();
   const [shellOpen, setShellOpen] = useState(false);
+  const [selectedShell, setSelectedShell] = useState(navigator.userAgent.includes('Windows') ? 'powershell' : 'bash');
 
   const activeTerm = terminals.find(t => t.id === activeTermId);
 
   const handleShellSelect = (shell: string) => {
-    console.log('Selected shell:', shell);
+    setSelectedShell(shell);
+    createTerminal(shell);
     setShellOpen(false);
   };
 
@@ -97,7 +99,7 @@ export default function TerminalTabs() {
                 borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
               }}
             >
-              bash
+              {selectedShell}
               <span style={{ fontSize: 8 }}>▼</span>
             </button>
             {shellOpen && (
