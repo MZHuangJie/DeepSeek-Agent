@@ -106,6 +106,11 @@ export async function generateImage(
       res.on('error', (err) => reject(unwrapError(err, url.hostname)));
     });
 
+    req.setTimeout(120000, () => {
+      req.destroy();
+      reject(new Error('生图请求超时（120秒），请检查网络或稍后重试'));
+    });
+
     req.on('error', (err) => reject(unwrapError(err, url.hostname)));
     req.write(body);
     req.end();
