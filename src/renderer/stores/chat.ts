@@ -67,7 +67,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             return match ? Math.max(max, parseInt(match[1])) : max;
           }, 0);
           sessionCounter = maxCounter;
-          set({ sessions, activeSessionId: sessions[0].id });
+          // 只在当前没有激活会话时才设置 activeSessionId，避免后台恢复时切走当前会话
+          const currentActive = get().activeSessionId;
+          if (currentActive === null || !sessions.find(s => s.id === currentActive)) {
+            set({ sessions, activeSessionId: sessions[0].id });
+          } else {
+            set({ sessions });
+          }
         }
       }
     } catch {

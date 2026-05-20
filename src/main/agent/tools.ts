@@ -40,6 +40,7 @@ export interface ToolContext {
   contextMax: number;
   subAgentManager: SubAgentManager;
   imageModelConfig?: ImageModelConfig;
+  signal?: AbortSignal;
 }
 
 export function getAllTools(projectDir: string): ToolDef[] {
