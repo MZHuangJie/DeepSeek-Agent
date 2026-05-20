@@ -91,20 +91,10 @@ function looksLikeImageLink(text: string): boolean {
 
 function ImageCard({ url, alt }: { url: string; alt: string }) {
   const [loaded, setLoaded] = useState(true);
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
 
   useEffect(() => {
     setLoaded(true);
-    // file:// URL 需要转成 data URI 才能被渲染进程加载
-    if (url.startsWith('file:///')) {
-      const filePath = url.replace('file:///', '').replace(/\//g, '\\');
-      window.api.files.readBinary(filePath).then(setResolvedSrc).catch(() => setLoaded(false));
-    } else {
-      setResolvedSrc(url);
-    }
   }, [url]);
-
-  const src = resolvedSrc || url;
 
   if (!loaded) {
     return (

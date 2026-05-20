@@ -79,17 +79,8 @@ export function setupAgentHandlers() {
       );
     }
 
-    // 动态计算最大轮次：根据项目文件数量（仅编程模式启用多轮工具调用）
-    const maxTurns = enableTools ? (() => {
-      const glob = require('glob');
-      const allSourceFiles = glob.sync('**/*.{ts,tsx,js,jsx,json}', {
-        cwd: payload.projectDir,
-        ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
-        absolute: false,
-      });
-      const estimatedTurnsNeeded = Math.ceil(allSourceFiles.length / 3); // 假设每轮读 3 个文件
-      return Math.max(50, Math.min(estimatedTurnsNeeded, 200)); // 最少 50 轮，最多 200 轮
-    })() : 1;
+    // 固定最大轮次：编程模式 50 轮，非编程模式 1 轮
+    const maxTurns = enableTools ? 50 : 1;
 
     for (let turn = 0; turn < maxTurns; turn++) {
       if (abortController.signal.aborted) break;
@@ -318,6 +309,16 @@ export function setupAgentHandlers() {
           const totalFiles = allSourceFiles.length;
           const readPercentage = Math.round((readFileCount / totalFiles) * 100);
 
+          // 发送读取率进度给前端
+          win.webContents.send('agent:stream-chunk', {
+            type: 'explore-progress',
+            readPercentage,
+            readFileCount,
+            totalFiles,
+            step: turn + 1,
+            total: maxTurns,
+          });
+
           // 如果还有大量未读文件，强制继续
           if (unreadFiles.length > 0 && readPercentage < 80) {
             // 按目录分组未读文件
@@ -474,6 +475,13 @@ export function setupAgentHandlers() {
           content: truncatedResult,
         });
       }
+      // 工具执行完，通知前端模型正在生成下一轮回复
+      win.webContents.send('agent:stream-chunk', {
+        type: 'content',
+        text: '\n[工具执行完毕，等待模型生成回复...]\n',
+        step: turn + 1,
+        total: maxTurns,
+      });
     }
 
     activeAbort = null;

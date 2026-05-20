@@ -150,6 +150,17 @@ export default function ChatPanel() {
           contextMax: chunk.contextMax || 100000,
           cost: parseFloat((chunk.total * 0.000002).toFixed(3)),
         });
+      } else if (chunk.type === 'explore-progress') {
+        const agentStore = useAgentStore.getState();
+        agentStore.setCurrentStep({
+          step: chunk.step || 1,
+          total: chunk.total || 1,
+          description: `正在读取项目文件，已读取 ${chunk.readFileCount}/${chunk.totalFiles} 个文件`,
+          progress: Math.min(99, chunk.readPercentage || 0),
+          readPercentage: chunk.readPercentage,
+          readFileCount: chunk.readFileCount,
+          totalFiles: chunk.totalFiles,
+        });
       } else if (chunk.type === 'done') {
         setStream(false);
         const agentStore = useAgentStore.getState();
@@ -159,6 +170,9 @@ export default function ChatPanel() {
           total: current?.total || 1,
           description: '已完成',
           progress: 100,
+          readPercentage: current?.readPercentage,
+          readFileCount: current?.readFileCount,
+          totalFiles: current?.totalFiles,
         });
       } else if (chunk.type === 'sub-agent-start') {
         const agentStore = useAgentStore.getState();

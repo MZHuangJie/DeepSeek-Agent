@@ -486,26 +486,8 @@ ${r.summary}
         if (result.urls.length === 0) {
           throw new Error('生图 API 未返回图片 URL');
         }
-        // 将 base64 数据写入临时文件，替换为 file:// URL，避免 base64 过长撑爆上下文
-        const fs = require('fs');
-        const path = require('path');
-        const os = require('os');
-        const displayUrls: string[] = [];
-        for (let i = 0; i < result.urls.length; i++) {
-          const u = result.urls[i];
-          if (u.startsWith('data:')) {
-            const tmpDir = path.join(os.tmpdir(), 'mycli-generated-images');
-            fs.mkdirSync(tmpDir, { recursive: true });
-            const tmpFile = path.join(tmpDir, `img-${Date.now()}-${i}.png`);
-            const base64Data = u.replace(/^data:image\/\w+;base64,/, '');
-            fs.writeFileSync(tmpFile, Buffer.from(base64Data, 'base64'));
-            displayUrls.push(`file:///${tmpFile.replace(/\\/g, '/')}`);
-          } else {
-            displayUrls.push(u);
-          }
-        }
         return JSON.stringify({
-          urls: displayUrls,
+          urls: result.urls,
           revisedPrompt: result.revisedPrompt,
           hint: '【输出格式要求】你必须在最终回复中，使用 markdown 图片语法直接展示图片，格式为：![图片描述](图片URL)。不要只给文字链接。',
         });

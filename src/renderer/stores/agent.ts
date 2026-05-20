@@ -38,7 +38,15 @@ export interface SubAgentStatus {
 }
 
 interface AgentState {
-  currentStep: { step: number; total: number; description: string; progress: number } | null;
+  currentStep: {
+    step: number;
+    total: number;
+    description: string;
+    progress: number;
+    readPercentage?: number;
+    readFileCount?: number;
+    totalFiles?: number;
+  } | null;
   toolCalls: ToolCallEntry[];
   tokenStats: TokenStats | null;
   subAgents: SubAgentStatus[];
