@@ -269,7 +269,7 @@ export class SubAgentManager {
     contextMax: number,
     signal: AbortSignal
   ): Promise<SubAgentResult> {
-    const maxTurns = 30; // 子代理的轮次限制较小
+    const maxTurns = 40; // 子代理的轮次限制（留出空间让模型自己总结）
     let totalPrompt = 0;
     let totalCompletion = 0;
     let totalTokens = 0;
@@ -365,7 +365,18 @@ export class SubAgentManager {
         if (result.content || result.thinking) {
           messages.push({
             role: 'assistant',
-            content: result.content || '',
+            content: result.content || result.thinking || '',
+          });
+        }
+        break;
+      }
+
+      // 撞 max_tokens 截断时，工具调用可能不完整，停下来交给后置总结流程
+      if (result.finishReason === 'length') {
+        if (result.content || result.thinking) {
+          messages.push({
+            role: 'assistant',
+            content: result.content || result.thinking || '',
           });
         }
         break;
@@ -418,6 +429,71 @@ export class SubAgentManager {
           tool_call_id: tc.id,
           content: toolResult,
         });
+      }
+    }
+
+    // 检查是否已有最终总结（最后一条 assistant 消息有 content 且没有 tool_calls）
+    const lastMsg = messages[messages.length - 1];
+    const hasFinalSummary =
+      lastMsg?.role === 'assistant' &&
+      typeof lastMsg.content === 'string' &&
+      lastMsg.content.trim().length > 0 &&
+      !lastMsg.tool_calls;
+
+    // 如果没有最终总结且未被中止，追加一轮强制总结请求（不带工具）
+    if (!hasFinalSummary && !signal.aborted) {
+      messages.push({
+        role: 'user',
+        content: `请基于已读取的内容立刻给出最终总结。不要再调用任何工具。按以下结构输出：
+- **任务范围**：处理了哪些文件/目录
+- **主要发现**：关键模块、设计、问题（用 markdown 列表，每条单独一行）
+- **结论**：简短整体评估`,
+      });
+
+      const summaryCallbacks: StreamCallbacks = {
+        onContent: (text) => {
+          this.win.webContents.send('agent:stream-chunk', {
+            type: 'sub-agent-chunk',
+            taskId: task.id,
+            chunkType: 'content',
+            text,
+          });
+        },
+        onThinking: (text) => {
+          this.win.webContents.send('agent:stream-chunk', {
+            type: 'sub-agent-chunk',
+            taskId: task.id,
+            chunkType: 'thinking',
+            text,
+          });
+        },
+      };
+
+      try {
+        const summaryResult = await streamChat(
+          apiKey,
+          messages,
+          [], // 关键：禁用工具，强制模型输出文本
+          modelConfig,
+          summaryCallbacks,
+          signal
+        );
+
+        if (summaryResult.usage) {
+          totalPrompt += summaryResult.usage.prompt_tokens;
+          totalCompletion += summaryResult.usage.completion_tokens;
+          totalTokens += summaryResult.usage.total_tokens;
+        }
+
+        const finalText = summaryResult.content || summaryResult.thinking || '';
+        if (finalText) {
+          messages.push({
+            role: 'assistant',
+            content: finalText,
+          });
+        }
+      } catch {
+        // 总结请求失败时，沿用已有状态返回
       }
     }
 

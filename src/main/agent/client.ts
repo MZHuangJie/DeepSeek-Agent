@@ -43,6 +43,7 @@ export interface StreamResult {
   content: string;
   thinking: string;
   toolCalls: Array<{ id: string; name: string; arguments: string }>;
+  finishReason?: string;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -93,6 +94,25 @@ export async function streamChat(
     const result: StreamResult = { content: '', thinking: '', toolCalls: [] };
 
     const req = requestFn(options, (res) => {
+      const status = res.statusCode ?? 0;
+      if (status < 200 || status >= 300) {
+        let errBuf = '';
+        res.setEncoding('utf-8');
+        res.on('data', (c: string) => { errBuf += c; });
+        res.on('end', () => {
+          let detail = errBuf.trim();
+          try {
+            const parsed = JSON.parse(detail);
+            detail = parsed.error?.message || parsed.message || detail;
+          } catch {}
+          const wrapped = new Error(`API ${status}: ${detail || res.statusMessage || '未知错误'}`);
+          wrapped.name = 'ApiError';
+          reject(wrapped);
+        });
+        res.on('error', (err) => reject(unwrapNetworkError(err, url.hostname)));
+        return;
+      }
+
       let buffer = '';
       const toolCallsAccum = new Map<number, { id: string; name: string; arguments: string }>();
       let lastToolCallIndex = -1;
@@ -133,7 +153,10 @@ export async function streamChat(
                 lastToolCallIndex = Math.max(lastToolCallIndex, idx);
               }
             }
-            if (!hasFlushed && (choice.finish_reason === 'tool_calls' || choice.finish_reason === 'stop')) {
+            if (choice.finish_reason) {
+              result.finishReason = choice.finish_reason;
+            }
+            if (!hasFlushed && (choice.finish_reason === 'tool_calls' || choice.finish_reason === 'stop' || choice.finish_reason === 'length')) {
               hasFlushed = true;
               for (let i = 0; i <= lastToolCallIndex; i++) {
                 const tc = toolCallsAccum.get(i);

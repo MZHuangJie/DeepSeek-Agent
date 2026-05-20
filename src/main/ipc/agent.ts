@@ -147,6 +147,29 @@ export function setupAgentHandlers() {
       }
 
       if (result.toolCalls.length === 0) {
+        // 处理空响应：thinking 模型可能撞 max_tokens 后 content 为空，或 API 返回了空体
+        if (!result.content) {
+          if (result.finishReason === 'length') {
+            const hint = result.thinking
+              ? '模型在思考阶段就用完了 token 配额，没有生成正文。建议：拆分任务、缩减上下文，或换用更大输出预算的模型。'
+              : '模型输出被 max_tokens 截断且无内容。建议增加输出预算或简化提问。';
+            win.webContents.send('agent:stream-chunk', { type: 'error', message: hint });
+            break;
+          }
+          if (!result.thinking) {
+            win.webContents.send('agent:stream-chunk', {
+              type: 'error',
+              message: `模型返回空响应（finish_reason=${result.finishReason ?? '未知'}）。可能是上游临时故障，请重试。`,
+            });
+            break;
+          }
+          // 只有 thinking 没 content：把 thinking 当作回复展示，避免空白
+          win.webContents.send('agent:stream-chunk', {
+            type: 'content',
+            text: `\n[模型仅输出了思考过程，未生成正文。以下为思考内容摘要]\n${result.thinking.slice(0, 2000)}${result.thinking.length > 2000 ? '\n...(已截断)' : ''}\n`,
+          });
+        }
+
         // 模型给出最终回复，推入 messages 以保存对话历史
         if (result.content || result.thinking) {
           messages.push({
