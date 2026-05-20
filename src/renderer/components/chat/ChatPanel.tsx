@@ -16,7 +16,10 @@ export default function ChatPanel() {
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
   const agentStore = useAgentStore();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const [scrollBtnHover, setScrollBtnHover] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -29,7 +32,12 @@ export default function ChatPanel() {
   const session = sessions.find(s => s.id === activeSessionId);
   const messages = session?.messages ?? [];
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && el.scrollHeight - el.scrollTop - el.clientHeight <= 100) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   // Load API key & project dir & models & sessions on mount
   useEffect(() => {
@@ -292,7 +300,16 @@ export default function ChatPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
+      <div
+        ref={scrollRef}
+        style={{ flex: 1, overflow: 'auto', padding: '12px 16px', position: 'relative' }}
+        onScroll={() => {
+          const el = scrollRef.current;
+          if (el) {
+            setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 100);
+          }
+        }}
+      >
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
             <div style={{ marginBottom: 12 }}><img src="/assets/logo.png" alt="ai" style={{ width: 48, height: 44 }} /></div>
@@ -308,6 +325,31 @@ export default function ChatPanel() {
           </div>
         )}
         <div ref={endRef} />
+        {showScrollDown && (
+          <div
+            onClick={() => {
+              endRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            onMouseEnter={() => setScrollBtnHover(true)}
+            onMouseLeave={() => setScrollBtnHover(false)}
+            style={{
+              position: 'sticky', bottom: 8, float: 'right',
+              width: 32, height: 32, borderRadius: '50%',
+              background: scrollBtnHover ? 'var(--accent)' : 'var(--bg-tertiary)',
+              border: scrollBtnHover ? '1px solid var(--accent)' : '1px solid var(--border)',
+              boxShadow: scrollBtnHover ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
+              transform: scrollBtnHover ? 'translateY(-1px)' : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', opacity: 0.85,
+              transition: 'all 0.2s',
+            }}
+            title="回到底部"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v8M4 8l4 4 4-4" stroke={scrollBtnHover ? '#fff' : 'var(--text-secondary)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        )}
       </div>
 
       {(showKeyInput || errorMsg) && (
@@ -343,7 +385,7 @@ export default function ChatPanel() {
         </div>
       )}
 
-      <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} onToggleTerminal={() => { setBottomClosed(false); setBottomExpanded(true); }} />
+      <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} />
 
       {confirmReq && (
         <ConfirmDialog

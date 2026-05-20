@@ -9,6 +9,7 @@ import TerminalPanel from './components/terminal/TerminalPanel';
 import TerminalTabs from './components/terminal/TerminalTabs';
 import TerminalList from './components/terminal/TerminalList';
 import StatusBar from './components/statusbar/StatusBar';
+import ModelSettings from './components/settings/ModelSettings';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
 import { useChatStore } from './stores/chat';
@@ -26,6 +27,8 @@ export default function App() {
   } = useLayoutStore();
 
   const activeFile = openTabs.find(t => t.path === activeTab);
+
+  const [showModelSettings, setShowModelSettings] = React.useState(false);
 
   const hasInitRef = React.useRef(false);
   useEffect(() => {
@@ -72,7 +75,14 @@ export default function App() {
         fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', position: 'relative',
         WebkitAppRegion: 'drag' as any,
       }}>
-        <div style={{ width: 100 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 12, WebkitAppRegion: 'no-drag' as any }}>
+          <TitleBarBtn title="模型设置" onClick={() => setShowModelSettings(true)}>
+            <img src="/assets/5.png" alt="settings" style={{ width: 14, height: 14, opacity: 0.7 }} />
+          </TitleBarBtn>
+          <TitleBarBtn title="终端" onClick={() => { setBottomClosed(false); setBottomExpanded(true); }}>
+            <img src="/assets/3.png" alt="terminal" style={{ width: 14, height: 14, opacity: 0.7 }} />
+          </TitleBarBtn>
+        </div>
         <span style={{ flex: 1, textAlign: 'center' }}>DeepSeek Agent</span>
         <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' as any }}>
           <WindowControlBtn onClick={() => window.api.window.minimize()}>
@@ -182,13 +192,34 @@ export default function App() {
       </div>
 
       {/* Status Bar */}
+      {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
       <StatusBar language={activeFile ? getLanguage(activeFile.name) : ''} />
     </div>
   );
 }
 
-
-
+function TitleBarBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        width: 28, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 3, transition: 'background 0.15s',
+        padding: 0, color: 'var(--text-secondary)',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
 function WindowControlBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
