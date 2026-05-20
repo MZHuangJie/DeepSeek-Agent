@@ -1,6 +1,39 @@
 import https from 'https';
 import http from 'http';
 
+function unwrapNetworkError(err: unknown, hostname: string): Error {
+  if (err instanceof Error && err.name === 'AggregateError') {
+    const errors = (err as unknown as { errors?: unknown[] }).errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      const messages = errors.map((e) => {
+        if (e instanceof Error) {
+          const errno = e as NodeJS.ErrnoException & { address?: string; port?: number };
+          const code = errno.code;
+          const addr = errno.address;
+          const port = errno.port;
+          const parts = [code, addr ? `${addr}${port ? ':' + port : ''}` : '', e.message]
+            .filter(Boolean);
+          return parts.join(' ');
+        }
+        return String(e);
+      });
+      const wrapped = new Error(`无法连接到 ${hostname}：\n${messages.join('\n')}`);
+      wrapped.name = 'NetworkError';
+      return wrapped;
+    }
+  }
+  if (err instanceof Error) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code) {
+      const wrapped = new Error(`${code}: ${err.message} (${hostname})`);
+      wrapped.name = 'NetworkError';
+      return wrapped;
+    }
+    return err;
+  }
+  return new Error(String(err));
+}
+
 export interface StreamCallbacks {
   onContent: (text: string) => void;
   onThinking: (text: string) => void;
@@ -126,13 +159,13 @@ export async function streamChat(
         }
         resolve(result);
       });
-      res.on('error', reject);
+      res.on('error', (err) => reject(unwrapNetworkError(err, url.hostname)));
     });
     req.on('error', (err) => {
       if ((err as any).name === 'AbortError' || (signal?.aborted)) {
         resolve(result);
       } else {
-        reject(err);
+        reject(unwrapNetworkError(err, url.hostname));
       }
     });
     if (signal) {

@@ -136,7 +136,8 @@ export function setupAgentHandlers() {
     const abortController = new AbortController();
     activeAbort = abortController;
 
-    const tools = getAllTools(payload.projectDir);
+    try {
+      const tools = getAllTools(payload.projectDir);
     const projectContext = buildProjectContext(payload.projectDir);
     const subAgentManager = new SubAgentManager(win);
     activeSubAgentManager = subAgentManager;
@@ -191,7 +192,16 @@ export function setupAgentHandlers() {
         );
       } catch (err: any) {
         if (abortController.signal.aborted) break;
-        throw err;
+        const message = err?.message || String(err);
+        win.webContents.send('agent:stream-chunk', {
+          type: 'error',
+          message,
+        });
+        win.webContents.send('agent:stream-chunk', { type: 'done' });
+        activeAbort = null;
+        activeSubAgentManager?.cancelAllSubAgents();
+        activeSubAgentManager = null;
+        return { success: false, error: message };
       }
 
       if (abortController.signal.aborted) break;
@@ -421,6 +431,18 @@ export function setupAgentHandlers() {
     activeSubAgentManager = null;
     win.webContents.send('agent:stream-chunk', { type: 'done' });
     return { success: true };
+    } catch (err: any) {
+      const message = err?.message || String(err);
+      win.webContents.send('agent:stream-chunk', {
+        type: 'error',
+        message,
+      });
+      win.webContents.send('agent:stream-chunk', { type: 'done' });
+      activeAbort = null;
+      activeSubAgentManager?.cancelAllSubAgents();
+      activeSubAgentManager = null;
+      return { success: false, error: message };
+    }
   });
 
   ipcMain.handle('agent:cancel', async () => {
