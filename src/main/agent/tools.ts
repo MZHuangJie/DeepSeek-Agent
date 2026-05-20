@@ -484,7 +484,7 @@ ${r.summary}
         return JSON.stringify({
           urls: result.urls,
           revisedPrompt: result.revisedPrompt,
-          hint: '请在回复中用 markdown 格式展示图片，例如：![描述](URL)。同时提供图片链接供用户复制下载。',
+          hint: '【输出格式要求】你必须在最终回复中，使用 markdown 图片语法直接展示图片，格式为：![图片描述](图片URL)。不要只给文字链接。同时可以在图片下方提供一个纯文本链接方便用户复制。',
         });
       },
     },

@@ -72,6 +72,59 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function isImageUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  // 常见图片扩展名
+  if (/\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/.test(lower)) return true;
+  // 常见生图/CDN 域名
+  if (lower.includes('dalle') || lower.includes('blob.core.windows.net') || lower.includes('openai') || lower.includes('cdn.openai')) return true;
+  // base64 图片
+  if (lower.startsWith('data:image/')) return true;
+  return false;
+}
+
+function ImageCard({ url, alt }: { url: string; alt: string }) {
+  const [loaded, setLoaded] = useState(true);
+
+  if (!loaded) {
+    return (
+      <div style={{ margin: '8px 0' }}>
+        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline', fontSize: 13 }}>
+          {alt || '图片链接'}
+        </a>
+        <div style={{ marginTop: 4 }}>
+          <CopyButton text={url} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div key={url} style={{ margin: '8px 0' }}>
+      <img
+        src={url}
+        alt={alt}
+        style={{
+          maxWidth: '100%',
+          maxHeight: 400,
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+          display: 'block',
+          cursor: 'pointer',
+        }}
+        onClick={() => window.open(url, '_blank')}
+        onError={() => setLoaded(false)}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+        <CopyButton text={url} />
+        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+          点击图片可在新标签页打开
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function MessageContent({ content }: { content: string }) {
   const parts = parseMarkdown(content);
 
@@ -86,34 +139,13 @@ function MessageContent({ content }: { content: string }) {
           return <span key={idx} style={{ whiteSpace: 'pre-wrap' }}>{part.text}</span>;
         }
         if (part.type === 'image') {
-          return (
-            <div key={idx} style={{ margin: '8px 0' }}>
-              <img
-                src={part.url}
-                alt={part.alt}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: 400,
-                  borderRadius: 6,
-                  border: '1px solid var(--border)',
-                  display: 'block',
-                  cursor: 'pointer',
-                }}
-                onClick={() => window.open(part.url, '_blank')}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                <CopyButton text={part.url} />
-                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  点击图片可在新标签页打开
-                </span>
-              </div>
-            </div>
-          );
+          return <ImageCard key={idx} url={part.url} alt={part.alt} />;
         }
         if (part.type === 'link') {
+          // 智能识别：链接如果指向图片，直接渲染为图片
+          if (isImageUrl(part.url)) {
+            return <ImageCard key={idx} url={part.url} alt={part.text} />;
+          }
           return (
             <a
               key={idx}
