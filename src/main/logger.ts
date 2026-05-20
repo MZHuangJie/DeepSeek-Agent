@@ -12,8 +12,13 @@ if (!fs.existsSync(LOG_DIR)) {
 // 首次写入时覆盖旧内容（应用重启后）
 let initialized = false;
 
+function fmtTime(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds()).toString().padStart(3, '0')}`;
+}
+
 export function debugLog(...args: any[]) {
-  const line = `[${new Date().toISOString()}] ${args.map(a =>
+  const line = `[${fmtTime(new Date())}] ${args.map(a =>
     typeof a === 'string' ? a : JSON.stringify(a)
   ).join(' ')}\n`;
   try {

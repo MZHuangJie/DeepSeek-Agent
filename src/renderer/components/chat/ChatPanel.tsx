@@ -243,9 +243,7 @@ export default function ChatPanel() {
     if (!apiKey) { setShowKeyInput(true); return; }
     setErrorMsg('');
 
-    console.log('[DEBUG handleSend] activeSessionId:', activeSessionId, 'messages.length:', messages.length);
     const totalChars = messages.reduce((sum, m) => sum + m.content.length + (m.thinkingContent?.length ?? 0), 0);
-    console.log('[DEBUG handleSend] totalChars in messages:', totalChars);
 
     const displayContent = command ? `/${command.name} ${content}` : content;
 
