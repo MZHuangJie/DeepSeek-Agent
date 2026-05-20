@@ -19,7 +19,16 @@ export default function CurrentStep() {
           transition: 'width 0.3s',
         }} />
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+      <div style={{
+        fontSize: 12,
+        color: 'var(--text-secondary)',
+        lineHeight: 1.4,
+        maxHeight: 120,
+        overflowY: 'auto',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        paddingRight: 4,
+      }}>
         {currentStep.description}
       </div>
     </div>
