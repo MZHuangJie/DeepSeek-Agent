@@ -139,6 +139,12 @@ export function setupFileHandlers() {
     return { success: true };
   });
 
+  ipcMain.handle('files:write', async (_event, filePath: string, content: string) => {
+    const safePath = safeResolve(currentWorkspace, filePath);
+    fs.writeFileSync(safePath, content, 'utf-8');
+    return { success: true };
+  });
+
   ipcMain.handle('files:delete', async (_event, targetPath: string) => {
     const safePath = safeResolve(currentWorkspace, targetPath);
     if (!fs.existsSync(safePath)) {

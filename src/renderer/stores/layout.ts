@@ -34,7 +34,7 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   sidebarTab: 'files',
   bottomPanel: 'terminal',
   bottomExpanded: true,
-  bottomClosed: false,
+  bottomClosed: true,
   setSidebarWidth: (w) => set(s => ({ sidebarWidth: resolve(w, s.sidebarWidth) })),
   setAgentPanelWidth: (w) => set(s => ({ agentPanelWidth: resolve(w, s.agentPanelWidth) })),
   setTerminalHeight: (h) => set(s => ({ terminalHeight: resolve(h, s.terminalHeight) })),

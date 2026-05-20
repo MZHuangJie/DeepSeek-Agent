@@ -14,24 +14,39 @@ import { useLayoutStore } from './stores/layout';
 import ResizeHandle from './components/layout/ResizeHandle';
 
 export default function App() {
-  const { activeTab, openTabs, updateTabContent } = useFilesStore();
+  const { activeTab, openTabs, updateTabContent, saveFile } = useFilesStore();
   const { activeTermId, createTerminal } = useTerminalStore();
   const { activeSessionId, createSession } = useChatStore();
   const {
     sidebarWidth, agentPanelWidth, terminalHeight, chatPanelWidth,
-    bottomExpanded, bottomClosed, bottomPanel, setBottomPanel, setBottomClosed, setBottomExpanded,
+    bottomExpanded, bottomClosed, setBottomClosed, setBottomExpanded,
     setSidebarWidth, setAgentPanelWidth, setTerminalHeight, setChatPanelWidth,
   } = useLayoutStore();
 
   const activeFile = openTabs.find(t => t.path === activeTab);
 
+  const hasInitRef = React.useRef(false);
   useEffect(() => {
+    if (hasInitRef.current) return;
+    hasInitRef.current = true;
     if (!activeSessionId) {
       createSession();
     }
     if (!activeTermId) {
       createTerminal();
     }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        const state = useFilesStore.getState();
+        if (state.activeTab) {
+          state.saveFile(state.activeTab);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const getLanguage = (name: string): string => {
@@ -58,15 +73,15 @@ export default function App() {
         <div style={{ width: 100 }} />
         <span style={{ flex: 1, textAlign: 'center' }}>DeepSeek Agent</span>
         <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' as any }}>
-          <button onClick={() => window.api.window.minimize()} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+          <WindowControlBtn onClick={() => window.api.window.minimize()}>
             <img src="/assets/图层 11_w.png" alt="minimize" style={{ width: 12, height: 2 }} />
-          </button>
-          <button onClick={() => window.api.window.maximize()} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+          </WindowControlBtn>
+          <WindowControlBtn onClick={() => window.api.window.maximize()}>
             <img src="/assets/图层 10_w.png" alt="maximize" style={{ width: 12, height: 12 }} />
-          </button>
-          <button onClick={() => window.api.window.close()} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
+          </WindowControlBtn>
+          <WindowControlBtn onClick={() => window.api.window.close()}>
             <img src="/assets/图层 12_w.png" alt="close" style={{ width: 12, height: 12 }} />
-          </button>
+          </WindowControlBtn>
         </div>
       </div>
 
@@ -121,45 +136,15 @@ export default function App() {
           {bottomClosed ? (
             <div
               style={{
-                height: 22, background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)',
-                flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 12, padding: '0 12px',
+                height: 4, background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)',
+                flexShrink: 0,
               }}
-            >
-              {(['terminal', 'problems', 'output', 'debug'] as const).map(p => (
-                <span
-                  key={p}
-                  onClick={() => {
-                    setBottomClosed(false);
-                    setBottomExpanded(true);
-                    setBottomPanel(p);
-                  }}
-                  style={{
-                    fontSize: 10, color: 'var(--text-secondary)', cursor: 'pointer',
-                    textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 500,
-                    padding: '2px 6px', borderRadius: 3,
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.color = '#fff';
-                    e.currentTarget.style.background = 'var(--bg-tertiary)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  {p === 'terminal' && 'Terminal'}
-                  {p === 'problems' && 'Problems'}
-                  {p === 'output' && 'Output'}
-                  {p === 'debug' && 'Debug Console'}
-                </span>
-              ))}
-            </div>
+            />
           ) : (
             <>
               <ResizeHandle direction="vertical" onResize={(d) => {
                 if (!bottomExpanded) { setBottomExpanded(true); }
-                setTerminalHeight(h => Math.max(80, h + d));
+                setTerminalHeight(h => Math.max(80, h - d));
               }} />
               <div style={{
                 height: bottomExpanded ? terminalHeight : 28,
@@ -167,12 +152,9 @@ export default function App() {
                 borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column',
               }}>
                 <TerminalTabs />
-                {bottomExpanded && (
+                {bottomExpanded && activeTermId && (
                   <div style={{ flex: 1, overflow: 'hidden' }}>
-                    {bottomPanel === 'terminal' && activeTermId && <TerminalPanel termId={activeTermId} />}
-                    {bottomPanel === 'problems' && <PlaceholderPanel title="PROBLEMS" message="暂无问题" />}
-                    {bottomPanel === 'output' && <PlaceholderPanel title="OUTPUT" message="暂无输出" />}
-                    {bottomPanel === 'debug' && <PlaceholderPanel title="DEBUG CONSOLE" message="调试控制台" />}
+                    <TerminalPanel termId={activeTermId} />
                   </div>
                 )}
               </div>
@@ -197,15 +179,27 @@ export default function App() {
   );
 }
 
-function PlaceholderPanel({ title, message }: { title: string; message: string }) {
+
+
+
+function WindowControlBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <div style={{
-      height: '100%', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)',
-      fontSize: 13, gap: 8,
-    }}>
-      <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.6 }}>{title}</span>
-      <span>{message}</span>
-    </div>
+    <button
+      onClick={onClick}
+      style={{
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        width: 28, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 3, transition: 'background 0.15s',
+        padding: 0,
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      {children}
+    </button>
   );
 }

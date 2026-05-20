@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useChatStore } from '../../stores/chat';
 import { useModelStore } from '../../stores/model';
 import { useAgentStore } from '../../stores/agent';
+import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
@@ -12,6 +13,7 @@ export default function ChatPanel() {
   const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, loadSessions } = useChatStore();
   const { loadModels, getActiveModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
+  const { setBottomClosed, setBottomExpanded } = useLayoutStore();
   const agentStore = useAgentStore();
   const endRef = useRef<HTMLDivElement>(null);
   const [apiKey, setApiKey] = useState('');
@@ -321,7 +323,7 @@ export default function ChatPanel() {
         </div>
       )}
 
-      <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} />
+      <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} onToggleTerminal={() => { setBottomClosed(false); setBottomExpanded(true); }} />
 
       {confirmReq && (
         <ConfirmDialog

@@ -45,7 +45,37 @@ export default function EditorTabs() {
         >
           <FileIcon name={tab.name} />
           <span>{tab.name}</span>
-          <img onClick={(e) => { e.stopPropagation(); closeTab(tab.path); }} src="/assets/图层 12_w.png" alt="close" style={{ marginLeft: 4, width: 12, height: 12, opacity: 0.6, cursor: 'pointer' }} />
+          <span
+              style={{
+                display: 'inline-block',
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: tab.content !== tab.originalContent ? 'var(--accent)' : 'transparent',
+                flexShrink: 0,
+              }}
+              title={tab.content !== tab.originalContent ? '未保存' : ''}
+            />
+            <span
+              onClick={(e) => { e.stopPropagation(); closeTab(tab.path); }}
+              style={{
+                marginLeft: 4, width: 16, height: 16, display: 'inline-flex',
+                alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', borderRadius: 3,
+                opacity: 0.6, transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.opacity = '0.6';
+                e.currentTarget.style.background = 'transparent';
+              }}
+              title="关闭"
+            >
+              <img src="/assets/图层 12_w.png" alt="close" style={{ width: 12, height: 12 }} />
+            </span>
         </div>
       ))}
     </div>

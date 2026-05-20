@@ -11,6 +11,7 @@ interface OpenTab {
   path: string;
   name: string;
   content?: string;
+  originalContent?: string;
 }
 
 interface FilesState {
@@ -24,6 +25,7 @@ interface FilesState {
   closeTab: (path: string) => void;
   setActiveTab: (path: string) => void;
   updateTabContent: (path: string, content: string) => void;
+  saveFile: (path: string) => Promise<void>;
   loadWorkspace: () => Promise<void>;
   openWorkspace: (workspacePath: string) => Promise<void>;
   selectAndOpenWorkspace: () => Promise<void>;
@@ -38,10 +40,11 @@ export const useFilesStore = create<FilesState>((set, get) => ({
   setTree: (tree) => set({ tree }),
   openFile: async (path, name) => {
     const { openTabs } = get();
-    if (!openTabs.find(t => t.path === path)) {
+    const existing = openTabs.find(t => t.path === path);
+    if (!existing) {
       try {
         const content = await window.api.files.read(path);
-        set({ openTabs: [...openTabs, { path, name, content }] });
+        set({ openTabs: [...openTabs, { path, name, content, originalContent: content }] });
       } catch {
         set({ openTabs: [...openTabs, { path, name }] });
       }
@@ -84,6 +87,17 @@ export const useFilesStore = create<FilesState>((set, get) => ({
       console.error('Failed to open workspace:', err);
     }
   },
+  saveFile: async (path) => {
+    const tab = get().openTabs.find(t => t.path === path);
+    if (!tab || tab.content === undefined) return;
+    await window.api.files.write(path, tab.content);
+    set(s => ({
+      openTabs: s.openTabs.map(t =>
+        t.path === path ? { ...t, originalContent: t.content } : t
+      ),
+    }));
+  },
+
   selectAndOpenWorkspace: async () => {
     try {
       const selected = await window.api.files.selectWorkspace();

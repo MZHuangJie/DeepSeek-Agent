@@ -2,25 +2,20 @@ import React, { useState } from 'react';
 import { useTerminalStore } from '../../stores/terminal';
 import { useLayoutStore } from '../../stores/layout';
 
-type PanelKey = 'terminal' | 'problems' | 'output' | 'debug';
-
-const PANELS: { key: PanelKey; label: string }[] = [
-  { key: 'terminal', label: 'TERMINAL' },
-  { key: 'problems', label: 'PROBLEMS' },
-  { key: 'output', label: 'OUTPUT' },
-  { key: 'debug', label: 'DEBUG CONSOLE' },
-];
-
 export default function TerminalTabs() {
   const { terminals, activeTermId, createTerminal, closeTerminal, setActiveTerm } = useTerminalStore();
-  const { bottomPanel, setBottomPanel, bottomExpanded, toggleBottomExpanded, setBottomClosed, terminalHeight, setTerminalHeight } = useLayoutStore();
+  const { bottomExpanded, toggleBottomExpanded, setBottomClosed, setBottomExpanded, terminalHeight, setTerminalHeight } = useLayoutStore();
   const [shellOpen, setShellOpen] = useState(false);
-  const [selectedShell, setSelectedShell] = useState(navigator.userAgent.includes('Windows') ? 'powershell' : 'bash');
+  const isWin = navigator.userAgent.includes('Windows');
+  const [selectedShell, setSelectedShell] = useState(isWin ? 'powershell' : 'bash');
+  const SHELLS = isWin ? ['powershell', 'cmd'] : ['bash', 'zsh'];
 
   const activeTerm = terminals.find(t => t.id === activeTermId);
 
   const handleShellSelect = (shell: string) => {
     setSelectedShell(shell);
+    setBottomClosed(false);
+    setBottomExpanded(true);
     createTerminal(shell);
     setShellOpen(false);
   };
@@ -30,108 +25,106 @@ export default function TerminalTabs() {
       display: 'flex', alignItems: 'center', background: 'var(--bg-secondary)',
       borderBottom: '1px solid var(--border)', height: 28, flexShrink: 0,
     }}>
-      {/* Panel type tabs */}
+      {/* Left: TERMINAL label + instance tabs */}
       <div style={{ display: 'flex', height: '100%', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
-        {PANELS.map(p => (
+        <div style={{
+          padding: '0 10px', display: 'flex', alignItems: 'center', height: '100%',
+          fontSize: 11, fontWeight: 500, letterSpacing: 0.5,
+          color: '#fff',
+          borderBottom: '2px solid var(--accent)',
+          userSelect: 'none',
+        }}>
+          TERMINAL
+        </div>
+
+        <div style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 4px' }} />
+        {terminals.map(t => (
           <div
-            key={p.key}
-            onClick={() => {
-              setBottomPanel(p.key);
-              if (p.key === 'terminal') {
-                // auto expand when clicking terminal tab
-                // keep current state
-              }
-            }}
+            key={t.id}
+            onClick={() => setActiveTerm(t.id)}
             style={{
-              padding: '0 10px', display: 'flex', alignItems: 'center', height: '100%',
-              fontSize: 11, fontWeight: 500, letterSpacing: 0.5,
-              color: bottomPanel === p.key ? '#fff' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              borderBottom: bottomPanel === p.key ? '2px solid var(--accent)' : '2px solid transparent',
-              userSelect: 'none',
+              padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4,
+              height: '100%', cursor: 'pointer', fontSize: 11,
+              color: t.id === activeTermId ? '#fff' : 'var(--text-secondary)',
+              borderTop: t.id === activeTermId ? '1px solid #fff' : '1px solid transparent',
+              background: t.id === activeTermId ? 'var(--terminal-bg)' : 'transparent',
             }}
           >
-            {p.label}
+            <span style={{ opacity: 0.7, fontFamily: 'Consolas, monospace', fontSize: 10 }}>{'>'}</span>
+            <span>{t.name}</span>
+            <span
+              onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
+              style={{
+                marginLeft: 2, opacity: 0.5, cursor: 'pointer', fontSize: 12,
+                padding: '2px 4px', borderRadius: 3, transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.opacity = '0.5';
+                e.currentTarget.style.background = 'transparent';
+              }}
+              title="关闭终端"
+            >
+              ×
+            </span>
           </div>
         ))}
-
-        {/* Terminal instance tabs (only when terminal panel is active) */}
-        {bottomPanel === 'terminal' && (
-          <>
-            <div style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 4px' }} />
-            {terminals.map(t => (
-              <div
-                key={t.id}
-                onClick={() => setActiveTerm(t.id)}
-                style={{
-                  padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4,
-                  height: '100%', cursor: 'pointer', fontSize: 11,
-                  color: t.id === activeTermId ? '#fff' : 'var(--text-secondary)',
-                  borderTop: t.id === activeTermId ? '1px solid #fff' : '1px solid transparent',
-                  background: t.id === activeTermId ? 'var(--terminal-bg)' : 'transparent',
-                }}
-              >
-                <span style={{ opacity: 0.7, fontFamily: 'Consolas, monospace', fontSize: 10 }}>{'>'}</span>
-                <span>{t.name}</span>
-                <span
-                  onClick={(e) => { e.stopPropagation(); closeTerminal(t.id); }}
-                  style={{ marginLeft: 2, opacity: 0.5, cursor: 'pointer', fontSize: 12, padding: '0 2px' }}
-                  title="关闭终端"
-                >
-                  ×
-                </span>
-              </div>
-            ))}
-          </>
-        )}
       </div>
 
       {/* Right controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, paddingRight: 8, paddingLeft: 8, flexShrink: 0 }}>
         {/* Shell selector */}
-        {bottomPanel === 'terminal' && (
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShellOpen(!shellOpen)}
-              style={{
-                background: 'transparent', border: '1px solid var(--border)',
-                color: 'var(--text-secondary)', fontSize: 11, padding: '1px 8px',
-                borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-              }}
-            >
-              {selectedShell}
-              <span style={{ fontSize: 8 }}>▼</span>
-            </button>
-            {shellOpen && (
-              <div style={{
-                position: 'absolute', bottom: '100%', right: 0, marginBottom: 4,
-                background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                borderRadius: 4, padding: '4px 0', minWidth: 100, zIndex: 100,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              }}>
-                {['bash', 'powershell', 'cmd', 'zsh'].map(s => (
-                  <div
-                    key={s}
-                    onClick={() => handleShellSelect(s)}
-                    style={{
-                      padding: '4px 12px', fontSize: 12, color: 'var(--text-primary)',
-                      cursor: 'pointer', textTransform: 'lowercase',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    {s}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShellOpen(!shellOpen)}
+            style={{
+              background: 'transparent', border: '1px solid var(--border)',
+              color: 'var(--text-secondary)', fontSize: 11, padding: '1px 8px',
+              borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+              e.currentTarget.style.borderColor = 'var(--text-secondary)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'var(--border)';
+            }}
+          >
+            {selectedShell}
+            <span style={{ fontSize: 8 }}>▼</span>
+          </button>
+          {shellOpen && (
+            <div style={{
+              position: 'absolute', bottom: '100%', right: 0, marginBottom: 4,
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              borderRadius: 4, padding: '4px 0', minWidth: 100, zIndex: 100,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            }}>
+              {['bash', 'powershell', 'cmd', 'zsh'].map(s => (
+                <div
+                  key={s}
+                  onClick={() => handleShellSelect(s)}
+                  style={{
+                    padding: '4px 12px', fontSize: 12, color: 'var(--text-primary)',
+                    cursor: 'pointer', textTransform: 'lowercase',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {s}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* New terminal */}
-        {bottomPanel === 'terminal' && (
-          <IconBtn title="新建终端" onClick={() => createTerminal()}>+</IconBtn>
-        )}
+        <IconBtn title="新建终端" onClick={() => { setBottomClosed(false); setBottomExpanded(true); createTerminal(); }}>+</IconBtn>
 
         {/* Maximize panel */}
         <IconBtn title="最大化" onClick={() => {
@@ -142,7 +135,7 @@ export default function TerminalTabs() {
         </IconBtn>
 
         {/* Kill terminal */}
-        {bottomPanel === 'terminal' && activeTerm && (
+        {activeTerm && (
           <IconBtn title="终止终端" onClick={() => activeTermId && closeTerminal(activeTermId)}>
             <span style={{ fontSize: 10 }}>🗑</span>
           </IconBtn>

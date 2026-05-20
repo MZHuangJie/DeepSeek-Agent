@@ -21,6 +21,7 @@ const api = {
     createFile: (filePath: string) => ipcRenderer.invoke('files:create-file', filePath),
     createDirectory: (dirPath: string) => ipcRenderer.invoke('files:create-directory', dirPath),
     delete: (targetPath: string) => ipcRenderer.invoke('files:delete', targetPath),
+    write: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content),
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),

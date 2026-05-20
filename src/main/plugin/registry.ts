@@ -1,4 +1,7 @@
-import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { exec } from 'child_process';
 
 export interface PluginMeta {
   name: string;
@@ -7,92 +10,88 @@ export interface PluginMeta {
   downloadUrl: string;
 }
 
-function githubGet(path: string): Promise<any> {
+const CACHE_DIR = path.join(os.tmpdir(), 'mycli-plugin-cache');
+
+function execAsync(cmd: string, opts: { cwd: string; timeout?: number }): Promise<void> {
   return new Promise((resolve, reject) => {
-    const opts = {
-      hostname: 'api.github.com',
-      path,
-      headers: {
-        'User-Agent': 'MyCLI-Plugin-Manager',
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    };
-    https.get(opts, (res) => {
-      let data = '';
-      res.on('data', (c: string) => { data += c; });
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`GitHub API ${res.statusCode}: ${data.slice(0, 200)}`));
-          return;
-        }
-        try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
-      });
-    }).on('error', reject);
+    exec(cmd, {
+      ...opts,
+      windowsHide: true,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    }, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
   });
 }
 
-/**
- * 从 GitHub repo URL 发现所有 SKILL.md 文件。
- * 支持格式: "owner/repo" 或完整 URL。
- */
-export async function discoverFromRepo(repoUrl: string): Promise<PluginMeta[]> {
+function parseOwnerRepo(repoUrl: string): { owner: string; repo: string } {
   const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/);
-  let owner: string;
-  let repo: string;
   if (match) {
-    owner = match[1];
-    repo = match[2];
-  } else {
-    // "owner/repo" 格式
-    const parts = repoUrl.replace(/^https?:\/\//, '').replace(/^github\.com\//, '').split('/');
-    if (parts.length >= 2) {
-      owner = parts[0];
-      repo = parts[1].replace(/\.git$/, '');
-    } else {
-      throw new Error(`无法识别的仓库 URL: ${repoUrl}`);
+    return { owner: match[1], repo: match[2] };
+  }
+  const parts = repoUrl.replace(/^https?:\/\//, '').replace(/^github\.com\//, '').split('/');
+  if (parts.length >= 2) {
+    return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') };
+  }
+  throw new Error(`无法识别的仓库 URL: ${repoUrl}`);
+}
+
+async function cloneOrPull(owner: string, repo: string): Promise<string> {
+  const url = `https://github.com/${owner}/${repo}.git`;
+  const dir = path.join(CACHE_DIR, `${owner}_${repo}`);
+
+  if (fs.existsSync(dir)) {
+    try {
+      await execAsync('git pull --ff-only', { cwd: dir, timeout: 30000 });
+    } catch {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.mkdirSync(dir, { recursive: true });
+      await execAsync(`git clone --depth 1 "${url}" .`, { cwd: dir, timeout: 60000 });
     }
+  } else {
+    fs.mkdirSync(dir, { recursive: true });
+    await execAsync(`git clone --depth 1 "${url}" .`, { cwd: dir, timeout: 60000 });
   }
 
-  const skills: PluginMeta[] = [];
+  return dir;
+}
 
-  // 查找仓库中所有 SKILL.md 文件（扫描常见目录）
+export async function discoverFromRepo(repoUrl: string): Promise<PluginMeta[]> {
+  const { owner, repo } = parseOwnerRepo(repoUrl);
+  const repoDir = await cloneOrPull(owner, repo);
+
+  const skills: PluginMeta[] = [];
   const searchPaths = ['skills', '.claude/skills', '.claude/plugins', 'plugins', ''];
+
   for (const searchPath of searchPaths) {
+    const baseDir = searchPath ? path.join(repoDir, searchPath) : repoDir;
+    let entries: fs.Dirent[];
     try {
-      const path = searchPath ? `/${searchPath}` : '';
-      const contents = await githubGet(`/repos/${owner}/${repo}/contents${path}`);
-      const dirs: string[] = [];
-      for (const item of contents) {
-        if (item.type === 'dir') {
-          dirs.push(item.name);
-        } else if (item.name === 'SKILL.md' || item.name.endsWith('.skill.md')) {
-          // 这个目录可能包含 SKILL.md
-          const parent = searchPath || '.';
-          dirs.push(parent);
-        }
-      }
-      // 检查每个子目录是否有 SKILL.md
-      for (const dir of Array.from(new Set(dirs))) {
-        if (dir === '.') continue;
-        try {
-          const dirPath = searchPath ? `${searchPath}/${dir}` : dir;
-          const skillContent = await githubGet(`/repos/${owner}/${repo}/contents/${dirPath}/SKILL.md`);
-          const content = Buffer.from(skillContent.content || '', 'base64').toString('utf-8');
-          const frontmatter = parseFrontmatter(content);
-          if (frontmatter.name) {
-            skills.push({
-              name: frontmatter.name,
-              description: frontmatter.description || dir,
-              source: `${owner}/${repo}`,
-              downloadUrl: `https://raw.githubusercontent.com/${owner}/${repo}/main/${dirPath}/SKILL.md`,
-            });
-          }
-        } catch {
-          // 没有 SKILL.md，跳过
-        }
-      }
+      entries = fs.readdirSync(baseDir, { withFileTypes: true });
     } catch {
-      // 目录不存在，继续下一个
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const skillFile = path.join(baseDir, entry.name, 'SKILL.md');
+      let content: string;
+      try {
+        content = fs.readFileSync(skillFile, 'utf-8');
+      } catch {
+        continue;
+      }
+      const fm = parseFrontmatter(content);
+      if (!fm.name) continue;
+
+      const relativePath = searchPath ? `${searchPath}/${entry.name}` : entry.name;
+      skills.push({
+        name: fm.name,
+        description: fm.description || entry.name,
+        source: `${owner}/${repo}`,
+        downloadUrl: path.join(repoDir, relativePath, 'SKILL.md'),
+      });
     }
   }
 
@@ -108,28 +107,6 @@ function parseFrontmatter(content: string): { name: string; description: string 
   return { name, description };
 }
 
-/**
- * 下载 SKILL.md 内容
- */
-export function downloadSkillContent(downloadUrl: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = new URL(downloadUrl);
-    const isHttps = url.protocol === 'https:';
-    const mod = isHttps ? https : require('http');
-    mod.get(downloadUrl, (res: any) => {
-      if (res.statusCode === 301 || res.statusCode === 302) {
-        downloadSkillContent(res.headers.location).then(resolve).catch(reject);
-        return;
-      }
-      let data = '';
-      res.on('data', (c: string) => { data += c; });
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`下载失败 ${res.statusCode}`));
-          return;
-        }
-        resolve(data);
-      });
-    }).on('error', reject);
-  });
+export function downloadSkillContent(filePath: string): Promise<string> {
+  return Promise.resolve(fs.readFileSync(filePath, 'utf-8'));
 }

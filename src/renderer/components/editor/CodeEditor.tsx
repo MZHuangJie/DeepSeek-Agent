@@ -1,9 +1,27 @@
 import React, { useRef } from 'react';
 import Editor, { loader, OnMount } from '@monaco-editor/react';
-import type * as monaco from 'monaco-editor';
+import * as monaco from 'monaco-editor';
 import { useEditorStore } from '../../stores/editor';
 
-loader.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+(window as any).MonacoEnvironment = {
+  getWorker(_: any, label: string) {
+    const entryMap: Record<string, string> = {
+      json: 'monaco-editor/esm/vs/language/json/json.worker.js',
+      css: 'monaco-editor/esm/vs/language/css/css.worker.js',
+      scss: 'monaco-editor/esm/vs/language/css/css.worker.js',
+      less: 'monaco-editor/esm/vs/language/css/css.worker.js',
+      html: 'monaco-editor/esm/vs/language/html/html.worker.js',
+      handlebars: 'monaco-editor/esm/vs/language/html/html.worker.js',
+      razor: 'monaco-editor/esm/vs/language/html/html.worker.js',
+      typescript: 'monaco-editor/esm/vs/language/typescript/ts.worker.js',
+      javascript: 'monaco-editor/esm/vs/language/typescript/ts.worker.js',
+    };
+    const entry = entryMap[label] || 'monaco-editor/esm/vs/editor/editor.worker.js';
+    return new Worker(new URL(entry, import.meta.url), { type: 'module' });
+  },
+};
+
+loader.config({ monaco });
 
 interface Props {
   content: string;
@@ -49,6 +67,7 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
       onChange={onChange}
       onMount={handleMount}
       theme="vs-dark"
+      loading={null}
       options={{
         readOnly,
         minimap: { enabled: false },

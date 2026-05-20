@@ -12,12 +12,13 @@ interface Props {
   disabled: boolean;
   isStreaming: boolean;
   onStop: () => void;
+  onToggleTerminal?: () => void;
 }
 
 const MIN_HEIGHT = 48;   // ~2 rows + padding
 const MAX_HEIGHT = 180;  // ~8 rows + padding
 
-export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Props) {
+export default function ChatInput({ onSend, disabled, isStreaming, onStop, onToggleTerminal }: Props) {
   const [value, setValue] = useState('');
   const [atMaxHeight, setAtMaxHeight] = useState(false);
   const [showMention, setShowMention] = useState(false);
@@ -287,6 +288,11 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
             {/* New session */}
             <ToolbarBtn title="新建会话" onClick={() => createSession()}>
               <img src="/assets/13.png" alt="new" style={{ width: 14, height: 14, opacity: 0.7 }} />
+            </ToolbarBtn>
+
+            {/* Toggle terminal */}
+            <ToolbarBtn title="终端" onClick={() => onToggleTerminal?.()}>
+              <img src="/assets/3.png" alt="terminal" style={{ width: 16, height: 16, opacity: 0.7 }} />
             </ToolbarBtn>
           </div>
 
