@@ -140,7 +140,7 @@ export default function ChatPanel() {
           total: chunk.total,
           prompt: chunk.prompt,
           completion: chunk.completion,
-          toolTokens: 0,
+          toolTokens: chunk.toolTokens ?? 0,
           contextWindow: chunk.currentPrompt || chunk.prompt || 0,
           contextMax: chunk.contextMax || 100000,
           cost: parseFloat((chunk.total * 0.000002).toFixed(3)),

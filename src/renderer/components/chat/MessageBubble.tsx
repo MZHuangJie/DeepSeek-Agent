@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Message } from '../../stores/chat';
 import ThinkingChain from './ThinkingChain';
 
@@ -92,6 +92,10 @@ function looksLikeImageLink(text: string): boolean {
 function ImageCard({ url, alt }: { url: string; alt: string }) {
   const [loaded, setLoaded] = useState(true);
 
+  useEffect(() => {
+    setLoaded(true);
+  }, [url]);
+
   if (!loaded) {
     return (
       <div style={{ margin: '8px 0' }}>
@@ -155,10 +159,6 @@ function MessageContent({ content }: { content: string }) {
           return <ImageCard key={idx} url={part.url} alt={part.alt} />;
         }
         if (part.type === 'link') {
-          // 智能识别：
-          // 1. URL 明显是图片
-          // 2. 链接文字暗示是图片
-          // 3. 整条消息处于生图上下文中（DeepSeek 调用 generate_image 后的回复）
           if (isImageUrl(part.url) || looksLikeImageLink(part.text) || imageContext) {
             return <ImageCard key={idx} url={part.url} alt={part.text} />;
           }

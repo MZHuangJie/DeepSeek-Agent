@@ -54,6 +54,12 @@ export function setupAgentHandlers() {
     let totalPrompt = 0;
     let totalCompletion = 0;
     let totalTokens = 0;
+    let totalToolTokens = 0;
+
+    // 粗略估算工具调用 token：字符数 / 4（OpenAI tokenizer 近似值）
+    function estimateTokens(str: string): number {
+      return Math.max(1, Math.ceil(str.length / 4));
+    }
 
     // 动态计算最大轮次：根据项目文件数量（仅编程模式启用多轮工具调用）
     const maxTurns = enableTools ? (() => {
@@ -118,6 +124,7 @@ export function setupAgentHandlers() {
           prompt: totalPrompt,
           completion: totalCompletion,
           total: totalTokens,
+          toolTokens: totalToolTokens,
           currentPrompt,
           contextMax: payload.contextMax || 100000,
         });
@@ -346,6 +353,7 @@ export function setupAgentHandlers() {
                 status = 'error';
                 win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
                 win.webContents.send('agent:stream-chunk', { type: 'tool-result', name: tc.name, result: toolResult, status, step: turn + 1, total: maxTurns });
+                totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(toolResult);
                 messages.push({ role: 'tool', tool_call_id: tc.id, content: toolResult });
                 continue;
               }
@@ -384,6 +392,7 @@ export function setupAgentHandlers() {
           step: turn + 1,
           total: maxTurns,
         });
+        totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(toolResult);
         messages.push({
           role: 'tool',
           tool_call_id: tc.id,
