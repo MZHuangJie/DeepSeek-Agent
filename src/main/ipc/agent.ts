@@ -364,6 +364,8 @@ export function setupAgentHandlers() {
 
             const imageModelRaw = getSetting('imageModel');
             const imageModelConfig = imageModelRaw ? JSON.parse(imageModelRaw) : null;
+            if (abortController.signal.aborted) break;
+
             const toolContext = {
               apiKey: payload.apiKey,
               modelConfig: {
@@ -372,6 +374,7 @@ export function setupAgentHandlers() {
               },
               contextMax: payload.contextMax || 100000,
               subAgentManager,
+              signal: abortController.signal,
               imageModelConfig: imageModelConfig?.enabled ? {
                 baseUrl: imageModelConfig.baseUrl,
                 model: imageModelConfig.model,

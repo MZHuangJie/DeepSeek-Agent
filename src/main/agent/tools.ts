@@ -450,7 +450,7 @@ ${r.summary}
         properties: {
           prompt: {
             type: 'string',
-            description: '高质量的英文图片生成描述，建议详细描述画面内容、风格、构图、光影等',
+            description: '高质量的英文图片生成描述。注意：prompt 长度不能超过 4000 字符，超出会被截断。请精简表达，只保留画面核心要素。',
           },
           size: {
             type: 'string',
@@ -473,12 +473,16 @@ ${r.summary}
         if (!context?.imageModelConfig) {
           throw new Error('未配置生图模型，请在模型设置中配置生图 API');
         }
+        let prompt = (args.prompt as string).trim();
+        if (prompt.length > 4000) {
+          prompt = prompt.slice(0, 3997) + '...';
+        }
         const result = await generateImage(context.imageModelConfig, {
-          prompt: args.prompt as string,
+          prompt,
           size: (args.size as string) || undefined,
           quality: (args.quality as string) || undefined,
           n: (args.n as number) || undefined,
-        });
+        }, context.signal);
         if (result.urls.length === 0) {
           throw new Error('生图 API 未返回图片 URL');
         }

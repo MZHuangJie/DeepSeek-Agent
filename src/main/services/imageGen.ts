@@ -44,7 +44,8 @@ function unwrapError(err: unknown, hostname: string): Error {
 
 export async function generateImage(
   config: ImageModelConfig,
-  args: GenerateImageArgs
+  args: GenerateImageArgs,
+  signal?: AbortSignal
 ): Promise<GenerateImageResult> {
   const url = new URL('/v1/images/generations', config.baseUrl);
   const isHttps = url.protocol === 'https:';
@@ -58,6 +59,17 @@ export async function generateImage(
   });
 
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+
+    const onAbort = () => {
+      req.destroy(new Error('Aborted'));
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+
     const options = {
       hostname: url.hostname,
       port: url.port || (isHttps ? 443 : 80),
@@ -77,6 +89,7 @@ export async function generateImage(
       res.setEncoding('utf-8');
       res.on('data', (c: string) => { buf += c; });
       res.on('end', () => {
+        signal?.removeEventListener('abort', onAbort);
         if (status < 200 || status >= 300) {
           let detail = buf.trim();
           try {
@@ -103,15 +116,22 @@ export async function generateImage(
           reject(new Error(`解析生图响应失败: ${err.message}`));
         }
       });
-      res.on('error', (err) => reject(unwrapError(err, url.hostname)));
+      res.on('error', (err) => {
+        signal?.removeEventListener('abort', onAbort);
+        reject(unwrapError(err, url.hostname));
+      });
     });
 
     req.setTimeout(300000, () => {
+      signal?.removeEventListener('abort', onAbort);
       req.destroy();
       reject(new Error('生图请求超时（300秒），请检查网络或稍后重试'));
     });
 
-    req.on('error', (err) => reject(unwrapError(err, url.hostname)));
+    req.on('error', (err) => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(unwrapError(err, url.hostname));
+    });
     req.write(body);
     req.end();
   });
