@@ -5,6 +5,7 @@ import { useAgentStore } from '../../stores/agent';
 import { useFilesStore } from '../../stores/files';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
+import ConfirmDialog from './ConfirmDialog';
 import { Command } from '../../commands';
 
 export default function ChatPanel() {
@@ -16,6 +17,8 @@ export default function ChatPanel() {
   const [apiKey, setApiKey] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [confirmReq, setConfirmReq] = useState<{ confirmId: string; name: string } | null>(null);
+  const autoApprovedRef = useRef<Set<string>>(new Set());
 
   const projectDir = currentWorkspace || '';
 
@@ -178,6 +181,19 @@ export default function ChatPanel() {
     return () => { unsubscribe(); };
   }, []);
 
+  // Listen for confirm requests from agent
+  useEffect(() => {
+    const unsubscribe = window.api.agent.onConfirmRequest((req) => {
+      if (autoApprovedRef.current.has(req.name)) {
+        // 已自动允许，直接回复
+        window.api.agent.confirmResponse(req.confirmId, true);
+      } else {
+        setConfirmReq(req);
+      }
+    });
+    return () => { unsubscribe(); };
+  }, []);
+
   const handleSaveKey = async () => {
     if (!apiKey.trim()) return;
     await window.api.settings.setApiKey(apiKey.trim());
@@ -306,6 +322,21 @@ export default function ChatPanel() {
       )}
 
       <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} />
+
+      {confirmReq && (
+        <ConfirmDialog
+          name={confirmReq.name}
+          onApprove={(alwaysAllow) => {
+            if (alwaysAllow) autoApprovedRef.current.add(confirmReq.name);
+            window.api.agent.confirmResponse(confirmReq.confirmId, true);
+            setConfirmReq(null);
+          }}
+          onDeny={() => {
+            window.api.agent.confirmResponse(confirmReq.confirmId, false);
+            setConfirmReq(null);
+          }}
+        />
+      )}
     </div>
   );
 }

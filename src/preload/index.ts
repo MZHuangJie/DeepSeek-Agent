@@ -30,6 +30,14 @@ const api = {
       ipcRenderer.on('agent:stream-chunk', handler);
       return () => ipcRenderer.removeListener('agent:stream-chunk', handler);
     },
+    onConfirmRequest: (cb: (req: any) => void) => {
+      const handler = (_: unknown, req: any) => cb(req);
+      ipcRenderer.on('agent:confirm-request', handler);
+      return () => ipcRenderer.removeListener('agent:confirm-request', handler);
+    },
+    confirmResponse: (confirmId: string, approved: boolean) => {
+      ipcRenderer.send('agent:confirm-response', { confirmId, approved });
+    },
   },
   terminal: {
     create: (shell?: string) => ipcRenderer.invoke('terminal:create', shell),

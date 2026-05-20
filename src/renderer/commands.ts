@@ -7,6 +7,12 @@ export interface Command {
 
 export const COMMANDS: Command[] = [
   {
+    name: 'plugin',
+    description: '打开插件管理器',
+    detail: '浏览、安装和管理插件（skills），扩展AI能力',
+    systemPrompt: '',
+  },
+  {
     name: 'create-skills',
     description: '分析代码模式，生成 SKILL.md',
     detail: '分析项目 git 历史和代码模式，提取可复用的编码模式并生成 SKILL.md 技能文件',

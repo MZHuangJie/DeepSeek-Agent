@@ -296,16 +296,6 @@ export function setupAgentHandlers() {
         break;
       }
 
-      for (const tc of result.toolCalls) {
-        win.webContents.send('agent:stream-chunk', {
-          type: 'tool-call',
-          name: tc.name,
-          args: tc.arguments,
-          step: turn + 1,
-          total: maxTurns,
-        });
-      }
-
       const assistantToolCalls = result.toolCalls.map((tc) => ({
         id: tc.id,
         type: 'function' as const,
@@ -331,6 +321,33 @@ export function setupAgentHandlers() {
         } else {
           try {
             const args = JSON.parse(tc.arguments || '{}');
+
+            // 需要用户确认的工具：先发确认请求，再发 tool-call 事件
+            if (tool.requiresConfirm) {
+              const approved = await new Promise<boolean>((resolve) => {
+                const confirmId = `confirm-${Date.now()}`;
+                win.webContents.send('agent:confirm-request', { confirmId, name: tc.name });
+                const handler = (_ev: any, resp: { confirmId: string; approved: boolean }) => {
+                  if (resp.confirmId === confirmId) {
+                    ipcMain.removeListener('agent:confirm-response', handler);
+                    resolve(resp.approved);
+                  }
+                };
+                ipcMain.on('agent:confirm-response', handler);
+              });
+              if (!approved) {
+                toolResult = '用户拒绝了此操作';
+                status = 'error';
+                win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
+                win.webContents.send('agent:stream-chunk', { type: 'tool-result', name: tc.name, result: toolResult, status, step: turn + 1, total: maxTurns });
+                messages.push({ role: 'tool', tool_call_id: tc.id, content: toolResult });
+                continue;
+              }
+            }
+
+            // 发送 tool-call 事件（确认后或无需确认的工具）
+            win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
+
             const toolContext = {
               apiKey: payload.apiKey,
               modelConfig: {
