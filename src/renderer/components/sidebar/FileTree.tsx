@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useFilesStore, FileNode } from '../../stores/files';
 import { useBrowserStore } from '../../stores/browser';
 import { getFileIconInfo } from '../../utils/icons';
@@ -165,6 +166,7 @@ export default function FileTree() {
   const [showRecent, setShowRecent] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const contextMenuRef = useRef<FileNode | null>(null);
   const [creating, setCreating] = useState<{ parentPath: string; isDirectory: boolean } | null>(null);
   const treeAreaRef = useRef<HTMLDivElement>(null);
 
@@ -214,15 +216,14 @@ export default function FileTree() {
   const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
     e.stopPropagation();
-    // 获取父容器滚动偏移
-    const rect = treeAreaRef.current?.getBoundingClientRect();
-    setContextMenu({ x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0), node });
+    contextMenuRef.current = node;
+    setContextMenu({ x: e.clientX, y: e.clientY, node });
   };
 
   const handleBlankContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    const rect = treeAreaRef.current?.getBoundingClientRect();
-    setContextMenu({ x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0), node: null });
+    contextMenuRef.current = null;
+    setContextMenu({ x: e.clientX, y: e.clientY, node: null });
   };
 
   const handleDelete = async () => {
@@ -285,39 +286,57 @@ export default function FileTree() {
                 <InlineCreate parentPath={creating.parentPath} isDirectory={creating.isDirectory} onDone={onCreated} onCancel={() => setCreating(null)} />
               )}
 
-              {/* 右键菜单 */}
-              {contextMenu && (
-                <div style={{ position: 'absolute', left: contextMenu.x, top: contextMenu.y, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 0', minWidth: 160, zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
+              {/* 右键菜单 — Portal 到 body 避免被父容器裁切 */}
+              {contextMenu && createPortal(
+                <div style={{
+                  position: 'fixed', left: contextMenu.x, top: contextMenu.y,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  borderRadius: 6, padding: '4px 0', minWidth: 160,
+                  zIndex: 9999, boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                }}
                   onClick={(e) => e.stopPropagation()}>
                   <ContextMenuItem label="新建文件" onClick={() => startCreate(false)} />
                   <ContextMenuItem label="新建文件夹" onClick={() => startCreate(true)} />
                   {contextMenu.node && (
                     <>
                       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
-                      <ContextMenuItem label="重命名" onClick={() => { setContextMenu(null); }} />
+                      <ContextMenuItem label="重命名" onClick={() => {
+                        const node = contextMenuRef.current;
+                        setContextMenu(null);
+                        // 触发双击重命名：找到对应 DOM 元素并双击
+                        if (node) {
+                          const el = document.querySelector(`[data-path="${node.path.replace(/\\/g, '\\\\')}"]`);
+                          if (el) el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+                        }
+                      }} />
                       <ContextMenuItem label="删除" onClick={handleDelete} />
                       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
-                      {!contextMenu.node.isDirectory && (
+                      {contextMenu.node && !contextMenu.node.isDirectory && (
                         <ContextMenuItem label="添加到对话" onClick={() => {
                           const addRef = (window as any).__mycli_addRefFile__;
-                          if (addRef) addRef(contextMenu.node!.path);
+                          if (addRef) addRef(contextMenuRef.current!.path);
                           setContextMenu(null);
                         }} />
                       )}
                       <ContextMenuItem label="在资源管理器中打开" onClick={() => {
-                        window.api.files.showInExplorer(contextMenu.node!.path);
+                        const node = contextMenuRef.current;
+                        if (node) window.api.files.showInExplorer(node.path);
                         setContextMenu(null);
                       }} />
-                      {!contextMenu.node.isDirectory && (
+                      {contextMenu.node && !contextMenu.node.isDirectory && (
                         <ContextMenuItem label="在浏览器中打开" onClick={() => {
-                          const fileUrl = `file:///${contextMenu.node!.path.replace(/\\/g, '/')}`;
-                          useBrowserStore.getState().openUrl(fileUrl);
+                          const node = contextMenuRef.current;
+                          if (node) {
+                            const fileUrl = `file:///${node.path.replace(/\\/g, '/')}`;
+                            useBrowserStore.getState().openUrl(fileUrl);
+                          }
                           setContextMenu(null);
                         }} />
                       )}
                     </>
                   )}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>

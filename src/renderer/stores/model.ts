@@ -73,11 +73,14 @@ export const useModelStore = create<ModelState>((set, get) => ({
       const saved = await window.api.settings.get('models');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // 兼容旧数据：没有 contextWindow 的补默认值
-        const migrated = parsed.map((m: ModelConfig) => ({
-          ...m,
-          contextWindow: m.contextWindow ?? inferContextWindow(m.model),
-        }));
+        // 兼容旧数据：已配模型用默认列表里的最新 contextWindow
+        const migrated = parsed.map((m: ModelConfig) => {
+          const def = DEFAULT_MODELS.find(d => d.id === m.id || d.model === m.model);
+          return {
+            ...m,
+            contextWindow: def?.contextWindow ?? m.contextWindow ?? inferContextWindow(m.model),
+          };
+        });
         set({ models: migrated });
       }
       const active = await window.api.settings.get('activeModel');

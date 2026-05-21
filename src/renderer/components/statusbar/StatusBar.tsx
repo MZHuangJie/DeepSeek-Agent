@@ -29,7 +29,7 @@ export default function StatusBar({ language }: Props) {
       {/* Left: errors / warnings */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <StatusItem>
-          <span style={{ fontSize: 14, marginRight: 2 }}>×</span>
+          <img src="/assets/error.png" alt="errors" style={{ width: 12, height: 12, marginRight: 4 }} />
           <span>{errorCount}</span>
         </StatusItem>
         <StatusItem>
