@@ -8,16 +8,6 @@ docs/
 image.png
 chi_sim.traineddata
 SECURITY_AUDIT.md
-*.tgznode_modules/
-dist/
-out/
-.deepseek-agent/
-.env
-*.db
-docs/
-image.png
-chi_sim.traineddata
-SECURITY_AUDIT.md
 *.tgz
 .claude/
 src/renderer/public/vs/
