@@ -1,8 +1,13 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Editor, { loader, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../../stores/editor';
 
-loader.config({ paths: { vs: '/vs' } });
+// 配置 Monaco 从本地 public/vs 加载
+try {
+  loader.config({ paths: { vs: '/vs' } });
+} catch (e) {
+  console.error('[Monaco] loader.config failed:', e);
+}
 
 interface Props {
   content: string;
@@ -13,6 +18,17 @@ interface Props {
 
 export default function CodeEditor({ content, language, onChange, readOnly = false }: Props) {
   const storeRef = useRef(useEditorStore);
+  const [monacoError, setMonacoError] = useState<string | null>(null);
+
+  // 检测 Monaco 是否加载成功
+  React.useEffect(() => {
+    loader.init().then(() => {
+      console.log('[Monaco] loaded successfully');
+    }).catch((err) => {
+      console.error('[Monaco] failed to load:', err);
+      setMonacoError(err?.message || 'Monaco Editor 加载失败');
+    });
+  }, []);
 
   const handleMount: OnMount = (editor, monaco) => {
     // Disable semantic errors in editor (Monaco doesn't have node_modules types)
@@ -59,6 +75,27 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
     updateDiagnostics();
   };
 
+  if (monacoError) {
+    return (
+      <div style={{
+        height: '100%', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        color: '#ef4444', fontSize: 13, padding: 20,
+      }}>
+        <div style={{ marginBottom: 8 }}>⚠️ 编辑器加载失败</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 12, textAlign: 'center' }}>
+          {monacoError}
+        </div>
+        <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 11 }}>
+          请检查 public/vs 目录是否存在，或尝试执行：<br/>
+          <code style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: 3 }}>
+            node scripts/setup-monaco.js
+          </code>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Editor
       value={content}
@@ -66,7 +103,14 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
       onChange={onChange}
       onMount={handleMount}
       theme="vs-dark"
-      loading={null}
+      loading={
+        <div style={{
+          height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-secondary)', fontSize: 12,
+        }}>
+          正在加载编辑器...
+        </div>
+      }
       options={{
         readOnly,
         minimap: { enabled: false },
