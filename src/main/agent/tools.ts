@@ -4,6 +4,9 @@ import path from 'path';
 import { SubAgentManager, SubAgentTask } from './sub-agent';
 import { TaskDecomposer } from './task-decomposer';
 import { ModelConfig } from './client';
+import { webSearch } from '../services/webSearch';
+import { webFetch, webScreenshot } from '../services/browser';
+import { presentWebPreview } from '../services/webPreview';
 import { generateImage, ImageModelConfig } from '../services/imageGen';
 
 function safeResolve(baseDir: string, targetPath: string): string {
@@ -591,6 +594,97 @@ ${r.summary}
           selectedLabels,
           feedback: result.feedback,
         });
+      },
+    },
+    {
+      name: 'web_search',
+      description: '搜索互联网，获取最新的网页信息。当需要了解时事、查找资料、验证事实时使用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '搜索关键词，建议使用简洁的英文关键词以获得更好结果' },
+          maxResults: { type: 'number', description: '最大返回结果数，默认 8' },
+        },
+        required: ['query'],
+      },
+      execute: async (args) => {
+        const query = args.query as string;
+        const maxResults = (args.maxResults as number) || 8;
+        const results = await webSearch(query, maxResults);
+        if (results.length === 0) {
+          return JSON.stringify({ error: '未找到相关结果' });
+        }
+        return JSON.stringify({ query, results });
+      },
+    },
+    {
+      name: 'web_fetch',
+      description: '获取指定网页的文本内容。用于阅读文章、查看文档、提取网页信息。',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '要访问的网页 URL（完整的 https:// 地址）' },
+        },
+        required: ['url'],
+      },
+      execute: async (args, context) => {
+        const url = args.url as string;
+        if (!url.startsWith('https://') && !url.startsWith('http://')) {
+          throw new Error('URL 必须以 https:// 或 http:// 开头');
+        }
+        const result = await webFetch(url, context?.signal);
+        return JSON.stringify({ url: result.url, title: result.title, text: result.text });
+      },
+    },
+    {
+      name: 'web_screenshot',
+      description: '对指定网页截图，返回 base64 图片数据。用于查看网页外观、验证页面渲染效果。',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '要截图的网页 URL（完整的 https:// 地址）' },
+        },
+        required: ['url'],
+      },
+      execute: async (args, context) => {
+        const url = args.url as string;
+        if (!url.startsWith('https://') && !url.startsWith('http://')) {
+          throw new Error('URL 必须以 https:// 或 http:// 开头');
+        }
+        const base64 = await webScreenshot(url, context?.signal);
+        // 截图存到项目目录
+        const imgDir = path.join(context?.projectDir || process.cwd(), '.mycli-images');
+        fs.mkdirSync(imgDir, { recursive: true });
+        const imgFile = path.join(imgDir, `screenshot-${Date.now()}.png`);
+        const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+        fs.writeFileSync(imgFile, Buffer.from(base64Data, 'base64'));
+        return JSON.stringify({
+          url,
+          screenshot: `截图已保存到: ${imgFile}`,
+          hint: '使用 markdown 图片语法展示截图：![网页截图](图片路径)',
+        });
+      },
+    },
+    {
+      name: 'present_web',
+      description: '以交互式网页的形式展示方案/选项/设计稿给用户。当你需要用户从多个视觉化选项中做选择、或者展示复杂的设计方案时使用。生成的 HTML 页面中，每个可选项需要添加 data-action 属性，用户点击后会返回该选项名称。',
+      parameters: {
+        type: 'object',
+        properties: {
+          html: {
+            type: 'string',
+            description: '完整的 HTML 页面代码。每个可点击的按钮/选项需添加 data-action="选项名称" 属性。可选添加 <input id="feedback"> 让用户填写反馈。',
+          },
+        },
+        required: ['html'],
+      },
+      execute: async (args, context) => {
+        const html = args.html as string;
+        if (!html.includes('<html') && !html.includes('<body')) {
+          throw new Error('请提供完整的 HTML 页面代码，包含 <html> 和 <body> 标签');
+        }
+        const result = await presentWebPreview({ html }, context?.signal);
+        return JSON.stringify(result);
       },
     },
   ];

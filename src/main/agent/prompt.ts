@@ -23,6 +23,9 @@ The user wants to implement a feature. I need to analyze the project structure f
 - 执行终端命令
 - 列出目录内容
 - 调用生图模型生成图片（generate_image 工具）
+- 搜索互联网获取最新信息（web_search 工具）
+- 访问网页获取文本内容（web_fetch 工具）
+- 对网页截图（web_screenshot 工具）
 
 ## 项目文件读取策略（重要）
 

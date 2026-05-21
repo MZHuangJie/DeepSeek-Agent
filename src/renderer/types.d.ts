@@ -10,4 +10,13 @@ declare global {
       };
     };
   }
+  namespace JSX {
+    interface IntrinsicElements {
+      webview: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        src?: string;
+        ref?: React.Ref<any>;
+        style?: React.CSSProperties;
+      }, HTMLElement>;
+    }
+  }
 }

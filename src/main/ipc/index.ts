@@ -5,6 +5,7 @@ import { setupTerminalHandlers } from './terminal';
 import { setupSettingsHandlers } from './settings';
 import { setupWindowHandlers } from './window';
 import { setupPluginHandlers } from './plugin';
+import { setupBrowserHandlers } from './browser';
 
 export function registerAllHandlers() {
   setupWindowHandlers();
@@ -13,4 +14,5 @@ export function registerAllHandlers() {
   setupTerminalHandlers();
   setupSettingsHandlers();
   setupPluginHandlers();
+  setupBrowserHandlers();
 }

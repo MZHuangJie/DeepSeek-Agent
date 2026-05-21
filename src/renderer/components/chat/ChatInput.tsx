@@ -78,6 +78,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const trimmed = value.trim();
+      if (trimmed.startsWith('/browse')) {
+        const url = trimmed.slice(7).trim();
+        window.api.browser.open(url || undefined);
+        setValue('');
+        return;
+      }
       if (trimmed === '/plugin') {
         setShowPluginManager(true);
         setValue('');
@@ -110,6 +116,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
   const handleSend = () => {
     const trimmed = value.trim();
+    if (trimmed.startsWith('/browse')) {
+      const url = trimmed.slice(7).trim();
+      window.api.browser.open(url || undefined);
+      setValue('');
+      return;
+    }
     if (trimmed === '/plugin') {
       setShowPluginManager(true);
       setValue('');
@@ -305,7 +317,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <span>{activeMode.icon}</span>
+                <img src={activeMode.icon} alt="" style={{ width: 14, height: 14 }} />
                 <span>{activeMode.label}</span>
                 <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
               </button>
@@ -328,7 +340,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                         display: 'flex', alignItems: 'center', gap: 8,
                       }}
                     >
-                      <span style={{ fontSize: 14 }}>{m.icon}</span>
+                      <img src={m.icon} alt="" style={{ width: 16, height: 16 }} />
                       <div>
                         <div style={{ fontWeight: 500 }}>{m.label}</div>
                         <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{m.description}</div>

@@ -88,6 +88,10 @@ const api = {
     getErrors: () => ipcRenderer.invoke('plugin:get-errors'),
     clearErrors: () => ipcRenderer.invoke('plugin:clear-errors'),
   },
+  browser: {
+    open: (url?: string) => ipcRenderer.invoke('browser:open', url),
+    navigate: (id: number, url: string) => ipcRenderer.invoke('browser:navigate', id, url),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

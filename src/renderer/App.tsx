@@ -1,5 +1,8 @@
 import React, { useEffect } from 'react';
 import Sidebar from './components/sidebar/Sidebar';
+import SessionList from './components/sidebar/SessionList';
+import ActivityBar, { PanelView } from './components/sidebar/ActivityBar';
+import BrowserView from './components/chat/BrowserView';
 import ChatPanel from './components/chat/ChatPanel';
 import AgentPanel from './components/agent/AgentPanel';
 import EditorTabs from './components/editor/EditorTabs';
@@ -29,6 +32,15 @@ export default function App() {
   const activeFile = openTabs.find(t => t.path === activeTab);
 
   const [showModelSettings, setShowModelSettings] = React.useState(false);
+  const [openView, setOpenView] = React.useState<PanelView | null>(null);
+
+  const handleToggleView = (view: PanelView) => {
+    setOpenView(prev => prev === view ? null : view);
+  };
+
+  // 浏览器视图用 80% 宽度，其他面板用 sidebarWidth
+  const leftPanelWidth = openView === 'browser' ? '65%' : sidebarWidth;
+  const isLeftOpen = openView && openView !== 'agent';
 
   const hasInitRef = React.useRef(false);
   useEffect(() => {
@@ -96,15 +108,26 @@ export default function App() {
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Sidebar — 全高 */}
-        <div style={{
-          width: sidebarWidth, flexShrink: 0, background: 'var(--bg-secondary)',
-          borderRight: '1px solid var(--border)', height: '100%', overflow: 'hidden',
-        }}>
-          <Sidebar />
-        </div>
+        {/* Activity Bar — 最左边 */}
+        <ActivityBar openView={openView} onToggle={handleToggleView} />
 
-        <ResizeHandle direction="horizontal" onResize={(d) => setSidebarWidth(w => Math.max(180, w + d))} />
+        {/* Left Panel — files/sessions/browser 滑动面板 */}
+        <div style={{
+          width: isLeftOpen ? leftPanelWidth : 0,
+          flexShrink: 0, background: 'var(--bg-secondary)',
+          borderRight: isLeftOpen ? '1px solid var(--border)' : 'none',
+          height: '100%', overflow: 'hidden',
+          transition: 'width 0.2s ease',
+        }}>
+          <div style={{ width: isLeftOpen && openView !== 'browser' ? sidebarWidth : '100%', height: '100%' }}>
+            {openView === 'files' && <Sidebar />}
+            {openView === 'sessions' && <SessionList />}
+            {openView === 'browser' && <BrowserView />}
+          </div>
+        </div>
+        {isLeftOpen && openView !== 'browser' && (
+          <ResizeHandle direction="horizontal" onResize={(d) => setSidebarWidth(w => Math.max(180, w + d))} />
+        )}
 
         {/* 中间区域（Editor + Chat + Bottom Panel） */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -127,12 +150,9 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-
                 <ResizeHandle direction="horizontal" onResize={(d) => setChatPanelWidth(w => Math.max(260, w - d))} />
               </>
             )}
-
-            {/* Chat Panel — 编辑器隐藏时占满中间区域 */}
             <div style={{
               width: openTabs.length > 0 ? chatPanelWidth : '100%',
               flex: openTabs.length > 0 ? '0 0 auto' : 1,
@@ -149,15 +169,9 @@ export default function App() {
               )}
             </div>
           </div>
-
-          {/* Bottom Panel Area — 只在中间区域下面 */}
+          {/* Bottom Panel */}
           {bottomClosed ? (
-            <div
-              style={{
-                height: 4, background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)',
-                flexShrink: 0,
-              }}
-            />
+            <div style={{ height: 4, background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)', flexShrink: 0 }} />
           ) : (
             <>
               <ResizeHandle direction="vertical" onResize={(d) => {
@@ -165,9 +179,9 @@ export default function App() {
                 setTerminalHeight(h => Math.max(80, h - d));
               }} />
               <div style={{
-                height: bottomExpanded ? terminalHeight : 28,
-                flexShrink: 0, background: 'var(--terminal-bg)',
-                borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column',
+                height: bottomExpanded ? terminalHeight : 28, flexShrink: 0,
+                background: 'var(--terminal-bg)', borderTop: '1px solid var(--border)',
+                display: 'flex', flexDirection: 'column',
               }}>
                 <TerminalTabs />
                 {bottomExpanded && activeTermId && (
@@ -175,7 +189,6 @@ export default function App() {
                     <div style={{ flex: 1, overflow: 'hidden' }}>
                       <TerminalPanel termId={activeTermId} />
                     </div>
-                    {/* 多终端时右侧显示垂直列表 */}
                     <TerminalList />
                   </div>
                 )}
@@ -184,15 +197,21 @@ export default function App() {
           )}
         </div>
 
-        <ResizeHandle direction="horizontal" onResize={(d) => setAgentPanelWidth(w => Math.max(200, w - d))} />
-
-        {/* Agent Panel — 全高 */}
+        {/* Agent Panel — 右侧滑动面板 */}
         <div style={{
-          width: agentPanelWidth, flexShrink: 0, background: 'var(--bg-secondary)',
-          borderLeft: '1px solid var(--border)', height: '100%', overflow: 'hidden',
+          width: openView === 'agent' ? agentPanelWidth : 0,
+          flexShrink: 0, background: 'var(--bg-secondary)',
+          borderLeft: openView === 'agent' ? '1px solid var(--border)' : 'none',
+          height: '100%', overflow: 'hidden',
+          transition: 'width 0.2s ease',
         }}>
-          <AgentPanel />
+          <div style={{ width: agentPanelWidth, height: '100%' }}>
+            <AgentPanel />
+          </div>
         </div>
+        {openView === 'agent' && (
+          <ResizeHandle direction="horizontal" onResize={(d) => setAgentPanelWidth(w => Math.max(200, w - d))} />
+        )}
       </div>
 
       {/* Status Bar */}
