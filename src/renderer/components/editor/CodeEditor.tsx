@@ -26,7 +26,8 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
       console.log('[Monaco] loaded successfully');
     }).catch((err) => {
       console.error('[Monaco] failed to load:', err);
-      setMonacoError(err?.message || 'Monaco Editor 加载失败');
+      const detail = err ? (err.stack || err.message || String(err)) : '未知错误';
+      setMonacoError(detail);
     });
   }, []);
 
@@ -80,13 +81,18 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
       <div style={{
         height: '100%', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        color: '#ef4444', fontSize: 13, padding: 20,
+        color: '#ef4444', fontSize: 13, padding: 20, overflow: 'auto',
       }}>
         <div style={{ marginBottom: 8 }}>⚠️ 编辑器加载失败</div>
-        <div style={{ color: 'var(--text-secondary)', fontSize: 12, textAlign: 'center' }}>
+        <pre style={{
+          color: 'var(--text-secondary)', fontSize: 11, textAlign: 'left',
+          background: 'var(--bg-tertiary)', padding: 10, borderRadius: 6,
+          maxWidth: '100%', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          fontFamily: 'monospace', lineHeight: 1.5,
+        }}>
           {monacoError}
-        </div>
-        <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 11 }}>
+        </pre>
+        <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 11, textAlign: 'center' }}>
           请检查 public/vs 目录是否存在，或尝试执行：<br/>
           <code style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: 3 }}>
             node scripts/setup-monaco.js
