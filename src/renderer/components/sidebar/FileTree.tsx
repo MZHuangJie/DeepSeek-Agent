@@ -193,7 +193,6 @@ export default function FileTree() {
       const buildTree = async (entries: any[]): Promise<FileNode[]> => {
         const nodes: FileNode[] = [];
         for (const e of entries) {
-          if (e.name.startsWith('.') || e.name === 'node_modules') continue;
           const node: FileNode = { name: e.name, path: e.path, isDirectory: e.isDirectory };
           if (e.isDirectory) {
             try { const children = await window.api.files.list(e.path); node.children = await buildTree(children); } catch {}

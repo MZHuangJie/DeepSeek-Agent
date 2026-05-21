@@ -50,6 +50,15 @@ interface AgentState {
   toolCalls: ToolCallEntry[];
   tokenStats: TokenStats | null;
   subAgents: SubAgentStatus[];
+  exploreProgress: {
+    readPercentage: number;
+    readFileCount: number;
+    totalFiles: number;
+    step: number;
+    total: number;
+    unreadDirs?: string[];
+    warning?: string;
+  } | null;
   setCurrentStep: (step: AgentState['currentStep']) => void;
   addToolCall: (tc: ToolCallEntry) => void;
   updateToolCall: (id: string, update: Partial<ToolCallEntry>) => void;
@@ -57,6 +66,7 @@ interface AgentState {
   addSubAgent: (subAgent: SubAgentStatus) => void;
   updateSubAgent: (id: string, update: Partial<SubAgentStatus>) => void;
   removeSubAgent: (id: string) => void;
+  setExploreProgress: (p: AgentState['exploreProgress']) => void;
   reset: () => void;
 }
 
@@ -65,6 +75,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   toolCalls: [],
   tokenStats: null,
   subAgents: [],
+  exploreProgress: null,
   setCurrentStep: (step) => set({ currentStep: step }),
   addToolCall: (tc) => set(s => ({ toolCalls: [...s.toolCalls, tc] })),
   updateToolCall: (id, update) => set(s => ({
@@ -78,5 +89,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   removeSubAgent: (id) => set(s => ({
     subAgents: s.subAgents.filter(sa => sa.id !== id),
   })),
-  reset: () => set({ currentStep: null, toolCalls: [], tokenStats: null, subAgents: [] }),
+  setExploreProgress: (p) => set({ exploreProgress: p }),
+  reset: () => set({ currentStep: null, toolCalls: [], tokenStats: null, subAgents: [], exploreProgress: null }),
 }));

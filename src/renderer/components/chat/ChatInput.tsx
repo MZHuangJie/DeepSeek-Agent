@@ -21,7 +21,7 @@ const MAX_HEIGHT = 180;  // ~8 rows + padding
 export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Props) {
   const [value, setValue] = useState('');
   const [atMaxHeight, setAtMaxHeight] = useState(false);
-  const [showMention, setShowMention] = useState(false);
+  const showMention = value.includes('@');
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);
@@ -92,10 +92,9 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
       }
     }
-    if (e.key === '@') { setShowMention(true); }
     if (e.key === 'Escape') {
       if (isStreaming) { onStop(); return; }
-      setShowMention(false); setShowModelSelect(false); setShowModeSelect(false);
+      setShowModelSelect(false); setShowModeSelect(false);
     }
   }, [value, onSend, isStreaming, onStop]);
 
@@ -105,8 +104,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   };
 
   const insertMention = (path: string) => {
-    setValue(v => v + path + ' ');
-    setShowMention(false);
+    setValue(v => v.slice(0, v.lastIndexOf('@')) + path + ' ');
     textareaRef.current?.focus();
   };
 

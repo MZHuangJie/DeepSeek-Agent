@@ -8,6 +8,7 @@ import { useModeStore } from '../../stores/mode';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
+import ChoiceDialog from './ChoiceDialog';
 import { Command } from '../../commands';
 
 export default function ChatPanel() {
@@ -23,7 +24,8 @@ export default function ChatPanel() {
   const [apiKey, setApiKey] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [confirmReq, setConfirmReq] = useState<{ confirmId: string; name: string } | null>(null);
+  const [confirmReq, setConfirmReq] = useState<{ confirmId: string; name: string; args?: string } | null>(null);
+  const [choiceReq, setChoiceReq] = useState<{ choiceId: string; message: string; choices: Array<{ label: string; description?: string }> } | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set());
   const currentStepRef = useRef(0);
   // RAF 批量更新 buffer，避免每个 IPC chunk 都触发 React 重渲染
@@ -52,10 +54,7 @@ export default function ChatPanel() {
   const messages = session?.messages ?? [];
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el && el.scrollHeight - el.scrollTop - el.clientHeight <= 100) {
-      endRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Load API key & project dir & models & sessions on mount
@@ -198,6 +197,17 @@ export default function ChatPanel() {
           readFileCount: chunk.readFileCount,
           totalFiles: chunk.totalFiles,
         });
+      } else if (chunk.type === 'explore-progress') {
+        useAgentStore.getState().setExploreProgress({
+          readPercentage: chunk.readPercentage,
+          readFileCount: chunk.readFileCount,
+          totalFiles: chunk.totalFiles,
+          step: chunk.step,
+          total: chunk.total,
+        });
+      } else if (chunk.type === 'explore-warning') {
+        const prev = useAgentStore.getState().exploreProgress;
+        if (prev) useAgentStore.getState().setExploreProgress({ ...prev, warning: chunk.warning });
       } else if (chunk.type === 'done') {
         flushRafBuffer();
         setStream(false);
@@ -280,6 +290,14 @@ export default function ChatPanel() {
       } else {
         setConfirmReq(req);
       }
+    });
+    return () => { unsubscribe(); };
+  }, []);
+
+  // Listen for choice requests from agent
+  useEffect(() => {
+    const unsubscribe = window.api.agent.onChoiceRequest((req) => {
+      setChoiceReq(req);
     });
     return () => { unsubscribe(); };
   }, []);
@@ -466,22 +484,38 @@ export default function ChatPanel() {
         </div>
       )}
 
-      <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} />
-
-      {confirmReq && (
-        <ConfirmDialog
-          name={confirmReq.name}
-          onApprove={(alwaysAllow) => {
-            if (alwaysAllow) autoApprovedRef.current.add(confirmReq.name);
-            window.api.agent.confirmResponse(confirmReq.confirmId, true);
-            setConfirmReq(null);
-          }}
-          onDeny={() => {
-            window.api.agent.confirmResponse(confirmReq.confirmId, false);
-            setConfirmReq(null);
-          }}
-        />
-      )}
+      <div style={{ position: 'relative' }}>
+        {choiceReq && (
+          <ChoiceDialog
+            message={choiceReq.message}
+            choices={choiceReq.choices}
+            onConfirm={(selected, feedback) => {
+              window.api.agent.choiceResponse(choiceReq.choiceId, selected, feedback, false);
+              setChoiceReq(null);
+            }}
+            onCancel={() => {
+              window.api.agent.choiceResponse(choiceReq.choiceId, [], '', true);
+              setChoiceReq(null);
+            }}
+          />
+        )}
+        {confirmReq && (
+          <ConfirmDialog
+            name={confirmReq.name}
+            args={confirmReq.args}
+            onApprove={(alwaysAllow) => {
+              if (alwaysAllow) autoApprovedRef.current.add(confirmReq.name);
+              window.api.agent.confirmResponse(confirmReq.confirmId, true);
+              setConfirmReq(null);
+            }}
+            onDeny={() => {
+              window.api.agent.confirmResponse(confirmReq.confirmId, false);
+              setConfirmReq(null);
+            }}
+          />
+        )}
+        <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} />
+      </div>
     </div>
   );
 }

@@ -56,7 +56,7 @@ export function setupAgentHandlers() {
       model: payload.model || 'deepseek-chat',
       baseUrl: payload.baseUrl ?? 'https://api.deepseek.com',
     };
-    const enableTools = payload.mode === 'coding' || !payload.mode;
+    const enableTools = true;
     const toolSchemas = enableTools ? getToolSchemas(tools) : [];
 
     let totalPrompt = 0;
@@ -401,8 +401,8 @@ export function setupAgentHandlers() {
           // 如果达到最大轮次但还没读完，给出警告
           if (turn >= maxTurns - 1 && readPercentage < 80) {
             win.webContents.send('agent:stream-chunk', {
-              type: 'content',
-              text: `\n\n⚠️ **已达到最大轮次限制（${maxTurns}轮）**\n当前已读取 ${readPercentage}% 的文件（${readFileCount}/${totalFiles}）。\n项目文件较多，建议按模块分批查看，或使用更具体的查询。\n`,
+              type: 'explore-warning',
+              warning: `已达到最大轮次限制（${maxTurns}轮），已读取 ${readPercentage}% 的文件（${readFileCount}/${totalFiles}）`,
             });
           }
         }
@@ -441,13 +441,12 @@ export function setupAgentHandlers() {
             if (tool.requiresConfirm) {
               const approved = await new Promise<boolean>((resolve) => {
                 const confirmId = `confirm-${Date.now()}`;
-                win.webContents.send('agent:confirm-request', { confirmId, name: tc.name });
+                win.webContents.send('agent:confirm-request', { confirmId, name: tc.name, args: tc.arguments });
                 let cleaned = false;
                 const cleanup = () => {
                   if (cleaned) return;
                   cleaned = true;
                   ipcMain.removeListener('agent:confirm-response', handler);
-                  clearTimeout(timer);
                   abortController.signal.removeEventListener('abort', onAbort);
                 };
                 const handler = (_ev: any, resp: { confirmId: string; approved: boolean }) => {
@@ -460,11 +459,6 @@ export function setupAgentHandlers() {
                   cleanup();
                   resolve(false);
                 };
-                // 60s 超时：渲染端崩溃或消息丢失时主进程不会永久挂起
-                const timer = setTimeout(() => {
-                  cleanup();
-                  resolve(false);
-                }, 60_000);
                 ipcMain.on('agent:confirm-response', handler);
                 abortController.signal.addEventListener('abort', onAbort);
               });
@@ -496,6 +490,7 @@ export function setupAgentHandlers() {
               contextMax: payload.contextMax || 100000,
               subAgentManager,
               signal: abortController.signal,
+              projectDir: payload.projectDir,
               imageModelConfig: imageModelConfig?.enabled ? {
                 baseUrl: imageModelConfig.baseUrl,
                 model: imageModelConfig.model,

@@ -2,6 +2,7 @@ import React from 'react';
 import { useAgentStore } from '../../stores/agent';
 import CurrentStep from './CurrentStep';
 import ToolTimeline from './ToolTimeline';
+import ExploreProgress from './ExploreProgress';
 import TokenUsage from './TokenUsage';
 import SubAgentList from './SubAgentList';
 
@@ -37,6 +38,7 @@ export default function AgentPanel() {
             <CurrentStep />
             <SubAgentList />
             <ToolTimeline />
+            <ExploreProgress />
           </>
         )}
       </div>

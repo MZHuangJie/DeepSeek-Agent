@@ -1,3 +1,4 @@
+import { ipcMain } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { SubAgentManager, SubAgentTask } from './sub-agent';
@@ -41,6 +42,7 @@ export interface ToolContext {
   subAgentManager: SubAgentManager;
   imageModelConfig?: ImageModelConfig;
   signal?: AbortSignal;
+  projectDir?: string;
 }
 
 export function getAllTools(projectDir: string): ToolDef[] {
@@ -486,10 +488,108 @@ ${r.summary}
         if (result.urls.length === 0) {
           throw new Error('生图 API 未返回图片 URL');
         }
+        // base64 数据存到项目目录，避免撑爆上下文
+        const fs = require('fs');
+        const path = require('path');
+        const displayUrls: string[] = [];
+        for (let i = 0; i < result.urls.length; i++) {
+          const u = result.urls[i];
+          if (u.startsWith('data:')) {
+            const imgDir = path.join(context.projectDir || process.cwd(), '.mycli-images');
+            fs.mkdirSync(imgDir, { recursive: true });
+            const tmpFile = path.join(imgDir, `img-${Date.now()}-${i}.png`);
+            const base64Data = u.replace(/^data:image\/\w+;base64,/, '');
+            fs.writeFileSync(tmpFile, Buffer.from(base64Data, 'base64'));
+            displayUrls.push(tmpFile);
+          } else {
+            displayUrls.push(u);
+          }
+        }
         return JSON.stringify({
-          urls: result.urls,
+          urls: displayUrls,
           revisedPrompt: result.revisedPrompt,
-          hint: '【输出格式要求】你必须在最终回复中，使用 markdown 图片语法直接展示图片，格式为：![图片描述](图片URL)。不要只给文字链接。',
+          hint: '【输出格式要求】你必须在最终回复中，使用 markdown 图片语法直接展示图片，格式为：![图片描述](图片路径)。不要只给文字链接。图片路径就是上面给你的文件路径。',
+        });
+      },
+    },
+    {
+      name: 'present_choices',
+      description: '当你有多个方案或选项需要让用户选择时调用此工具。展示选项列表给用户，用户可多选并附上反馈意见。',
+      parameters: {
+        type: 'object',
+        properties: {
+          message: {
+            type: 'string',
+            description: '向用户展示的提示信息，解释需要用户做出什么选择',
+          },
+          choices: {
+            type: 'array',
+            description: '选项列表，每个选项有 label(标签) 和可选的 description(详细说明)',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string', description: '选项的简短标签' },
+                description: { type: 'string', description: '选项的详细说明（可选）' },
+              },
+              required: ['label'],
+            },
+          },
+        },
+        required: ['message', 'choices'],
+      },
+      execute: async (args, context) => {
+        if (!context?.subAgentManager) {
+          return JSON.stringify({ error: '无法弹出选择框' });
+        }
+        const win = (context.subAgentManager as any).win;
+        if (!win || win.isDestroyed()) {
+          return JSON.stringify({ error: '无法弹出选择框' });
+        }
+        const choiceId = `choice-${Date.now()}`;
+        const approved = await new Promise<boolean>((resolve) => {
+          let cleaned = false;
+          const cleanup = () => {
+            if (cleaned) return;
+            cleaned = true;
+            ipcMain.removeListener('agent:choice-response', handler);
+            context.signal?.removeEventListener('abort', onAbort);
+          };
+          const handler = (_ev: any, resp: { choiceId: string; selected: number[]; feedback: string; cancelled: boolean }) => {
+            if (resp.choiceId === choiceId) {
+              cleanup();
+              if (resp.cancelled) {
+                resolve(false);
+              } else {
+                resolve(true);
+                // 存下用户的选择和反馈供后续读取
+                (context as any)._choiceResult = { selected: resp.selected, feedback: resp.feedback };
+              }
+            }
+          };
+          const onAbort = () => {
+            cleanup();
+            resolve(false);
+          };
+          ipcMain.on('agent:choice-response', handler);
+          context.signal?.addEventListener('abort', onAbort, { once: true });
+          win.webContents.send('agent:choice-request', {
+            choiceId,
+            message: args.message as string,
+            choices: args.choices as Array<{ label: string; description?: string }>,
+          });
+        });
+        if (!approved) {
+          return JSON.stringify({ cancelled: true });
+        }
+        const result = (context as any)._choiceResult || { selected: [], feedback: '' };
+        (context as any)._choiceResult = undefined;
+        const selectedLabels = (args.choices as Array<{ label: string }>)
+          .filter((_, i) => result.selected.includes(i))
+          .map(c => c.label);
+        return JSON.stringify({
+          selected: result.selected,
+          selectedLabels,
+          feedback: result.feedback,
         });
       },
     },

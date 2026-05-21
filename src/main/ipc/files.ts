@@ -2,6 +2,7 @@ import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { getSetting, setSetting } from '../db/settings';
+import { syncTerminalCwd } from '../ipc/terminal';
 
 let currentWorkspace = process.cwd();
 let fileWatcher: fs.FSWatcher | null = null;
@@ -118,6 +119,7 @@ export function setupFileHandlers() {
     const selectedPath = result.filePaths[0];
     currentWorkspace = selectedPath;
     addToRecentWorkspaces(selectedPath);
+    syncTerminalCwd(selectedPath);
     startWatching(win);
     return selectedPath;
   });
@@ -126,6 +128,7 @@ export function setupFileHandlers() {
     if (fs.existsSync(workspacePath)) {
       currentWorkspace = workspacePath;
       addToRecentWorkspaces(workspacePath);
+      syncTerminalCwd(workspacePath);
       const win = BrowserWindow.fromWebContents(event.sender);
       if (win) startWatching(win);
       return true;

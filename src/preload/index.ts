@@ -41,6 +41,14 @@ const api = {
     confirmResponse: (confirmId: string, approved: boolean) => {
       ipcRenderer.send('agent:confirm-response', { confirmId, approved });
     },
+    onChoiceRequest: (cb: (req: any) => void) => {
+      const handler = (_: unknown, req: any) => cb(req);
+      ipcRenderer.on('agent:choice-request', handler);
+      return () => ipcRenderer.removeListener('agent:choice-request', handler);
+    },
+    choiceResponse: (choiceId: string, selected: number[], feedback: string, cancelled: boolean) => {
+      ipcRenderer.send('agent:choice-response', { choiceId, selected, feedback, cancelled });
+    },
   },
   terminal: {
     create: (shell?: string) => ipcRenderer.invoke('terminal:create', shell),

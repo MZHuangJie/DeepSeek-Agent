@@ -48,3 +48,11 @@ export function setupTerminalHandlers() {
     terminals.delete(id);
   });
 }
+
+export function syncTerminalCwd(newCwd: string) {
+  for (const pty of terminals.values()) {
+    try {
+      pty.write(`cd "${newCwd}"\r`);
+    } catch {}
+  }
+}
