@@ -78,26 +78,29 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
 
   if (monacoError) {
     return (
-      <div style={{
-        height: '100%', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        color: '#ef4444', fontSize: 13, padding: 20, overflow: 'auto',
-      }}>
-        <div style={{ marginBottom: 8 }}>⚠️ 编辑器加载失败</div>
-        <pre style={{
-          color: 'var(--text-secondary)', fontSize: 11, textAlign: 'left',
-          background: 'var(--bg-tertiary)', padding: 10, borderRadius: 6,
-          maxWidth: '100%', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-          fontFamily: 'monospace', lineHeight: 1.5,
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{
+          padding: '6px 12px', background: 'rgba(239,68,68,0.1)',
+          color: '#ef4444', fontSize: 11, borderBottom: '1px solid rgba(239,68,68,0.2)',
         }}>
-          {monacoError}
-        </pre>
-        <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 11, textAlign: 'center' }}>
-          请检查 public/vs 目录是否存在，或尝试执行：<br/>
-          <code style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: 3 }}>
-            node scripts/setup-monaco.js
-          </code>
+          ⚠️ Monaco 编辑器加载失败，已回退到文本模式
         </div>
+        <textarea
+          value={content}
+          onChange={e => onChange?.(e.target.value)}
+          readOnly={readOnly}
+          spellCheck={false}
+          style={{
+            flex: 1, background: 'var(--bg-primary)', color: 'var(--text-primary)',
+            border: 'none', outline: 'none',
+            fontFamily: "'Fira Code', 'Consolas', monospace",
+            fontSize: 13, lineHeight: 1.6,
+            padding: '8px 12px',
+            resize: 'none',
+            whiteSpace: 'pre',
+            overflow: 'auto',
+          }}
+        />
       </div>
     );
   }
