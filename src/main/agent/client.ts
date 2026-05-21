@@ -2,6 +2,23 @@ import https from 'https';
 import http from 'http';
 import { debugLog } from '../logger';
 
+// VPN TUN 模式下需要显式 SNI + 禁用连接复用，否则 TLS 握手阶段 ECONNRESET
+const httpsAgent = new https.Agent({
+  keepAlive: false,
+  maxSockets: 1,
+});
+
+function isRetryableError(err: unknown): boolean {
+  if (err instanceof Error) {
+    const code = (err as NodeJS.ErrnoException).code;
+    // ECONNRESET: VPN TUN 模式下 TLS 握手被重置
+    // ETIMEDOUT: 网络超时
+    // ECONNREFUSED: 连接被拒绝（可能临时）
+    if (code === 'ECONNRESET' || code === 'ETIMEDOUT' || code === 'ECONNREFUSED') return true;
+  }
+  return false;
+}
+
 function unwrapNetworkError(err: unknown, hostname: string): Error {
   if (err instanceof Error && err.name === 'AggregateError') {
     const errors = (err as unknown as { errors?: unknown[] }).errors;
@@ -87,12 +104,37 @@ export async function streamChat(
   const msgSummary = messages.map((m: any, i: number) => `[${i}] ${m.role}: ${(m.content ?? '').slice(0, 60)}...`).join('\n');
   debugLog('[DEBUG streamChat] messages summary:\n' + msgSummary);
 
+  const maxRetries = 2;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      // 重试前等一小会儿，让 VPN 隧道稳定
+      await new Promise(r => setTimeout(r, 500 * attempt));
+      debugLog(`[DEBUG streamChat] retry attempt ${attempt}/${maxRetries}`);
+    }
+
+    try {
+      return await doStreamRequest();
+    } catch (err: unknown) {
+      lastError = err;
+      if (!isRetryableError(err) || attempt >= maxRetries || signal?.aborted) {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError;
+
+  async function doStreamRequest(): Promise<StreamResult> {
   return new Promise((resolve, reject) => {
-    const options = {
+    const options: https.RequestOptions & { hostname: string } = {
       hostname: url.hostname,
+      servername: url.hostname, // VPN TUN 模式下确保 TLS SNI 正确
       port: url.port || (isHttps ? 443 : 80),
       path: url.pathname + url.search,
       method: 'POST',
+      agent: httpsAgent,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
@@ -104,13 +146,39 @@ export async function streamChat(
 
     const result: StreamResult = { content: '', thinking: '', toolCalls: [] };
 
+    // 流式请求的两道超时防线：
+    // 1) firstByteTimer: 发请求后 30s 内必须收到响应头，否则 abort（防 TLS/连接静默挂起）
+    // 2) idleTimer: 收到响应后，如果 60s 没有任何 chunk 进来就 abort（防中途 TCP 静默断流）
+    const FIRST_BYTE_TIMEOUT_MS = 30_000;
+    const IDLE_TIMEOUT_MS = 60_000;
+    const IDLE_CHECK_INTERVAL_MS = 5_000;
+    let lastChunkAt = Date.now();
+    let firstByteTimer: NodeJS.Timeout | null = null;
+    let idleTimer: NodeJS.Timeout | null = null;
+    const clearTimers = () => {
+      if (firstByteTimer) { clearTimeout(firstByteTimer); firstByteTimer = null; }
+      if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+    };
+
     const req = requestFn(options, (res) => {
+      // 响应头到了，first-byte 阶段过关；切换到 idle 监控
+      if (firstByteTimer) { clearTimeout(firstByteTimer); firstByteTimer = null; }
+      lastChunkAt = Date.now();
+      idleTimer = setInterval(() => {
+        if (Date.now() - lastChunkAt > IDLE_TIMEOUT_MS) {
+          const e = new Error(`Stream idle timeout: API 流静默超过 ${IDLE_TIMEOUT_MS / 1000} 秒`);
+          (e as NodeJS.ErrnoException).code = 'ETIMEDOUT';
+          req.destroy(e);
+        }
+      }, IDLE_CHECK_INTERVAL_MS);
+
       const status = res.statusCode ?? 0;
       if (status < 200 || status >= 300) {
         let errBuf = '';
         res.setEncoding('utf-8');
-        res.on('data', (c: string) => { errBuf += c; });
+        res.on('data', (c: string) => { lastChunkAt = Date.now(); errBuf += c; });
         res.on('end', () => {
+          clearTimers();
           let detail = errBuf.trim();
           try {
             const parsed = JSON.parse(detail);
@@ -120,7 +188,7 @@ export async function streamChat(
           wrapped.name = 'ApiError';
           reject(wrapped);
         });
-        res.on('error', (err) => reject(unwrapNetworkError(err, url.hostname)));
+        res.on('error', (err) => { clearTimers(); reject(unwrapNetworkError(err, url.hostname)); });
         return;
       }
 
@@ -130,6 +198,7 @@ export async function streamChat(
       let hasFlushed = false;
 
       res.on('data', (chunk: Buffer) => {
+        lastChunkAt = Date.now();
         buffer += chunk.toString();
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
@@ -180,6 +249,7 @@ export async function streamChat(
         }
       });
       res.on('end', () => {
+        clearTimers();
         if (!hasFlushed) {
           for (let i = 0; i <= lastToolCallIndex; i++) {
             const tc = toolCallsAccum.get(i);
@@ -193,9 +263,10 @@ export async function streamChat(
         }
         resolve(result);
       });
-      res.on('error', (err) => reject(unwrapNetworkError(err, url.hostname)));
+      res.on('error', (err) => { clearTimers(); reject(unwrapNetworkError(err, url.hostname)); });
     });
     req.on('error', (err) => {
+      clearTimers();
       if ((err as any).name === 'AbortError' || (signal?.aborted)) {
         resolve(result);
       } else {
@@ -204,13 +275,21 @@ export async function streamChat(
     });
     if (signal) {
       signal.addEventListener('abort', () => {
+        clearTimers();
         const err = new Error('Request aborted');
         err.name = 'AbortError';
         req.destroy(err);
       }, { once: true });
       signal.throwIfAborted();
     }
+    // first-byte 超时：socket 写出后还没收到响应头就 abort
+    firstByteTimer = setTimeout(() => {
+      const e = new Error(`First byte timeout: ${FIRST_BYTE_TIMEOUT_MS / 1000} 秒内未收到 API 响应`);
+      (e as NodeJS.ErrnoException).code = 'ETIMEDOUT';
+      req.destroy(e);
+    }, FIRST_BYTE_TIMEOUT_MS);
     req.write(body);
     req.end();
   });
+  } // end doStreamRequest
 }

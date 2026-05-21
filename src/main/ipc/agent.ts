@@ -54,7 +54,7 @@ export function setupAgentHandlers() {
 
     const modelConfig = {
       model: payload.model || 'deepseek-chat',
-      baseUrl: payload.baseUrl || 'https://api.deepseek.com',
+      baseUrl: payload.baseUrl ?? 'https://api.deepseek.com',
     };
     const enableTools = payload.mode === 'coding' || !payload.mode;
     const toolSchemas = enableTools ? getToolSchemas(tools) : [];
@@ -86,28 +86,48 @@ export function setupAgentHandlers() {
       if (abortController.signal.aborted) break;
 
       let result;
+      // 主进程侧批量发送 content/thinking，每 16ms 一次，减少 IPC 消息量
+      let contentBuf = '';
+      let thinkingBuf = '';
+      let flushTimer: ReturnType<typeof setInterval> | null = null;
+      function flushStreamBuf() {
+        if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+        if (contentBuf) {
+          win!.webContents.send('agent:stream-chunk', { type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
+          contentBuf = '';
+        }
+        if (thinkingBuf) {
+          win!.webContents.send('agent:stream-chunk', { type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
+          thinkingBuf = '';
+        }
+      }
+
       try {
+        flushTimer = setInterval(() => {
+          if (contentBuf) {
+            win.webContents.send('agent:stream-chunk', { type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
+            contentBuf = '';
+          }
+          if (thinkingBuf) {
+            win.webContents.send('agent:stream-chunk', { type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
+            thinkingBuf = '';
+          }
+        }, 16);
+
         result = await streamChat(
           payload.apiKey,
           messages,
           toolSchemas,
           modelConfig,
           {
-            onContent: (text) => {
-              win.webContents.send('agent:stream-chunk', {
-                type: 'content',
-                text,
-                step: turn + 1,
-                total: maxTurns,
-              });
-            },
-            onThinking: (text) => {
-              win.webContents.send('agent:stream-chunk', { type: 'thinking', text, step: turn + 1, total: maxTurns });
-            },
+            onContent: (text) => { contentBuf += text; },
+            onThinking: (text) => { thinkingBuf += text; },
           },
           abortController.signal
         );
+        flushStreamBuf();
       } catch (err: any) {
+        flushStreamBuf();
         if (abortController.signal.aborted) break;
         const message = err?.message || String(err);
 
@@ -287,10 +307,21 @@ export function setupAgentHandlers() {
           }
         }
 
-        // 判断是否为探索任务：使用了文件读取工具 && 没有产出实质回复
-        // 排除生图、执行命令等与文件探索无关的工具调用
+        // 判断是否为探索任务：只用了 read_file/list_files，且没有产出实质回复
+        // 如果模型用了 edit_file/write_file/grep/bash 等生产工具，说明在干活不是探索
         const hasSubstantialOutput = result.content && result.content.length > 200;
-        const isExploreMode = readFileCount > 0 && !hasSubstantialOutput;
+        let hasProductiveToolCall = false;
+        for (const m of messages) {
+          if (m.role === 'assistant' && m.tool_calls) {
+            for (const tc of m.tool_calls) {
+              const name = tc.function?.name;
+              if (name === 'edit_file' || name === 'write_file' || name === 'bash' || name === 'grep' || name === 'glob' || name === 'generate_image' || name === 'spawn_sub_agent') {
+                hasProductiveToolCall = true;
+              }
+            }
+          }
+        }
+        const isExploreMode = readFileCount > 0 && !hasSubstantialOutput && !hasProductiveToolCall;
 
         if (isExploreMode) {
           // 使用 glob 扫描实际的项目文件
@@ -411,13 +442,31 @@ export function setupAgentHandlers() {
               const approved = await new Promise<boolean>((resolve) => {
                 const confirmId = `confirm-${Date.now()}`;
                 win.webContents.send('agent:confirm-request', { confirmId, name: tc.name });
+                let cleaned = false;
+                const cleanup = () => {
+                  if (cleaned) return;
+                  cleaned = true;
+                  ipcMain.removeListener('agent:confirm-response', handler);
+                  clearTimeout(timer);
+                  abortController.signal.removeEventListener('abort', onAbort);
+                };
                 const handler = (_ev: any, resp: { confirmId: string; approved: boolean }) => {
                   if (resp.confirmId === confirmId) {
-                    ipcMain.removeListener('agent:confirm-response', handler);
+                    cleanup();
                     resolve(resp.approved);
                   }
                 };
+                const onAbort = () => {
+                  cleanup();
+                  resolve(false);
+                };
+                // 60s 超时：渲染端崩溃或消息丢失时主进程不会永久挂起
+                const timer = setTimeout(() => {
+                  cleanup();
+                  resolve(false);
+                }, 60_000);
                 ipcMain.on('agent:confirm-response', handler);
+                abortController.signal.addEventListener('abort', onAbort);
               });
               if (!approved) {
                 toolResult = '用户拒绝了此操作';
@@ -475,12 +524,28 @@ export function setupAgentHandlers() {
           content: truncatedResult,
         });
       }
-      // 工具执行完，通知前端模型正在生成下一轮回复
+      // 工具执行完毕，静默继续下一轮（不再往聊天里刷提示）
+    }
+
+    // 收集本次对话中修改过的文件
+    const modifiedFiles = new Set<string>();
+    for (const m of messages) {
+      if (m.role === 'assistant' && m.tool_calls) {
+        for (const tc of m.tool_calls) {
+          if (tc.function?.name === 'write_file' || tc.function?.name === 'edit_file') {
+            try {
+              const args = JSON.parse(tc.function.arguments || '{}');
+              if (args.path) modifiedFiles.add(args.path);
+            } catch {}
+          }
+        }
+      }
+    }
+    if (modifiedFiles.size > 0) {
+      const fileList = Array.from(modifiedFiles).map(f => `- \`${f}\``).join('\n');
       win.webContents.send('agent:stream-chunk', {
         type: 'content',
-        text: '\n[工具执行完毕，等待模型生成回复...]\n',
-        step: turn + 1,
-        total: maxTurns,
+        text: `\n---\n**修改过的文件 (${modifiedFiles.size})**：\n${fileList}\n`,
       });
     }
 

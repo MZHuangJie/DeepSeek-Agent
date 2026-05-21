@@ -71,9 +71,9 @@ export default function App() {
         height: 32, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', position: 'relative',
-        WebkitAppRegion: 'drag' as any,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 12, WebkitAppRegion: 'no-drag' as any }}>
+        WebkitAppRegion: 'drag',
+      } as any}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 12, WebkitAppRegion: 'no-drag' } as any}>
           <TitleBarBtn title="模型设置" onClick={() => setShowModelSettings(true)}>
             <img src="/assets/5.png" alt="settings" style={{ width: 14, height: 14, opacity: 0.7 }} />
           </TitleBarBtn>
@@ -82,7 +82,7 @@ export default function App() {
           </TitleBarBtn>
         </div>
         <span style={{ flex: 1, textAlign: 'center' }}>DeepSeek Agent</span>
-        <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' as any }}>
+        <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' } as any}>
           <WindowControlBtn onClick={() => window.api.window.minimize()}>
             <img src="/assets/图层 11_w.png" alt="minimize" style={{ width: 12, height: 2 }} />
           </WindowControlBtn>
@@ -110,29 +110,35 @@ export default function App() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* 上半：Editor + Chat */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
-            {/* Editor Area */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <EditorTabs />
-              <div style={{ flex: 1, overflow: 'hidden', display: activeFile ? 'block' : 'none' }}>
-                {activeFile && (isImageFile(activeFile.name) ? (
-                  <ImageViewer filePath={activeFile.path} />
-                ) : (
-                  <CodeEditor
-                    content={activeFile.content || '// Select a file to view its contents'}
-                    language={getLanguage(activeFile.name)}
-                    onChange={(value) => value !== undefined && updateTabContent(activeFile.path, value)}
-                  />
-                ))}
-              </div>
-            </div>
+            {/* Editor Area — 仅在有打开的文件时显示 */}
+            {openTabs.length > 0 && (
+              <>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <EditorTabs />
+                  <div style={{ flex: 1, overflow: 'hidden', display: activeFile ? 'block' : 'none' }}>
+                    {activeFile && (isImageFile(activeFile.name) ? (
+                      <ImageViewer filePath={activeFile.path} />
+                    ) : (
+                      <CodeEditor
+                        content={activeFile.content || '// Select a file to view its contents'}
+                        language={getLanguage(activeFile.name)}
+                        onChange={(value) => value !== undefined && updateTabContent(activeFile.path, value)}
+                      />
+                    ))}
+                  </div>
+                </div>
 
-            <ResizeHandle direction="horizontal" onResize={(d) => setChatPanelWidth(w => Math.max(260, w - d))} />
+                <ResizeHandle direction="horizontal" onResize={(d) => setChatPanelWidth(w => Math.max(260, w - d))} />
+              </>
+            )}
 
-            {/* Chat Panel */}
+            {/* Chat Panel — 编辑器隐藏时占满中间区域 */}
             <div style={{
-              width: chatPanelWidth, flexShrink: 0, overflow: 'hidden',
+              width: openTabs.length > 0 ? chatPanelWidth : '100%',
+              flex: openTabs.length > 0 ? '0 0 auto' : 1,
+              flexShrink: 0, overflow: 'hidden',
               display: 'flex', flexDirection: 'column',
-              borderLeft: '1px solid var(--border)',
+              borderLeft: openTabs.length > 0 ? '1px solid var(--border)' : 'none',
             }}>
               {activeSessionId ? (
                 <ChatPanel />

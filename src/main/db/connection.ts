@@ -17,7 +17,7 @@ interface DbLike {
 let db: DbLike | null = null;
 
 class MemDb implements DbLike {
-  private tables = new Map<string, Map<string, any>>();
+  private tables = new Map<string, Map<string, any> | any[]>();
 
   exec(sql: string) {
     const match = sql.match(/CREATE TABLE IF NOT EXISTS (\w+) \((.*)\)/s);
@@ -31,11 +31,19 @@ class MemDb implements DbLike {
 
   prepare(sql: string): Stmt {
     const self = this;
+    const getMap = (name: string): Map<string, any> => {
+      const t = self.tables.get(name);
+      return (t instanceof Map ? t : new Map()) as Map<string, any>;
+    };
+    const getArr = (name: string): any[] => {
+      const t = self.tables.get(name);
+      return Array.isArray(t) ? t : [];
+    };
     return {
       run: (...args: any[]) => {
         if (sql.includes('INSERT INTO sessions') || sql.includes('INSERT OR REPLACE INTO sessions')) {
           const row = { id: args[0], title: args[1], messages: args[2], created_at: args[3], updated_at: args[4] };
-          const sessions = self.tables.get('sessions') || new Map();
+          const sessions = getMap('sessions');
           const existing = sessions.get(args[0]);
           if (existing && args.length > 5) {
             // ON CONFLICT UPDATE: preserve created_at
@@ -47,28 +55,28 @@ class MemDb implements DbLike {
         } else if (sql.includes('INSERT INTO settings')) {
           const key = args[0];
           const value = args[1];
-          const settings = self.tables.get('settings') || new Map();
+          const settings = getMap('settings');
           settings.set(key, { key, value });
           self.tables.set('settings', settings);
         } else if (sql.includes('DELETE FROM sessions')) {
-          const sessions = self.tables.get('sessions') || new Map();
+          const sessions = getMap('sessions');
           sessions.delete(args[0]);
         } else if (sql.includes('INTO marketplaces')) {
-          const table = self.tables.get('marketplaces') || new Map();
+          const table = getMap('marketplaces');
           table.set(args[0], { id: args[0], name: args[1], url: args[2], type: args[3] || 'github-repo', added_at: args[4] });
           self.tables.set('marketplaces', table);
         } else if (sql.includes('DELETE FROM marketplaces')) {
-          const table = self.tables.get('marketplaces') || new Map();
+          const table = getMap('marketplaces');
           table.delete(args[0]);
         } else if (sql.includes('INTO installed_plugins')) {
-          const table = self.tables.get('installed_plugins') || new Map();
+          const table = getMap('installed_plugins');
           table.set(args[0], { name: args[0], description: args[1], system_prompt: args[2], source: args[3], installed_at: args[4] });
           self.tables.set('installed_plugins', table);
         } else if (sql.includes('DELETE FROM installed_plugins')) {
-          const table = self.tables.get('installed_plugins') || new Map();
+          const table = getMap('installed_plugins');
           table.delete(args[0]);
         } else if (sql.includes('INSERT INTO plugin_errors')) {
-          const table = self.tables.get('plugin_errors') || [];
+          const table = getArr('plugin_errors');
           table.push({ id: Date.now(), plugin_name: args[0], marketplace: args[1], error: args[2], timestamp: args[3] });
           self.tables.set('plugin_errors', table);
         } else if (sql.includes('DELETE FROM plugin_errors')) {
@@ -77,25 +85,25 @@ class MemDb implements DbLike {
       },
       all: (...args: any[]) => {
         if (sql.includes('FROM sessions')) {
-          const sessions = self.tables.get('sessions') || new Map();
+          const sessions = getMap('sessions');
           return Array.from(sessions.values()).sort((a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0));
         }
         if (sql.includes('FROM settings')) {
           const key = args[0];
-          const settings = self.tables.get('settings') || new Map();
+          const settings = getMap('settings');
           const row = settings.get(key);
           return row ? [row] : [];
         }
         if (sql.includes('FROM marketplaces')) {
-          const table = self.tables.get('marketplaces') || new Map();
+          const table = getMap('marketplaces');
           return Array.from(table.values());
         }
         if (sql.includes('FROM installed_plugins')) {
-          const table = self.tables.get('installed_plugins') || new Map();
+          const table = getMap('installed_plugins');
           return Array.from(table.values()).sort((a: any, b: any) => b.installed_at - a.installed_at);
         }
         if (sql.includes('FROM plugin_errors')) {
-          const table = self.tables.get('plugin_errors') || [];
+          const table = getArr('plugin_errors');
           return table.sort((a: any, b: any) => b.timestamp - a.timestamp);
         }
         return [];
@@ -103,12 +111,12 @@ class MemDb implements DbLike {
       get: (...args: any[]) => {
         if (sql.includes('FROM settings')) {
           const key = args[0];
-          const settings = self.tables.get('settings') || new Map();
+          const settings = getMap('settings');
           return settings.get(key) || null;
         }
         if (sql.includes('FROM installed_plugins')) {
           const key = args[0];
-          const table = self.tables.get('installed_plugins') || new Map();
+          const table = getMap('installed_plugins');
           return table.get(key) || null;
         }
         return null;
@@ -127,11 +135,11 @@ export function getDb(): DbLike {
     db = new Database(dbPath);
     (db as any).pragma('journal_mode = WAL');
     initSchema();
-    return db;
+    return db!;
   } catch {
     db = new MemDb();
     initSchema();
-    return db;
+    return db!;
   }
 }
 

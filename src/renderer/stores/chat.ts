@@ -108,7 +108,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   addMessage: (msg) => {
-    const { activeSessionId, sessions } = get();
+    const { activeSessionId, sessions, isStreaming } = get();
     let modifiedSession: Session | null = null;
     const newSessions = sessions.map(s => {
       if (s.id !== activeSessionId) return s;
@@ -125,10 +125,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
       : newSessions;
     set({ sessions: ordered });
-    persist(ordered);
+    if (!isStreaming) persist(ordered);
   },
 
-  setStreaming: (v) => set({ isStreaming: v }),
+  setStreaming: (v) => {
+    const wasStreaming = get().isStreaming;
+    set({ isStreaming: v });
+    if (wasStreaming && !v) persist(get().sessions);
+  },
 
   newAssistantMessage: () => {
     const { activeSessionId, sessions } = get();
@@ -139,11 +143,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
     const ordered = [newSessions.find(s => s.id === activeSessionId)!, ...newSessions.filter(s => s.id !== activeSessionId)];
     set({ sessions: ordered });
-    persist(ordered);
   },
 
   updateLastAssistant: (update) => {
-    const { activeSessionId, sessions } = get();
+    const { activeSessionId, sessions, isStreaming } = get();
     let modifiedSession: Session | null = null;
     const newSessions = sessions.map(s => {
       if (s.id !== activeSessionId) return s;
@@ -159,6 +162,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
       : newSessions;
     set({ sessions: ordered });
-    persist(ordered);
+    if (!isStreaming) persist(ordered);
   },
 }));

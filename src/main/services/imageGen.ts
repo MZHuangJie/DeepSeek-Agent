@@ -1,6 +1,20 @@
 import https from 'https';
 import http from 'http';
 
+// VPN TUN 模式下需要显式 SNI + 禁用连接复用
+const httpsAgent = new https.Agent({
+  keepAlive: false,
+  maxSockets: 1,
+});
+
+function isRetryableError(err: unknown): boolean {
+  if (err instanceof Error) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ECONNRESET' || code === 'ETIMEDOUT' || code === 'ECONNREFUSED') return true;
+  }
+  return false;
+}
+
 export interface ImageModelConfig {
   baseUrl: string;
   model: string;
@@ -58,6 +72,27 @@ export async function generateImage(
     quality: args.quality || 'standard',
   });
 
+  const maxRetries = 2;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      await new Promise(r => setTimeout(r, 500 * attempt));
+    }
+
+    try {
+      return await doRequest();
+    } catch (err: unknown) {
+      lastError = err;
+      if (!isRetryableError(err) || attempt >= maxRetries || signal?.aborted) {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError;
+
+  async function doRequest(): Promise<GenerateImageResult> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(new DOMException('Aborted', 'AbortError'));
@@ -70,11 +105,13 @@ export async function generateImage(
     };
     signal?.addEventListener('abort', onAbort, { once: true });
 
-    const options = {
+    const options: https.RequestOptions & { hostname: string } = {
       hostname: url.hostname,
+      servername: url.hostname,
       port: url.port || (isHttps ? 443 : 80),
       path: url.pathname + url.search,
       method: 'POST',
+      agent: httpsAgent,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,
@@ -135,4 +172,5 @@ export async function generateImage(
     req.write(body);
     req.end();
   });
+  } // end doRequest
 }

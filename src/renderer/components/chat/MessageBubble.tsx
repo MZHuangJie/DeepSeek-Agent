@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Message } from '../../stores/chat';
 import ThinkingChain from './ThinkingChain';
 
@@ -142,8 +142,8 @@ function isImageGenerationContext(content: string): boolean {
 }
 
 function MessageContent({ content }: { content: string }) {
-  const parts = parseMarkdown(content);
-  const imageContext = isImageGenerationContext(content);
+  const parts = useMemo(() => parseMarkdown(content), [content]);
+  const imageContext = useMemo(() => isImageGenerationContext(content), [content]);
 
   if (parts.length === 1 && parts[0].type === 'text') {
     if (isImageUrl(content.trim()) || content.trim().startsWith('data:image/')) {
@@ -219,7 +219,7 @@ function ToolCallProgress({ toolCalls }: { toolCalls?: import('../../stores/chat
   return null;
 }
 
-export default function MessageBubble({ message }: Props) {
+const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user';
   const hasThinking = !isUser && !!message.thinkingContent;
   const hasContent = !!message.content;
@@ -258,4 +258,6 @@ export default function MessageBubble({ message }: Props) {
       </div>
     </div>
   );
-}
+});
+
+export default MessageBubble;

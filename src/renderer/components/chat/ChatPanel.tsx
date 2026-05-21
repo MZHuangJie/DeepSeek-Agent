@@ -26,6 +26,25 @@ export default function ChatPanel() {
   const [confirmReq, setConfirmReq] = useState<{ confirmId: string; name: string } | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set());
   const currentStepRef = useRef(0);
+  // RAF 批量更新 buffer，避免每个 IPC chunk 都触发 React 重渲染
+  const pendingContentRef = useRef<string | null>(null);
+  const pendingThinkingRef = useRef<string | null>(null);
+  const rafRef = useRef<number | null>(null);
+  function flushRafBuffer() {
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    const pc = pendingContentRef.current;
+    const pt = pendingThinkingRef.current;
+    pendingContentRef.current = null;
+    pendingThinkingRef.current = null;
+    if (pc !== null || pt !== null) {
+      const upd: any = {};
+      if (pc !== null) upd.content = pc;
+      if (pt !== null) upd.thinkingContent = pt;
+      useChatStore.getState().updateLastAssistant(upd);
+    }
+  }
+  // 组件卸载时清理
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
   const projectDir = currentWorkspace || '';
 
@@ -68,20 +87,52 @@ export default function ChatPanel() {
         const step = chunk.step || 1;
         if (step > currentStepRef.current) {
           currentStepRef.current = step;
+          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+          pendingContentRef.current = null;
+          pendingThinkingRef.current = null;
           useChatStore.getState().newAssistantMessage();
         }
-        update({ content: (lastMsg?.content ?? '') + chunk.text });
+        pendingContentRef.current = (pendingContentRef.current ?? lastMsg?.content ?? '') + chunk.text;
+        if (!rafRef.current) {
+          rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null;
+            const text = pendingContentRef.current;
+            pendingContentRef.current = null;
+            if (text !== null) useChatStore.getState().updateLastAssistant({ content: text });
+          });
+        }
       } else if (chunk.type === 'thinking') {
         const step = chunk.step || 0;
         if (step > 0 && step > currentStepRef.current) {
           currentStepRef.current = step;
+          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+          pendingContentRef.current = null;
+          pendingThinkingRef.current = null;
           useChatStore.getState().newAssistantMessage();
         }
-        update({ thinkingContent: (lastMsg?.thinkingContent ?? '') + chunk.text });
+        pendingThinkingRef.current = (pendingThinkingRef.current ?? lastMsg?.thinkingContent ?? '') + chunk.text;
+        if (!rafRef.current) {
+          rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null;
+            const text = pendingContentRef.current;
+            const thinking = pendingThinkingRef.current;
+            pendingContentRef.current = null;
+            pendingThinkingRef.current = null;
+            if (text !== null || thinking !== null) {
+              const upd: any = {};
+              if (text !== null) upd.content = text;
+              if (thinking !== null) upd.thinkingContent = thinking;
+              useChatStore.getState().updateLastAssistant(upd);
+            }
+          });
+        }
       } else if (chunk.type === 'tool-call') {
         const step = chunk.step || 1;
         if (step > currentStepRef.current) {
           currentStepRef.current = step;
+          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+          pendingContentRef.current = null;
+          pendingThinkingRef.current = null;
           useChatStore.getState().newAssistantMessage();
         }
         let parsedArgs: Record<string, unknown> = {};
@@ -148,6 +199,7 @@ export default function ChatPanel() {
           totalFiles: chunk.totalFiles,
         });
       } else if (chunk.type === 'done') {
+        flushRafBuffer();
         setStream(false);
         const agentStore = useAgentStore.getState();
         const current = agentStore.currentStep;
@@ -211,6 +263,7 @@ export default function ChatPanel() {
           endTime: Date.now(),
         });
       } else if (chunk.type === 'error') {
+        flushRafBuffer();
         setStream(false);
         setErrorMsg(chunk.message);
       }
@@ -298,6 +351,9 @@ export default function ChatPanel() {
 
     agentStore.reset();
     currentStepRef.current = 1;
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    pendingContentRef.current = null;
+    pendingThinkingRef.current = null;
     addMessage({ id: `msg-${Date.now()}`, role: 'user', content: displayContent, timestamp: Date.now() });
     const assistantId = `msg-${Date.now() + 1}`;
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });
@@ -324,7 +380,7 @@ export default function ChatPanel() {
   }, [activeSessionId, apiKey, projectDir, messages, addMessage, setStreaming]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       <div
         ref={scrollRef}
         style={{ flex: 1, overflow: 'auto', padding: '12px 16px', position: 'relative' }}
