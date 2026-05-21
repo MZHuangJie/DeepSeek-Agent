@@ -1,30 +1,26 @@
 import http from 'http';
-import { BrowserWindow, shell } from 'electron';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { BrowserWindow } from 'electron';
 
 interface WebPreviewOptions {
   html: string;
-  timeout?: number; // ms, default 10 minutes
+  timeout?: number;
 }
 
 interface WebPreviewResult {
-  action: string;      // 用户点击的按钮/选项名
-  value?: string;      // 用户输入的值（如果有输入框）
-  feedback?: string;   // 用户填写的反馈文本
+  action: string;
+  value?: string;
+  feedback?: string;
 }
 
 export async function presentWebPreview(
   options: WebPreviewOptions,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  sendToRenderer?: (channel: string, data: any) => void
 ): Promise<WebPreviewResult> {
   const { html, timeout = 600_000 } = options;
 
-  // 注入交互脚本：页面中的按钮点击后发送 POST 到服务器
   const injectedHtml = html.replace('</body>', `
 <script>
-// 所有带有 data-action 属性的按钮点击时发送选择
 document.querySelectorAll('[data-action]').forEach(btn => {
   btn.addEventListener('click', async () => {
     const action = btn.dataset.action;
@@ -42,15 +38,11 @@ document.querySelectorAll('[data-action]').forEach(btn => {
     }
   });
 });
-// 自动调整 form layout
 document.querySelectorAll('form').forEach(f => {
   f.addEventListener('submit', e => e.preventDefault());
   const submitBtn = f.querySelector('button[type="submit"], input[type="submit"]');
-  if (submitBtn) {
-    const firstBtn = document.querySelector('[data-action]');
-    if (!firstBtn) {
-      submitBtn.setAttribute('data-action', submitBtn.textContent?.trim() || '提交');
-    }
+  if (submitBtn && !document.querySelector('[data-action]')) {
+    submitBtn.setAttribute('data-action', submitBtn.textContent?.trim() || '提交');
   }
 });
 </script>
@@ -78,7 +70,6 @@ document.querySelectorAll('form').forEach(f => {
             resolve({ action: '解析失败' });
           }
           server.close();
-          try { win?.destroy(); } catch {}
         });
       } else {
         res.writeHead(404);
@@ -86,11 +77,8 @@ document.querySelectorAll('form').forEach(f => {
       }
     });
 
-    let win: BrowserWindow | null = null;
-
     const cleanup = () => {
       server.close();
-      try { win?.destroy(); } catch {}
     };
 
     const timer = setTimeout(() => {
@@ -114,25 +102,27 @@ document.querySelectorAll('form').forEach(f => {
       const port = addr.port;
       const url = `http://127.0.0.1:${port}`;
 
-      // 用 Electron BrowserWindow 打开
-      win = new BrowserWindow({
-        width: 1000,
-        height: 700,
-        title: '方案预览 - 点击选项进行选择',
-        webPreferences: { javascript: true },
-      });
-
-      win.on('closed', () => {
-        win = null;
-        clearTimeout(timer);
-        server.close();
-        resolve({ action: '用户关闭了窗口' });
-      });
-
-      win.loadURL(url).catch(err => {
-        cleanup();
-        reject(new Error(`打开预览窗口失败: ${err.message}`));
-      });
+      // 通知渲染进程在嵌入式浏览器中打开
+      if (sendToRenderer) {
+        sendToRenderer('browser:load-url', { url });
+      } else {
+        // fallback: 新窗口
+        const win = new BrowserWindow({
+          width: 1000, height: 700,
+          title: '方案预览',
+          webPreferences: { javascript: true },
+        });
+        win.on('closed', () => {
+          win.destroy();
+          clearTimeout(timer);
+          server.close();
+          resolve({ action: '用户关闭了窗口' });
+        });
+        win.loadURL(url).catch(err => {
+          cleanup();
+          reject(new Error(`打开预览窗口失败: ${err.message}`));
+        });
+      }
     });
 
     server.on('error', (err) => {

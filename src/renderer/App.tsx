@@ -38,7 +38,18 @@ export default function App() {
     setOpenView(prev => prev === view ? null : view);
   };
 
-  // 浏览器视图用 80% 宽度，其他面板用 sidebarWidth
+  const [browserUrl, setBrowserUrl] = React.useState('https://www.google.com');
+
+  // 监听 present_web 传来的 URL，自动打开浏览器面板
+  useEffect(() => {
+    const unsubscribe = window.api.browser.onLoadUrl((url) => {
+      setOpenView('browser');
+      setBrowserUrl(url);
+    });
+    return unsubscribe;
+  }, []);
+
+  // 浏览器视图用 65% 宽度，其他面板用 sidebarWidth
   const leftPanelWidth = openView === 'browser' ? '65%' : sidebarWidth;
   const isLeftOpen = openView && openView !== 'agent';
 
@@ -122,7 +133,7 @@ export default function App() {
           <div style={{ width: isLeftOpen && openView !== 'browser' ? sidebarWidth : '100%', height: '100%' }}>
             {openView === 'files' && <Sidebar />}
             {openView === 'sessions' && <SessionList />}
-            {openView === 'browser' && <BrowserView />}
+            {openView === 'browser' && <BrowserView initialUrl={browserUrl} />}
           </div>
         </div>
         {isLeftOpen && openView !== 'browser' && (

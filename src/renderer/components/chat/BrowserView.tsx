@@ -1,9 +1,20 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
-export default function BrowserView() {
-  const [url, setUrl] = useState('https://www.google.com');
-  const [inputUrl, setInputUrl] = useState('https://www.google.com');
+interface Props {
+  initialUrl?: string;
+}
+
+export default function BrowserView({ initialUrl }: Props) {
+  const [url, setUrl] = useState(initialUrl || 'https://www.google.com');
+  const [inputUrl, setInputUrl] = useState(initialUrl || 'https://www.google.com');
   const webviewRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (initialUrl) {
+      setUrl(initialUrl);
+      setInputUrl(initialUrl);
+    }
+  }, [initialUrl]);
 
   const navigate = () => {
     const u = inputUrl.trim();

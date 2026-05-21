@@ -91,6 +91,11 @@ const api = {
   browser: {
     open: (url?: string) => ipcRenderer.invoke('browser:open', url),
     navigate: (id: number, url: string) => ipcRenderer.invoke('browser:navigate', id, url),
+    onLoadUrl: (cb: (url: string) => void) => {
+      const handler = (_: unknown, data: { url: string }) => cb(data.url);
+      ipcRenderer.on('browser:load-url', handler);
+      return () => { ipcRenderer.removeListener('browser:load-url', handler); };
+    },
   },
 };
 

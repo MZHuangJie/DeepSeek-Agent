@@ -683,7 +683,16 @@ ${r.summary}
         if (!html.includes('<html') && !html.includes('<body')) {
           throw new Error('请提供完整的 HTML 页面代码，包含 <html> 和 <body> 标签');
         }
-        const result = await presentWebPreview({ html }, context?.signal);
+        // 通过 subAgentManager 获取 BrowserWindow 发 IPC 到渲染进程
+        let sendToRenderer: ((ch: string, data: any) => void) | undefined;
+        try {
+          const manager = (context as any)?.subAgentManager;
+          const win = manager?.win;
+          if (win && !win.isDestroyed()) {
+            sendToRenderer = (ch, data) => win.webContents.send(ch, data);
+          }
+        } catch {}
+        const result = await presentWebPreview({ html }, context?.signal, sendToRenderer);
         return JSON.stringify(result);
       },
     },
