@@ -32,6 +32,7 @@ interface FilesState {
   loadWorkspace: () => Promise<void>;
   openWorkspace: (workspacePath: string) => Promise<void>;
   selectAndOpenWorkspace: () => Promise<void>;
+  removeRecentWorkspace: (p: string) => Promise<void>;
 }
 
 export const useFilesStore = create<FilesState>((set, get) => ({
@@ -128,5 +129,9 @@ export const useFilesStore = create<FilesState>((set, get) => ({
     } catch (err) {
       console.error('Failed to select workspace:', err);
     }
+  },
+  removeRecentWorkspace: async (p) => {
+    const updated = await window.api.files.removeRecentWorkspace(p);
+    set({ recentWorkspaces: updated });
   },
 }));

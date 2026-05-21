@@ -13,6 +13,7 @@ const api = {
     selectWorkspace: () => ipcRenderer.invoke('files:select-workspace'),
     setWorkspace: (workspacePath: string) => ipcRenderer.invoke('files:set-workspace', workspacePath),
     getRecentWorkspaces: () => ipcRenderer.invoke('files:get-recent'),
+    removeRecentWorkspace: (p: string) => ipcRenderer.invoke('files:remove-recent', p),
     onTreeChanged: (cb: () => void) => {
       const handler = () => cb();
       ipcRenderer.on('files:tree-changed', handler);

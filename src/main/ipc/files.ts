@@ -140,6 +140,13 @@ export function setupFileHandlers() {
     return getRecentWorkspaces();
   });
 
+  ipcMain.handle('files:remove-recent', async (_event, workspacePath: string) => {
+    let recent = getRecentWorkspaces();
+    recent = recent.filter(p => p !== workspacePath);
+    setSetting('recent_workspaces', JSON.stringify(recent));
+    return recent;
+  });
+
   ipcMain.handle('files:create-file', async (_event, filePath: string) => {
     const safePath = safeResolve(currentWorkspace, filePath);
     if (fs.existsSync(safePath)) {

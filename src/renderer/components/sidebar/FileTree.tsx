@@ -159,7 +159,7 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel }: { parentPat
 }
 
 export default function FileTree() {
-  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace } = useFilesStore();
+  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, removeRecentWorkspace } = useFilesStore();
   const [showExplorer, setShowExplorer] = useState(true);
   const [showRecent, setShowRecent] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -319,13 +319,20 @@ export default function FileTree() {
                 const name = p.split(/[\\/]/).pop() || p;
                 const isActive = p === currentWorkspace;
                 return (
-                  <div key={p} onClick={() => openWorkspace(p)} style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '11px', color: isActive ? 'var(--accent)' : 'var(--text-primary)', background: isActive ? 'var(--bg-tertiary)' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '4px', margin: '2px 8px', borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent', transition: 'background 0.1s' }}
+                  <div key={p} style={{ position: 'relative' }}>
+                    <div onClick={() => openWorkspace(p)} style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '11px', color: isActive ? 'var(--accent)' : 'var(--text-primary)', background: isActive ? 'var(--bg-tertiary)' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '4px', margin: '2px 8px', borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent', transition: 'background 0.1s' }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? 'var(--bg-tertiary)' : 'transparent'; }}
                     title={p}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: isActive ? '700' : '500' }}>📁 {name}</div>
                     <div style={{ fontSize: '9px', color: 'var(--text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p}</div>
                   </div>
+                  <span onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: 0.4, fontSize: 12, color: 'var(--text-secondary)', padding: '2px 4px', borderRadius: 3 }}
+                    onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.background = 'transparent'; }}
+                    title="从列表中移除">✕</span>
+                </div>
                 );
               })
             )}
