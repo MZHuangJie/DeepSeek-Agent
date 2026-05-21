@@ -21,6 +21,16 @@ const MAX_HEIGHT = 180;  // ~8 rows + padding
 export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Props) {
   const [value, setValue] = useState('');
   const [atMaxHeight, setAtMaxHeight] = useState(false);
+  const [refFiles, setRefFiles] = useState<string[]>([]);
+
+  // 暴露全局方法供 FileTree 右键菜单调用
+  useEffect(() => {
+    (window as any).__mycli_addRefFile__ = (path: string) => {
+      setRefFiles(prev => prev.includes(path) ? prev : [...prev, path]);
+    };
+    return () => { delete (window as any).__mycli_addRefFile__; };
+  }, []);
+
   const showMention = value.includes('@');
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
@@ -91,9 +101,11 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       }
       if (trimmed) {
         const cmd = matchCommand(trimmed, pluginCommands);
-        const message = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
-        onSend(message || trimmed, cmd || undefined);
+        const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
+        const prefix = refFiles.map(p => `@${p} `).join('');
+        onSend(prefix + (msg || trimmed), cmd || undefined);
         setValue('');
+        setRefFiles([]);
         setAtMaxHeight(false);
         if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
       }
@@ -110,7 +122,8 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   };
 
   const insertMention = (path: string) => {
-    setValue(v => v.slice(0, v.lastIndexOf('@')) + path + ' ');
+    setValue(v => v.slice(0, v.lastIndexOf('@')).trimEnd());
+    setRefFiles(prev => prev.includes(path) ? prev : [...prev, path]);
     textareaRef.current?.focus();
   };
 
@@ -129,9 +142,11 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     }
     if (trimmed) {
       const cmd = matchCommand(trimmed, pluginCommands);
-      const message = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
-      onSend(message || trimmed, cmd || undefined);
+      const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
+      const prefix = refFiles.map(p => `@${p} `).join('');
+      onSend(prefix + (msg || trimmed), cmd || undefined);
       setValue('');
+      setRefFiles([]);
       setAtMaxHeight(false);
       if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
     }
@@ -211,6 +226,37 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         </div>
       )}
 
+      {/* Referenced files chips */}
+      {refFiles.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 12px 0' }}>
+          {refFiles.map((path, i) => {
+            const name = path.split(/[\\/]/).pop() || path;
+            return (
+              <div key={i} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '2px 6px', borderRadius: 4,
+                background: 'rgba(124,58,237,0.12)',
+                border: '1px solid rgba(124,58,237,0.2)',
+                fontSize: 10, color: 'var(--text-secondary)',
+              }}>
+                <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {name}
+                </span>
+                <span
+                  onClick={() => setRefFiles(prev => prev.filter((_, j) => j !== i))}
+                  style={{
+                    cursor: 'pointer', width: 14, height: 14, borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 9, flexShrink: 0, lineHeight: 1,
+                  }}
+                  title="取消引用"
+                >✕</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Input area */}
       <div style={{
         background: 'var(--bg-tertiary)',
@@ -226,6 +272,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           onKeyDown={handleKeyDown}
           placeholder={disabled ? 'AI 正在回复...' : 'Ask DeepSeek Agent... (/ commands · @ files)'}
           disabled={disabled}
+          spellCheck={false}
           style={{
             width: '100%',
             background: 'transparent', border: 'none',

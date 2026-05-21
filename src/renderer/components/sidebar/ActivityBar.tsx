@@ -5,6 +5,8 @@ export type PanelView = 'files' | 'sessions' | 'browser' | 'agent';
 interface Props {
   openView: PanelView | null;
   onToggle: (view: PanelView) => void;
+  onOpenSettings?: () => void;
+  onToggleTerminal?: () => void;
 }
 
 const ITEMS: Array<{ id: PanelView; label: string; icon: string }> = [
@@ -14,42 +16,60 @@ const ITEMS: Array<{ id: PanelView; label: string; icon: string }> = [
   { id: 'agent', label: 'AGENT', icon: '/assets/usaged.png' },
 ];
 
-export default function ActivityBar({ openView, onToggle }: Props) {
+function BarBtn({ icon, title, onClick, active }: { icon: string; title: string; onClick: () => void; active?: boolean }) {
+  return (
+    <div
+      onClick={onClick}
+      title={title}
+      style={{
+        width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', borderRadius: 6,
+        background: active ? 'var(--accent)' : 'transparent',
+        opacity: active ? 1 : 0.5,
+        transition: 'all 0.15s',
+        position: 'relative',
+      }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.opacity = '0.8'; }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.opacity = '0.5'; }}
+    >
+      <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
+      {active && (
+        <div style={{
+          position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+          width: 2, height: 20, background: '#fff', borderRadius: 1,
+        }} />
+      )}
+    </div>
+  );
+}
+
+export default function ActivityBar({ openView, onToggle, onOpenSettings, onToggleTerminal }: Props) {
   return (
     <div style={{
       width: 44, flexShrink: 0, background: 'var(--bg-tertiary)',
       borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      paddingTop: 8, gap: 2,
+      paddingTop: 8, gap: 7,
     }}>
-      {ITEMS.map(item => {
-        const isActive = openView === item.id;
-        return (
-          <div
-            key={item.id}
-            onClick={() => onToggle(item.id)}
-            title={item.label}
-            style={{
-              width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, cursor: 'pointer', borderRadius: 6,
-              background: isActive ? 'var(--accent)' : 'transparent',
-              opacity: isActive ? 1 : 0.5,
-              transition: 'all 0.15s',
-              position: 'relative',
-            }}
-            onMouseEnter={e => { if (!isActive) e.currentTarget.style.opacity = '0.8'; }}
-            onMouseLeave={e => { if (!isActive) e.currentTarget.style.opacity = '0.5'; }}
-          >
-            <img src={item.icon} alt={item.label} style={{ width: 18, height: 18 }} />
-            {isActive && (
-              <div style={{
-                position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
-                width: 2, height: 20, background: '#fff', borderRadius: 1,
-              }} />
-            )}
-          </div>
-        );
-      })}
+      {ITEMS.map(item => (
+        <BarBtn
+          key={item.id}
+          icon={item.icon}
+          title={item.label}
+          active={openView === item.id}
+          onClick={() => onToggle(item.id)}
+        />
+      ))}
+
+      {/* 底部操作按钮 */}
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, paddingBottom: 8 }}>
+        {onToggleTerminal && (
+          <BarBtn icon="/assets/3.png" title="终端" onClick={onToggleTerminal} />
+        )}
+        {onOpenSettings && (
+          <BarBtn icon="/assets/5.png" title="模型设置" onClick={onOpenSettings} />
+        )}
+      </div>
     </div>
   );
 }

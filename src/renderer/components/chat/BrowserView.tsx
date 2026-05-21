@@ -44,6 +44,7 @@ export default function BrowserView({ initialUrl }: Props) {
           onChange={(e) => setInputUrl(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && navigate()}
           placeholder="输入网址..."
+          spellCheck={false}
           style={{
             flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
             borderRadius: 4, color: 'var(--text-primary)', padding: '4px 8px',

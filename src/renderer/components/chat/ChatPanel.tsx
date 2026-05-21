@@ -91,7 +91,7 @@ export default function ChatPanel() {
           pendingThinkingRef.current = null;
           useChatStore.getState().newAssistantMessage();
         }
-        pendingContentRef.current = (pendingContentRef.current ?? lastMsg?.content ?? '') + chunk.text;
+        pendingContentRef.current = (pendingContentRef.current ?? '') + chunk.text;
         if (!rafRef.current) {
           rafRef.current = requestAnimationFrame(() => {
             rafRef.current = null;
@@ -109,7 +109,7 @@ export default function ChatPanel() {
           pendingThinkingRef.current = null;
           useChatStore.getState().newAssistantMessage();
         }
-        pendingThinkingRef.current = (pendingThinkingRef.current ?? lastMsg?.thinkingContent ?? '') + chunk.text;
+        pendingThinkingRef.current = (pendingThinkingRef.current ?? '') + chunk.text;
         if (!rafRef.current) {
           rafRef.current = requestAnimationFrame(() => {
             rafRef.current = null;

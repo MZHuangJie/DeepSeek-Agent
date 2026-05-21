@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFilesStore, FileNode } from '../../stores/files';
+import { useBrowserStore } from '../../stores/browser';
 import { getFileIconInfo } from '../../utils/icons';
 
 function FileIcon({ name }: { name: string }) {
@@ -144,7 +145,7 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel }: { parentPat
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px 2px 36px' }}>
-      <span style={{ fontSize: 12, color: 'var(--text-secondary)', flexShrink: 0 }}>{isDirectory ? '📁' : '📄'}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-secondary)', flexShrink: 0 }}><img src={isDirectory ? '/assets/文件夹.png' : '/assets/file.png'} alt="" style={{ width: 14, height: 14 }} /></span>
       <input
         ref={inputRef}
         value={value}
@@ -258,9 +259,9 @@ export default function FileTree() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', userSelect: 'none' }}>
       <div style={{ display: 'flex', flexDirection: 'column', flex: showExplorer ? 1 : '0 0 auto', overflow: 'hidden' }}>
         <div onClick={() => setShowExplorer(!showExplorer)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', padding: '6px 12px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-          <span>📂 资源管理器 ({workspaceName})</span>
+          <span><img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14, marginRight: 6, verticalAlign: 'middle' }} />资源管理器 ({workspaceName})</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" style={{ cursor: 'pointer', fontSize: 12, opacity: 0.7 }}>⟳</span>
+            <img src="/assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" style={{ cursor: 'pointer', width: 14, height: 14, opacity: 0.7 }} />
             <span>{showExplorer ? '▼' : '▶'}</span>
           </div>
         </div>
@@ -270,7 +271,7 @@ export default function FileTree() {
             <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
               <button onClick={selectAndOpenWorkspace} style={{ flex: 1, border: 'none', background: 'var(--accent)', color: '#fff', padding: '6px 12px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'opacity 0.2s' }}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-                📁 打开其他文件夹
+                <img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14, marginRight: 4, verticalAlign: 'middle' }} /> 打开其他文件夹
               </button>
             </div>
 
@@ -288,13 +289,32 @@ export default function FileTree() {
               {contextMenu && (
                 <div style={{ position: 'absolute', left: contextMenu.x, top: contextMenu.y, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 0', minWidth: 160, zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
                   onClick={(e) => e.stopPropagation()}>
-                  <ContextMenuItem label="📄 新建文件" onClick={() => startCreate(false)} />
-                  <ContextMenuItem label="📁 新建文件夹" onClick={() => startCreate(true)} />
+                  <ContextMenuItem label="新建文件" onClick={() => startCreate(false)} />
+                  <ContextMenuItem label="新建文件夹" onClick={() => startCreate(true)} />
                   {contextMenu.node && (
                     <>
                       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
-                      <ContextMenuItem label="✏️ 重命名" onClick={() => { /* 已通过双击触发，留空 */ setContextMenu(null); }} />
-                      <ContextMenuItem label="🗑️ 删除" onClick={handleDelete} danger />
+                      <ContextMenuItem label="重命名" onClick={() => { setContextMenu(null); }} />
+                      <ContextMenuItem label="删除" onClick={handleDelete} />
+                      <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                      {!contextMenu.node.isDirectory && (
+                        <ContextMenuItem label="添加到对话" onClick={() => {
+                          const addRef = (window as any).__mycli_addRefFile__;
+                          if (addRef) addRef(contextMenu.node!.path);
+                          setContextMenu(null);
+                        }} />
+                      )}
+                      <ContextMenuItem label="在资源管理器中打开" onClick={() => {
+                        window.api.files.showInExplorer(contextMenu.node!.path);
+                        setContextMenu(null);
+                      }} />
+                      {!contextMenu.node.isDirectory && (
+                        <ContextMenuItem label="在浏览器中打开" onClick={() => {
+                          const fileUrl = `file:///${contextMenu.node!.path.replace(/\\/g, '/')}`;
+                          useBrowserStore.getState().openUrl(fileUrl);
+                          setContextMenu(null);
+                        }} />
+                      )}
                     </>
                   )}
                 </div>
@@ -307,7 +327,7 @@ export default function FileTree() {
       {/* SECTION 2: RECENT WORKSPACES */}
       <div style={{ display: 'flex', flexDirection: 'column', height: showRecent ? '180px' : 'auto', overflow: 'hidden', borderTop: '1px solid var(--border)' }}>
         <div onClick={() => setShowRecent(!showRecent)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', padding: '6px 12px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-          <span>🕒 最近打开的工作区</span>
+          <span><img src="/assets/recent.png" alt="" style={{ width: 14, height: 14, marginRight: 6, verticalAlign: 'middle' }} />最近打开的工作区</span>
           <span>{showRecent ? '▼' : '▶'}</span>
         </div>
         {showRecent && (
@@ -320,11 +340,11 @@ export default function FileTree() {
                 const isActive = p === currentWorkspace;
                 return (
                   <div key={p} style={{ position: 'relative' }}>
-                    <div onClick={() => openWorkspace(p)} style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '11px', color: isActive ? 'var(--accent)' : 'var(--text-primary)', background: isActive ? 'var(--bg-tertiary)' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '4px', margin: '2px 8px', borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent', transition: 'background 0.1s' }}
+                    <div onClick={() => openWorkspace(p)} style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-primary)', background: isActive ? 'var(--bg-tertiary)' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '4px', margin: '2px 8px', borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent', transition: 'background 0.1s' }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? 'var(--bg-tertiary)' : 'transparent'; }}
                     title={p}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: isActive ? '700' : '500' }}>📁 {name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14 }} /> {name}</div>
                     <div style={{ fontSize: '9px', color: 'var(--text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p}</div>
                   </div>
                   <span onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }}

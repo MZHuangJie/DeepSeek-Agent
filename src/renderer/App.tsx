@@ -17,6 +17,7 @@ import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
 import { useChatStore } from './stores/chat';
 import { useLayoutStore } from './stores/layout';
+import { useBrowserStore } from './stores/browser';
 import ResizeHandle from './components/layout/ResizeHandle';
 
 export default function App() {
@@ -33,25 +34,36 @@ export default function App() {
 
   const [showModelSettings, setShowModelSettings] = React.useState(false);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
+  const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
 
   const handleToggleView = (view: PanelView) => {
-    setOpenView(prev => prev === view ? null : view);
+    if (view === 'browser') {
+      setBrowserOpen(!browserOpen);
+      if (!browserOpen) setOpenView(null);
+    } else {
+      setBrowserOpen(false);
+      setOpenView(prev => prev === view ? null : view);
+    }
   };
 
-  const [browserUrl, setBrowserUrl] = React.useState('https://www.google.com');
+  // 同步 browser store 的 open 状态到面板
+  React.useEffect(() => {
+    if (browserOpen) setOpenView(null); // 关闭其他面板
+  }, [browserOpen]);
 
   // 监听 present_web 传来的 URL，自动打开浏览器面板
   useEffect(() => {
     const unsubscribe = window.api.browser.onLoadUrl((url) => {
-      setOpenView('browser');
-      setBrowserUrl(url);
+      setBrowserOpen(true);
+      useBrowserStore.getState().setUrl(url);
     });
     return unsubscribe;
-  }, []);
+  }, [setBrowserOpen]);
 
   // 浏览器视图用 65% 宽度，其他面板用 sidebarWidth
-  const leftPanelWidth = openView === 'browser' ? '65%' : sidebarWidth;
-  const isLeftOpen = openView && openView !== 'agent';
+  const isBrowserVisible = openView === 'browser' || browserOpen;
+  const leftPanelWidth = isBrowserVisible ? '65%' : sidebarWidth;
+  const isLeftOpen = isBrowserVisible || (openView && openView !== 'agent');
 
   const hasInitRef = React.useRef(false);
   useEffect(() => {
@@ -96,14 +108,7 @@ export default function App() {
         fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', position: 'relative',
         WebkitAppRegion: 'drag',
       } as any}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 12, WebkitAppRegion: 'no-drag' } as any}>
-          <TitleBarBtn title="模型设置" onClick={() => setShowModelSettings(true)}>
-            <img src="/assets/5.png" alt="settings" style={{ width: 14, height: 14, opacity: 0.7 }} />
-          </TitleBarBtn>
-          <TitleBarBtn title="终端" onClick={() => { setBottomClosed(false); setBottomExpanded(true); }}>
-            <img src="/assets/3.png" alt="terminal" style={{ width: 14, height: 14, opacity: 0.7 }} />
-          </TitleBarBtn>
-        </div>
+        <div style={{ width: 100 }} />
         <span style={{ flex: 1, textAlign: 'center' }}>DeepSeek Agent</span>
         <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' } as any}>
           <WindowControlBtn onClick={() => window.api.window.minimize()}>
@@ -120,7 +125,12 @@ export default function App() {
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Activity Bar — 最左边 */}
-        <ActivityBar openView={openView} onToggle={handleToggleView} />
+        <ActivityBar
+          openView={isBrowserVisible ? 'browser' : openView}
+          onToggle={handleToggleView}
+          onOpenSettings={() => setShowModelSettings(true)}
+          onToggleTerminal={() => { setBottomClosed(false); setBottomExpanded(true); }}
+        />
 
         {/* Left Panel — files/sessions/browser 滑动面板 */}
         <div style={{
@@ -130,13 +140,13 @@ export default function App() {
           height: '100%', overflow: 'hidden',
           transition: 'width 0.2s ease',
         }}>
-          <div style={{ width: isLeftOpen && openView !== 'browser' ? sidebarWidth : '100%', height: '100%' }}>
-            {openView === 'files' && <Sidebar />}
-            {openView === 'sessions' && <SessionList />}
-            {openView === 'browser' && <BrowserView initialUrl={browserUrl} />}
+          <div style={{ width: isLeftOpen ? (isBrowserVisible ? '100%' : sidebarWidth) : '100%', height: '100%' }}>
+            {!isBrowserVisible && openView === 'files' && <Sidebar />}
+            {!isBrowserVisible && openView === 'sessions' && <SessionList />}
+            {isBrowserVisible && <BrowserView initialUrl={browserUrl} />}
           </div>
         </div>
-        {isLeftOpen && openView !== 'browser' && (
+        {isLeftOpen && !isBrowserVisible && (
           <ResizeHandle direction="horizontal" onResize={(d) => setSidebarWidth(w => Math.max(180, w + d))} />
         )}
 
@@ -229,29 +239,6 @@ export default function App() {
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
       <StatusBar language={activeFile ? getLanguage(activeFile.name) : ''} />
     </div>
-  );
-}
-
-function TitleBarBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        background: 'transparent', border: 'none', cursor: 'pointer',
-        width: 28, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 3, transition: 'background 0.15s',
-        padding: 0, color: 'var(--text-secondary)',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.background = 'transparent';
-      }}
-    >
-      {children}
-    </button>
   );
 }
 
