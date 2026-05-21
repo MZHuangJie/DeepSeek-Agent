@@ -22,16 +22,23 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const [value, setValue] = useState('');
   const [atMaxHeight, setAtMaxHeight] = useState(false);
   const [refFiles, setRefFiles] = useState<string[]>([]);
+  const [textRefs, setTextRefs] = useState<string[]>([]);
 
-  // 暴露全局方法供 FileTree 右键菜单调用
+  // 暴露全局方法供 FileTree 右键菜单和 MessageBubble 调用
   useEffect(() => {
     (window as any).__mycli_addRefFile__ = (path: string) => {
       setRefFiles(prev => prev.includes(path) ? prev : [...prev, path]);
     };
-    return () => { delete (window as any).__mycli_addRefFile__; };
+    (window as any).__mycli_addTextRef__ = (text: string) => {
+      setTextRefs(prev => prev.includes(text) ? prev : [...prev, text]);
+    };
+    return () => {
+      delete (window as any).__mycli_addRefFile__;
+      delete (window as any).__mycli_addTextRef__;
+    };
   }, []);
 
-  const showMention = value.includes('@');
+  const showMention = value.includes('@') && openTabs.length > 0;
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);
@@ -103,9 +110,11 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         const cmd = matchCommand(trimmed, pluginCommands);
         const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
         const prefix = refFiles.map(p => `@${p} `).join('');
-        onSend(prefix + (msg || trimmed), cmd || undefined);
+        const suffix = textRefs.length > 0 ? '\n\n---\n引用消息：\n' + textRefs.join('\n---\n') : '';
+        onSend(prefix + (msg || trimmed) + suffix, cmd || undefined);
         setValue('');
         setRefFiles([]);
+        setTextRefs([]);
         setAtMaxHeight(false);
         if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
       }
@@ -214,15 +223,43 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           border: '1px solid var(--border)', borderRadius: 6, padding: 4, maxHeight: 160,
           overflow: 'auto', zIndex: 100, minWidth: 200, marginBottom: 4,
         }}>
-          {openTabs.length === 0 && (
-            <div style={{ padding: '4px 8px', fontSize: 11, color: 'var(--text-secondary)' }}>无打开的文件</div>
-          )}
           {openTabs.map(t => (
             <div key={t.path} onClick={() => insertMention(t.path)} style={{
               padding: '4px 8px', cursor: 'pointer', fontSize: 12, borderRadius: 3,
               color: 'var(--text-primary)',
             }}>{t.name}</div>
           ))}
+        </div>
+      )}
+
+      {/* Text reference chips */}
+      {textRefs.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 12px 0' }}>
+          {textRefs.map((text, i) => {
+            const label = text.length > 40 ? text.slice(0, 40) + '...' : text;
+            return (
+              <div key={i} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '2px 6px', borderRadius: 4,
+                background: 'rgba(124,58,237,0.08)',
+                border: '1px solid rgba(124,58,237,0.15)',
+                fontSize: 10, color: 'var(--text-secondary)',
+              }}>
+                <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {label}
+                </span>
+                <span
+                  onClick={() => setTextRefs(prev => prev.filter((_, j) => j !== i))}
+                  style={{
+                    cursor: 'pointer', width: 14, height: 14, borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 9, flexShrink: 0, lineHeight: 1,
+                  }}
+                  title="取消引用"
+                >✕</span>
+              </div>
+            );
+          })}
         </div>
       )}
 

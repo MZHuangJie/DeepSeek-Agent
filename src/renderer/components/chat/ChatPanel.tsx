@@ -28,20 +28,23 @@ export default function ChatPanel() {
   const [choiceReq, setChoiceReq] = useState<{ choiceId: string; message: string; choices: Array<{ label: string; description?: string }> } | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set());
   const currentStepRef = useRef(0);
-  // RAF 批量更新 buffer，避免每个 IPC chunk 都触发 React 重渲染
-  const pendingContentRef = useRef<string | null>(null);
-  const pendingThinkingRef = useRef<string | null>(null);
+  // 流式内容累积
+  const totalContentRef = useRef('');
+  const totalThinkingRef = useRef('');
+  const pendingContentRef = useRef('');
+  const pendingThinkingRef = useRef('');
   const rafRef = useRef<number | null>(null);
+
   function flushRafBuffer() {
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    const pc = pendingContentRef.current;
-    const pt = pendingThinkingRef.current;
-    pendingContentRef.current = null;
-    pendingThinkingRef.current = null;
-    if (pc !== null || pt !== null) {
+    if (pendingContentRef.current || pendingThinkingRef.current) {
+      totalContentRef.current += pendingContentRef.current;
+      totalThinkingRef.current += pendingThinkingRef.current;
+      pendingContentRef.current = '';
+      pendingThinkingRef.current = '';
       const upd: any = {};
-      if (pc !== null) upd.content = pc;
-      if (pt !== null) upd.thinkingContent = pt;
+      if (totalContentRef.current) upd.content = totalContentRef.current;
+      if (totalThinkingRef.current) upd.thinkingContent = totalThinkingRef.current;
       useChatStore.getState().updateLastAssistant(upd);
     }
   }
@@ -86,52 +89,41 @@ export default function ChatPanel() {
         const step = chunk.step || 1;
         if (step > currentStepRef.current) {
           currentStepRef.current = step;
-          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-          pendingContentRef.current = null;
-          pendingThinkingRef.current = null;
+          flushRafBuffer();
+          totalContentRef.current = '';
+          totalThinkingRef.current = '';
+          pendingContentRef.current = '';
+          pendingThinkingRef.current = '';
           useChatStore.getState().newAssistantMessage();
         }
-        pendingContentRef.current = (pendingContentRef.current ?? '') + chunk.text;
+        pendingContentRef.current += chunk.text;
         if (!rafRef.current) {
-          rafRef.current = requestAnimationFrame(() => {
-            rafRef.current = null;
-            const text = pendingContentRef.current;
-            pendingContentRef.current = null;
-            if (text !== null) useChatStore.getState().updateLastAssistant({ content: text });
-          });
+          rafRef.current = requestAnimationFrame(() => flushRafBuffer());
         }
       } else if (chunk.type === 'thinking') {
         const step = chunk.step || 0;
         if (step > 0 && step > currentStepRef.current) {
           currentStepRef.current = step;
           if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-          pendingContentRef.current = null;
-          pendingThinkingRef.current = null;
+          pendingContentRef.current = '';
+          pendingThinkingRef.current = '';
+          totalContentRef.current = '';
+          totalThinkingRef.current = '';
           useChatStore.getState().newAssistantMessage();
         }
-        pendingThinkingRef.current = (pendingThinkingRef.current ?? '') + chunk.text;
+        pendingThinkingRef.current += chunk.text;
         if (!rafRef.current) {
-          rafRef.current = requestAnimationFrame(() => {
-            rafRef.current = null;
-            const text = pendingContentRef.current;
-            const thinking = pendingThinkingRef.current;
-            pendingContentRef.current = null;
-            pendingThinkingRef.current = null;
-            if (text !== null || thinking !== null) {
-              const upd: any = {};
-              if (text !== null) upd.content = text;
-              if (thinking !== null) upd.thinkingContent = thinking;
-              useChatStore.getState().updateLastAssistant(upd);
-            }
-          });
+          rafRef.current = requestAnimationFrame(() => flushRafBuffer());
         }
       } else if (chunk.type === 'tool-call') {
         const step = chunk.step || 1;
         if (step > currentStepRef.current) {
           currentStepRef.current = step;
-          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-          pendingContentRef.current = null;
-          pendingThinkingRef.current = null;
+          flushRafBuffer();
+          totalContentRef.current = '';
+          totalThinkingRef.current = '';
+          pendingContentRef.current = '';
+          pendingThinkingRef.current = '';
           useChatStore.getState().newAssistantMessage();
         }
         let parsedArgs: Record<string, unknown> = {};
@@ -210,6 +202,8 @@ export default function ChatPanel() {
         if (prev) useAgentStore.getState().setExploreProgress({ ...prev, warning: chunk.warning });
       } else if (chunk.type === 'done') {
         flushRafBuffer();
+        totalContentRef.current = '';
+        totalThinkingRef.current = '';
         setStream(false);
         const agentStore = useAgentStore.getState();
         const current = agentStore.currentStep;
@@ -370,8 +364,10 @@ export default function ChatPanel() {
     agentStore.reset();
     currentStepRef.current = 1;
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    pendingContentRef.current = null;
-    pendingThinkingRef.current = null;
+    pendingContentRef.current = '';
+    pendingThinkingRef.current = '';
+    totalContentRef.current = '';
+    totalThinkingRef.current = '';
     addMessage({ id: `msg-${Date.now()}`, role: 'user', content: displayContent, timestamp: Date.now() });
     const assistantId = `msg-${Date.now() + 1}`;
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });

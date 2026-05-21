@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Message } from '../../stores/chat';
-import { useFilesStore } from '../../stores/files';
 import ThinkingChain from './ThinkingChain';
 
 interface Props {
@@ -151,6 +150,31 @@ function isImageGenerationContext(content: string): boolean {
     lower.includes('生成') && (lower.includes('图') || lower.includes('画') || lower.includes('image'));
 }
 
+const AT_PATH_RE = /@([A-Za-z]:[\\/][\S]+)/g;
+
+function RichText({ text }: { text: string }) {
+  const parts: Array<{ type: 'text'; value: string } | { type: 'at'; path: string }> = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = AT_PATH_RE.exec(text)) !== null) {
+    if (m.index > last) parts.push({ type: 'text', value: text.slice(last, m.index) });
+    const name = m[1].split(/[\\/]/).pop() || m[1];
+    parts.push({ type: 'at', path: name });
+    last = AT_PATH_RE.lastIndex;
+  }
+  if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
+  if (parts.length === 0) return <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>;
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.type === 'text'
+          ? <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{p.value}</span>
+          : <span key={i} style={{ fontSize: 10, color: 'var(--accent)', background: 'rgba(124,58,237,0.08)', borderRadius: 3, padding: '1px 4px', margin: '0 1px' }}>@{p.path}</span>
+      )}
+    </>
+  );
+}
+
 function MessageContent({ content }: { content: string }) {
   const parts = useMemo(() => parseMarkdown(content), [content]);
   const imageContext = useMemo(() => isImageGenerationContext(content), [content]);
@@ -159,14 +183,14 @@ function MessageContent({ content }: { content: string }) {
     if (isImageUrl(content.trim()) || content.trim().startsWith('data:image/')) {
       return <ImageCard url={content.trim()} alt="" />;
     }
-    return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{content}</div>;
+    return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}><RichText text={content} /></div>;
   }
 
   return (
     <div style={{ wordBreak: 'break-word' }}>
       {parts.map((part, idx) => {
         if (part.type === 'text') {
-          return <span key={idx} style={{ whiteSpace: 'pre-wrap' }}>{part.text}</span>;
+          return <RichText key={idx} text={part.text} />;
         }
         if (part.type === 'image') {
           return <ImageCard key={idx} url={part.url} alt={part.alt} />;
@@ -254,16 +278,9 @@ function ToolCallProgress({ toolCalls }: { toolCalls?: import('../../stores/chat
 }
 
 
-function UserActions({ message }: { message: Message }) {
-  const [copied, setCopied] = useState(false);
-  const { openTabs, activeTab } = useFilesStore();
-  const activeFile = openTabs.find(t => t.path === activeTab);
-
+function UserActions({ message, visible }: { message: Message; visible: boolean }) {
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(message.content).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
+    navigator.clipboard.writeText(message.content);
   }, [message.content]);
 
   const fillTextarea = useCallback((text: string, focus: boolean) => {
@@ -285,35 +302,22 @@ function UserActions({ message }: { message: Message }) {
   }, [message.content, fillTextarea]);
 
   const handleAddToContext = useCallback(() => {
-    const prefix = activeFile ? `@${activeFile.path}\n` : '';
-    fillTextarea(`${prefix}用户之前说：${message.content}\n`, true);
-  }, [message.content, activeFile, fillTextarea]);
+    const addTextRef = (window as any).__mycli_addTextRef__;
+    if (addTextRef) addTextRef(message.content);
+  }, [message.content]);
 
   return (
-    <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', paddingRight: 2 }}>
+    <div
+      style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', paddingRight: 2, opacity: visible ? 1 : 0, transition: 'opacity 0.2s ease' }}
+    >
       <ActionBtn onClick={handleCopy} title="复制">
-        {copied ? (
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M3 8l3 3 7-7" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <rect x="4" y="4" width="9" height="11" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-            <path d="M3 12V3h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-        )}
+        <img src="/assets/file.png" alt="复制" style={{ width: 14, height: 14 }} />
       </ActionBtn>
       <ActionBtn onClick={handleResend} title="重新发送">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <path d="M2 8a6 6 0 0111.3-3M14 8a6 6 0 01-9.3 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          <polygon points="14,4 14,1 17,4" fill="currentColor" transform="translate(-2,2) scale(0.7)" />
-        </svg>
+        <img src="/assets/refresh.png" alt="重新发送" style={{ width: 14, height: 14 }} />
       </ActionBtn>
       <ActionBtn onClick={handleAddToContext} title="添加到对话">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
-          <path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
+        <img src="/assets/add.png" alt="添加到对话" style={{ width: 14, height: 14 }} />
       </ActionBtn>
     </div>
   );
@@ -347,16 +351,21 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const hasThinking = !isUser && !!message.thinkingContent;
   const hasContent = !!message.content;
   const showContentBubble = isUser || !hasThinking || hasContent;
+  const [actionsVisible, setActionsVisible] = useState(false);
 
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexDirection: isUser ? 'row-reverse' : 'row' }}>
+    <div
+      onMouseEnter={() => setActionsVisible(true)}
+      onMouseLeave={() => setActionsVisible(false)}
+      style={{ display: 'flex', gap: 8, marginBottom: 12, flexDirection: isUser ? 'row-reverse' : 'row' }}
+    >
       <div style={{
         width: 28, height: 28, borderRadius: '50%',
         background: isUser ? 'var(--accent)' : 'linear-gradient(135deg, #6366f1, #7c3aed)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 14, flexShrink: 0, color: '#fff', fontWeight: 600,
       }}>
-        <img src={isUser ? '/assets/head.png' : '/assets/logo.png'} alt={isUser ? 'user' : 'ai'} style={{ width: 28, height: 28, borderRadius: '50%' }} />
+        <img src={isUser ? '/assets/head.png' : '/assets/ai_avater.png'} alt={isUser ? 'user' : 'ai'} style={{ width: 28, height: 28, borderRadius: '50%' }} />
       </div>
       <div style={{ maxWidth: '75%', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {/* 1. Thinking chain displayed above content for AI messages */}
@@ -380,7 +389,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
         )}
 
         {/* 4. User message actions */}
-        {isUser && <UserActions message={message} />}
+        {isUser && <UserActions message={message} visible={actionsVisible} />}
       </div>
     </div>
   );
