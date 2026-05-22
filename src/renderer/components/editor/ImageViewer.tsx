@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import styles from '../../styles/components.module.css';
 
 interface Props {
   filePath: string;
@@ -80,15 +81,7 @@ export default function ImageViewer({ filePath }: Props) {
   const isFit = zoomIdx === -1;
 
   return (
-    <div
-      style={{
-        height: '100%', width: '100%',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#1e1e1e', overflow: 'auto',
-        cursor: pressingCtrl ? 'zoom-out' : 'zoom-in',
-      }}
-      onClick={handleClick}
-    >
+    <div className={styles.imageViewer} style={{ cursor: pressingCtrl ? 'zoom-out' : 'zoom-in' }} onClick={handleClick}>
       <img
         src={src}
         alt=""

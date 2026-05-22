@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import styles from '../../styles/components.module.css';
 
 interface Props {
   initialUrl?: string;
@@ -86,17 +87,6 @@ export default function BrowserView({ initialUrl }: Props) {
 }
 
 function NavBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-        color: 'var(--text-secondary)', borderRadius: 4,
-        padding: '4px 9px', fontSize: 11, cursor: 'pointer', lineHeight: 1,
-      }}
-    >
-      {children}
-    </button>
-  );
+  return <button onClick={onClick} title={title} className={styles.toolbarBtn} style={{ padding: '4px 9px', fontSize: 11 }}>{children}</button>;
+}
 }
