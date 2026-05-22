@@ -20,6 +20,7 @@
     "directories": { "output": "release" },
     "files": ["dist/**/*", "public/assets/**/*", "node_modules/**/*", "!node_modules/.cache", "!**/*.map"],
     "win": { "target": ["nsis", "zip"], "icon": "public/assets/logo.png" },
+    "publish": null,
     "npmRebuild": false,
     "nsis": {
       "oneClick": false,
