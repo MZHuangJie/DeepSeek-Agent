@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useEditorStore } from '../../stores/editor';
+import styles from '../../styles/components.module.css';
 
 interface Props {
   language: string;
@@ -13,20 +14,7 @@ export default function StatusBar({ language }: Props) {
   const indentText = insertSpaces ? `空格: ${tabSize}` : `制表符: ${tabSize}`;
 
   return (
-    <div style={{
-      height: 22,
-      background: 'var(--accent)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      fontSize: 12,
-      color: '#fff',
-      padding: '0 8px',
-      flexShrink: 0,
-      userSelect: 'none',
-      zIndex: 5,
-    }}>
-      {/* Left: errors / warnings */}
+    <div className={styles.statusBar}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <StatusItem>
           <img src="/assets/error.png" alt="errors" style={{ width: 12, height: 12, marginRight: 4 }} />
@@ -93,25 +81,7 @@ function languageLabel(lang: string): string {
 }
 
 function StatusItem({ children, onClick, clickable }: { children: React.ReactNode; onClick?: () => void; clickable?: boolean }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        padding: '0 8px',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4,
-        cursor: clickable ? 'pointer' : 'default',
-        position: 'relative',
-        transition: 'background 0.15s',
-      }}
-      onMouseEnter={e => clickable && (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-      onMouseLeave={e => clickable && (e.currentTarget.style.background = 'transparent')}
-    >
-      {children}
-    </div>
-  );
+  return <div onClick={onClick} className={styles.statusItem} style={{ cursor: clickable ? 'pointer' : 'default' }}>{children}</div>;
 }
 
 function DropdownMenu({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {

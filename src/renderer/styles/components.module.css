@@ -299,3 +299,133 @@
 .scrollArrow {
   stroke: var(--text-secondary);
 }
+
+/* ── Thinking Chain ── */
+.thinkingHeader {
+  cursor: pointer;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  user-select: none;
+}
+.thinkingBody {
+  margin-top: 4px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Editor Tabs ── */
+.editorTab {
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.editorTabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: rgba(124,58,237,0.08);
+}
+.editorTabInactive {
+  color: var(--text-secondary);
+}
+.dirtyDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.closeTab {
+  margin-left: 4px;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: all 0.15s;
+}
+.closeTab:hover {
+  opacity: 1;
+  background: var(--bg-tertiary);
+}
+
+.menuItem {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.menuItem:hover {
+  background: var(--bg-tertiary);
+}
+
+/* ── 窗口控制按钮 ── */
+.windowBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 28px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background 0.15s;
+  padding: 0;
+}
+.windowBtn:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+/* ── 状态栏 ── */
+.statusBar {
+  height: 22px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #fff;
+  padding: 0 8px;
+  flex-shrink: 0;
+  user-select: none;
+  z-index: 5;
+}
+.statusItem {
+  padding: 0 8px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  transition: background 0.15s;
+}
+
+/* ── 图片查看器 ── */
+.imageViewer {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e1e1e;
+  overflow: auto;
+}

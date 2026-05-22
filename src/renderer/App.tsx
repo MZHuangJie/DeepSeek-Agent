@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import styles from './styles/components.module.css';
 import Sidebar from './components/sidebar/Sidebar';
 import SessionList from './components/sidebar/SessionList';
 import ActivityBar, { PanelView } from './components/sidebar/ActivityBar';
@@ -243,23 +244,5 @@ export default function App() {
 }
 
 function WindowControlBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: 'transparent', border: 'none', cursor: 'pointer',
-        width: 28, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 3, transition: 'background 0.15s',
-        padding: 0,
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.background = 'transparent';
-      }}
-    >
-      {children}
-    </button>
-  );
+  return <button onClick={onClick} className={styles.windowBtn}>{children}</button>;
 }

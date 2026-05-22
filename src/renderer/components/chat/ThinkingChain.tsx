@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import styles from '../../styles/components.module.css';
 
 interface Props {
   text: string;
@@ -15,23 +16,11 @@ const ThinkingChain = React.memo(function ThinkingChain({ text, hasContent }: Pr
 
   return (
     <div style={{ marginTop: 6, fontSize: 12 }}>
-      <div onClick={() => setExpanded(!expanded)} style={{
-        cursor: 'pointer', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4,
-        padding: '2px 0', userSelect: 'none',
-      }}>
+      <div onClick={() => setExpanded(!expanded)} className={styles.thinkingHeader}>
         <span>{expanded ? '▼' : '▶'}</span>
         <span>Thinking {hasContent ? '' : '(思考中...)'}</span>
       </div>
-      {expanded && (
-        <div style={{
-          marginTop: 4, padding: '8px 12px', background: 'var(--bg-tertiary)',
-          borderRadius: 6, border: '1px solid var(--border)',
-          color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.6,
-          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        }}>
-          {displayText}
-        </div>
-      )}
+      {expanded && <div className={styles.thinkingBody}>{displayText}</div>}
     </div>
   );
 });
