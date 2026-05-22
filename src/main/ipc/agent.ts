@@ -494,11 +494,13 @@ export function setupAgentHandlers() {
               signal: abortController.signal,
               projectDir: payload.projectDir,
               imageModelConfig: imageModelConfig?.enabled ? {
+                enabled: true,
                 baseUrl: imageModelConfig.baseUrl,
                 model: imageModelConfig.model,
                 apiKey: imageModelConfig.apiKey,
               } : undefined,
               visionModelConfig: visionModelConfig?.enabled ? {
+                enabled: true,
                 baseUrl: visionModelConfig.baseUrl,
                 model: visionModelConfig.model,
                 apiKey: visionModelConfig.apiKey,

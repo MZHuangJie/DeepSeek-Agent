@@ -190,7 +190,14 @@ export default function ChatPanel() {
           readFileCount: chunk.readFileCount,
           totalFiles: chunk.totalFiles,
         });
-      } else if (chunk.type === 'explore-progress') {
+      }
+        agentStore.setExploreProgress({
+          readPercentage: chunk.readPercentage,
+          readFileCount: chunk.readFileCount,
+          totalFiles: chunk.totalFiles,
+          step: chunk.step,
+          total: chunk.total,
+        }); else if (chunk.type === 'explore-progress') {
         useAgentStore.getState().setExploreProgress({
           readPercentage: chunk.readPercentage,
           readFileCount: chunk.readFileCount,

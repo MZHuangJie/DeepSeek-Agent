@@ -5,6 +5,7 @@ import { useChatStore } from '../../stores/chat';
 import ModelSettings from '../settings/ModelSettings';
 import PluginManager from '../plugins/PluginManager';
 import { usePluginStore } from '../../stores/plugin';
+import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
 
@@ -27,7 +28,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   // 暴露全局方法供 FileTree 右键菜单和 MessageBubble 调用
   useEffect(() => {
     (window as any).__mycli_addRefFile__ = (path: string) => {
-      setRefFiles(prev => prev.includes(path) ? prev : [...prev, path]);
+      useRefsStore.getState().addRefFile(path);
     };
     (window as any).__mycli_addTextRef__ = (text: string) => {
       setTextRefs(prev => prev.includes(text) ? prev : [...prev, text]);
@@ -113,8 +114,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         const suffix = textRefs.length > 0 ? '\n\n---\n引用消息：\n' + textRefs.join('\n---\n') : '';
         onSend(prefix + (msg || trimmed) + suffix, cmd || undefined);
         setValue('');
-        setRefFiles([]);
-        setTextRefs([]);
+        useRefsStore.getState().clearRefs();
         setAtMaxHeight(false);
         if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
       }

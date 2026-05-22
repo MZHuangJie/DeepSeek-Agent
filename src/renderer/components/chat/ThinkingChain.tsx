@@ -6,11 +6,7 @@ interface Props {
 }
 
 const ThinkingChain = React.memo(function ThinkingChain({ text, hasContent }: Props) {
-  const [expanded, setExpanded] = useState(!hasContent);
-
-  useEffect(() => {
-    if (hasContent) setExpanded(false);
-  }, [hasContent]);
+  const [expanded, setExpanded] = useState(false);
 
   const displayText = useMemo(() => {
     if (!expanded) return text.slice(0, 100);
