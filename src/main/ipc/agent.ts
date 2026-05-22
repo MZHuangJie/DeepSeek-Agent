@@ -7,6 +7,7 @@ import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
 import { getSetting } from '../db/settings';
 import { debugLog } from '../logger';
+import { compressToolResult } from '../agent/compression';
 
 
 let activeAbort: AbortController | null = null;
@@ -144,7 +145,7 @@ export function setupAgentHandlers() {
           let compressed = 0;
           for (let i = 0; i < messages.length; i++) {
             if (messages[i].role === 'tool' && typeof messages[i].content === 'string' && messages[i].content.length > 100) {
-              messages[i].content = messages[i].content.slice(0, 60) + '\n...[已压缩]...\n' + messages[i].content.slice(-60);
+              messages[i].content = compressToolResult(messages[i].content);
               compressed++;
             }
           }
@@ -227,11 +228,7 @@ export function setupAgentHandlers() {
             const idx = toolMessageIndices[i];
             const originalContent = messages[idx].content;
             if (typeof originalContent === 'string' && originalContent.length > 200) {
-              // 只保留前 100 字符 + 后 100 字符
-              messages[idx].content =
-                originalContent.slice(0, 100) +
-                '\n...[已压缩]...\n' +
-                originalContent.slice(-100);
+              messages[idx].content = compressToolResult(originalContent);
             }
           }
 

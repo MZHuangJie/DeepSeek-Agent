@@ -89,4 +89,3 @@ export default function BrowserView({ initialUrl }: Props) {
 function NavBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
   return <button onClick={onClick} title={title} className={styles.toolbarBtn} style={{ padding: '4px 9px', fontSize: 11 }}>{children}</button>;
 }
-}
