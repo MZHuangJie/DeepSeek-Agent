@@ -27,18 +27,7 @@ export default defineConfig({
         'minipass',
         'path-scurry',
       ],
-      plugins: [
-        {
-          name: 'fix-electron-import',
-          renderChunk(code) {
-            // Electron v34+ requires destructured require, not namespace import
-            return code.replace(
-              'const electron = require("electron");',
-              'const { app, BrowserWindow, ipcMain, safeStorage } = require("electron");'
-            ).replace(/electron\.app\b/g, 'app').replace(/electron\.BrowserWindow\b/g, 'BrowserWindow').replace(/electron\.ipcMain\b/g, 'ipcMain').replace(/electron\.safeStorage\b/g, 'safeStorage');
-          },
-        },
-      ],
+      plugins: [],
     },
     sourcemap: process.env.NODE_ENV !== 'production',
     minify: process.env.NODE_ENV === 'production',
