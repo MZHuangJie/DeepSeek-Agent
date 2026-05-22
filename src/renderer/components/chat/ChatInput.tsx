@@ -8,6 +8,7 @@ import { usePluginStore } from '../../stores/plugin';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
+import Dropdown, { DropdownItem } from './Dropdown';
 import styles from '../../styles/components.module.css';
 
 interface Props {
@@ -166,39 +167,15 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', position: 'relative', background: 'var(--bg-secondary)' }}>
       {/* Command palette */}
       {showCommandPalette && filteredCommands.length > 0 && (
-        <div style={{
-          position: 'absolute', bottom: '100%', left: 12, right: 12,
-          background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: 4, maxHeight: 260, overflow: 'auto',
-          zIndex: 100, marginBottom: 4, boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-        }}>
-          <div style={{
-            fontSize: 10, color: 'var(--text-secondary)', padding: '6px 10px 4px',
-            textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600,
-          }}>
-            命令
-          </div>
+        <Dropdown maxHeight={260}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', padding: '6px 10px 4px', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>命令</div>
           {filteredCommands.map(cmd => (
-            <div key={cmd.name}
-              onClick={() => selectCommand(cmd)}
-              style={{
-                padding: '6px 10px', cursor: 'pointer', borderRadius: 4,
-                display: 'flex', alignItems: 'center', gap: 8,
-                fontSize: 12,
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <span style={{
-                background: 'var(--accent)', color: '#fff', borderRadius: 4,
-                padding: '1px 6px', fontSize: 10, fontWeight: 600, flexShrink: 0,
-              }}>
-                /{cmd.name}
-              </span>
+            <DropdownItem key={cmd.name} onClick={() => selectCommand(cmd)}>
+              <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 600, flexShrink: 0, marginRight: 8 }}>/{cmd.name}</span>
               <span style={{ color: 'var(--text-secondary)' }}>{cmd.description}</span>
-            </div>
+            </DropdownItem>
           ))}
-        </div>
+        </Dropdown>
       )}
 
       {/* Active command indicator */}
@@ -332,36 +309,17 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
               </button>
 
               {showModelSelect && (
-                <div style={{
-                  position: 'absolute', bottom: '100%', left: 0, marginBottom: 4,
-                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                  borderRadius: 8, minWidth: 200, maxHeight: 240, overflow: 'auto',
-                  zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-                }}>
+                <Dropdown minWidth={200}>
                   {models.map(m => (
-                    <div key={m.id}
-                      onClick={() => { setActiveModel(m.id); setShowModelSelect(false); }}
-                      style={{
-                        padding: '8px 12px', cursor: 'pointer', fontSize: 12,
-                        background: m.id === activeModelId ? 'rgba(124,58,237,0.15)' : 'transparent',
-                        color: m.id === activeModelId ? 'var(--accent)' : 'var(--text-primary)',
-                        borderBottom: '1px solid var(--border)',
-                      }}
-                    >
+                    <DropdownItem key={m.id} active={m.id === activeModelId} onClick={() => { setActiveModel(m.id); setShowModelSelect(false); }}>
                       <div style={{ fontWeight: 500 }}>{m.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{m.model}</div>
-                    </div>
+                    </DropdownItem>
                   ))}
-                  <div onClick={() => { setShowModelSelect(false); setShowModelSettings(true); }}
-                    style={{
-                      padding: '8px 12px', cursor: 'pointer', fontSize: 12,
-                      color: 'var(--text-secondary)', textAlign: 'center',
-                      borderTop: '1px solid var(--border)',
-                    }}
-                  >
-                    管理模型...
-                  </div>
-                </div>
+                  <DropdownItem onClick={() => { setShowModelSelect(false); setShowModelSettings(true); }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>管理模型...</span>
+                  </DropdownItem>
+                </Dropdown>
               )}
             </div>
 
@@ -390,31 +348,19 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
               </button>
 
               {showModeSelect && (
-                <div style={{
-                  position: 'absolute', bottom: '100%', left: 0, marginBottom: 4,
-                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                  borderRadius: 8, minWidth: 180, overflow: 'hidden',
-                  zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-                }}>
+                <Dropdown minWidth={180}>
                   {MODES.map(m => (
-                    <div key={m.id}
-                      onClick={() => { setMode(m.id as AgentMode); setShowModeSelect(false); }}
-                      style={{
-                        padding: '8px 12px', cursor: 'pointer', fontSize: 12,
-                        background: m.id === mode ? 'rgba(124,58,237,0.15)' : 'transparent',
-                        color: m.id === mode ? 'var(--accent)' : 'var(--text-primary)',
-                        borderBottom: '1px solid var(--border)',
-                        display: 'flex', alignItems: 'center', gap: 8,
-                      }}
-                    >
-                      <img src={m.icon} alt="" style={{ width: 16, height: 16 }} />
-                      <div>
-                        <div style={{ fontWeight: 500 }}>{m.label}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{m.description}</div>
+                    <DropdownItem key={m.id} active={m.id === mode} onClick={() => { setMode(m.id as AgentMode); setShowModeSelect(false); }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <img src={m.icon} alt="" style={{ width: 16, height: 16 }} />
+                        <div>
+                          <div style={{ fontWeight: 500 }}>{m.label}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{m.description}</div>
+                        </div>
                       </div>
-                    </div>
+                    </DropdownItem>
                   ))}
-                </div>
+                </Dropdown>
               )}
             </div>
           </div>
