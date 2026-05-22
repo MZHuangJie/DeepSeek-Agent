@@ -716,7 +716,10 @@ ${r.summary}
         const imagePath = args.path as string;
         const prompt = args.prompt as string | undefined;
         const description = await describeImage(visionConfig, imagePath, prompt, context?.signal);
-        return description;
+        if (!description || description.trim().length < 10) {
+          throw new Error('视觉模型未返回有效描述');
+        }
+        return `【图片内容描述】\n${description}\n\n---\n请在回复中基于以上描述回答用户关于图片的问题，不要在回复中输出图片路径。`;
       },
     },
   ];

@@ -26,7 +26,7 @@ The user wants to implement a feature. I need to analyze the project structure f
 - 搜索互联网获取最新信息（web_search 工具）
 - 访问网页获取文本内容（web_fetch 工具）
 - 对网页截图（web_screenshot 工具）
-- 调用视觉模型理解图片内容（describe_image 工具）
+- 调用视觉模型理解图片内容（describe_image 工具）。当用户消息包含 @图片文件 引用时，先调用此工具获取图片描述，再基于描述回复用户。严禁跳过工具直接回复图片路径。
 
 ## 项目文件读取策略（重要）
 
