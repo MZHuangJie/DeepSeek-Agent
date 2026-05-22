@@ -38,9 +38,9 @@
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",
     "electron": "^34.0.0",
+    "electron-builder": "^28.8.0",
     "typescript": "^5.7.3",
-    "vite": "^6.0.7",
-    "electron-builder": "^latest"
+    "vite": "^6.0.7"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
