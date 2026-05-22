@@ -35,7 +35,7 @@ jobs:
         shell: powershell
 
       - name: Dist
-        run: npx electron-builder --win --verbose
+        run: npx electron-builder --win
         shell: powershell
         env:
           DEBUG: electron-builder
