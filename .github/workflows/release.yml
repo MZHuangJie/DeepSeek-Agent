@@ -25,23 +25,16 @@ jobs:
       - name: Install
         run: npm install
         shell: powershell
-        env:
-          npm_config_registry: https://registry.npmjs.org
-          npm_config_electron_mirror: https://github.com/electron/electron/releases/download/
-          npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
 
-      - name: Build
-        run: npm run build
+      - name: Verify build config
+        run: |
+          Write-Host "package.json main:"
+          node -e "console.log(require('./package.json').main)"
         shell: powershell
 
       - name: Dist
-        run: npx electron-builder --win
+        run: npm run dist
         shell: powershell
-        env:
-          DEBUG: electron-builder
-          npm_config_registry: https://registry.npmjs.org
-          npm_config_electron_mirror: https://github.com/electron/electron/releases/download/
-          npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
@@ -51,4 +44,4 @@ jobs:
             release/*.exe
             release/*.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
