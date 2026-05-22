@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from '../../styles/components.module.css';
 
 export type PanelView = 'files' | 'sessions' | 'browser' | 'agent';
 
@@ -18,27 +19,11 @@ const ITEMS: Array<{ id: PanelView; label: string; icon: string }> = [
 
 function BarBtn({ icon, title, onClick, active }: { icon: string; title: string; onClick: () => void; active?: boolean }) {
   return (
-    <div
-      onClick={onClick}
-      title={title}
-      style={{
-        width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', borderRadius: 6,
-        background: active ? 'var(--accent)' : 'transparent',
-        opacity: active ? 1 : 0.5,
-        transition: 'all 0.15s',
-        position: 'relative',
-      }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.opacity = '0.8'; }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.opacity = '0.5'; }}
+    <div onClick={onClick} title={title} className={styles.barBtn}
+      style={{ background: active ? 'var(--accent)' : 'transparent', opacity: active ? 1 : 0.5 }}
     >
       <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
-      {active && (
-        <div style={{
-          position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
-          width: 2, height: 20, background: '#fff', borderRadius: 1,
-        }} />
-      )}
+      {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 2, height: 20, background: '#fff', borderRadius: 1 }} />}
     </div>
   );
 }
