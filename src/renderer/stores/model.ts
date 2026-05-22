@@ -3,12 +3,32 @@ import { create } from 'zustand';
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: string;
+  provider: ProviderKey;
   baseUrl: string;
   model: string;
   apiKey?: string;
   contextWindow?: number;
 }
+
+export type ProviderKey = 'openai' | 'gemini' | 'anthropic' | 'deepseek' | 'qwen' | 'zhipu' | 'moonshot' | 'custom';
+
+interface ProviderPreset {
+  label: string;
+  baseUrl: string;
+  defaultModel: string;
+  contextWindow: number;
+}
+
+export const PROVIDERS: Record<ProviderKey, ProviderPreset> = {
+  openai:     { label: 'OpenAI',             baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000 },
+  gemini:     { label: 'Google Gemini',      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.5-flash', contextWindow: 1048576 },
+  anthropic:  { label: 'Anthropic Claude',   baseUrl: 'https://api.anthropic.com',                       defaultModel: 'claude-sonnet-4-20250514', contextWindow: 200000 },
+  deepseek:   { label: 'DeepSeek',           baseUrl: 'https://api.deepseek.com',                        defaultModel: 'deepseek-chat',            contextWindow: 64000 },
+  qwen:       { label: '通义千问',            baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus',          contextWindow: 131072 },
+  zhipu:      { label: '智谱 GLM',           baseUrl: 'https://open.bigmodel.cn/api/paas/v4',            defaultModel: 'glm-4-plus',               contextWindow: 128000 },
+  moonshot:   { label: 'Moonshot',           baseUrl: 'https://api.moonshot.cn',                          defaultModel: 'moonshot-v1-8k',            contextWindow: 8000 },
+  custom:     { label: '自定义',              baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000 },
+};
 
 export interface ImageModelConfig {
   enabled: boolean;
@@ -41,6 +61,30 @@ const DEFAULT_MODELS: ModelConfig[] = [
     baseUrl: 'https://api.deepseek.com',
     model: 'deepseek-v4-pro',
     contextWindow: 1000000,
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    provider: 'openai',
+    baseUrl: 'https://api.openai.com',
+    model: 'gpt-4o',
+    contextWindow: 128000,
+  },
+  {
+    id: 'claude-sonnet-4',
+    name: 'Claude Sonnet 4',
+    provider: 'anthropic',
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-20250514',
+    contextWindow: 200000,
+  },
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-2.5-flash',
+    contextWindow: 1048576,
   },
 ];
 

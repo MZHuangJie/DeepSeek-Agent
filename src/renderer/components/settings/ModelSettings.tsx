@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useModelStore, ModelConfig, ImageModelConfig, VisionModelConfig } from '../../stores/model';
+import { useModelStore, ModelConfig, ImageModelConfig, VisionModelConfig, PROVIDERS, ProviderKey } from '../../stores/model';
 
 interface Props {
   onClose: () => void;
@@ -249,9 +249,39 @@ export default function ModelSettings({ onClose }: Props) {
             width: 400, padding: 16,
           }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{editing.id.startsWith('custom-') && !list.find(m => m.id === editing.id) ? '添加模型' : '编辑模型'}</div>
+            {([{ key: 'name', label: '显示名称' }] as { key: keyof ModelConfig; label: string }[]).map(({ key, label }) => (
+              <div key={key} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
+                <input
+                  value={editing[key] as string}
+                  onChange={e => setEditing({ ...editing, [key]: e.target.value })}
+                  style={{
+                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                  }}
+                />
+              </div>
+            ))}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>提供商</div>
+              <select
+                value={editing.provider}
+                onChange={e => {
+                  const p = e.target.value as ProviderKey;
+                  const preset = PROVIDERS[p];
+                  setEditing({ ...editing, provider: p, baseUrl: preset.baseUrl, model: preset.defaultModel, contextWindow: preset.contextWindow });
+                }}
+                style={{
+                  width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                }}
+              >
+                {(Object.keys(PROVIDERS) as ProviderKey[]).map(k => (
+                  <option key={k} value={k}>{PROVIDERS[k].label}</option>
+                ))}
+              </select>
+            </div>
             {([
-              { key: 'name', label: '显示名称' },
-              { key: 'provider', label: '提供商' },
               { key: 'baseUrl', label: 'Base URL' },
               { key: 'model', label: '模型 ID' },
             ] as { key: keyof ModelConfig; label: string }[]).map(({ key, label }) => (
