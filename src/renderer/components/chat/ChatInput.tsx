@@ -24,33 +24,27 @@ const MAX_HEIGHT = 180;  // ~8 rows + padding
 export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Props) {
   const [value, setValue] = useState('');
   const [atMaxHeight, setAtMaxHeight] = useState(false);
-  const [refFiles, setRefFiles] = useState<string[]>([]);
-  const [textRefs, setTextRefs] = useState<string[]>([]);
-
-  // 暴露全局方法供 FileTree 右键菜单和 MessageBubble 调用
+  // 清理全局方法（已迁移到 useRefsStore）
   useEffect(() => {
-    (window as any).__mycli_addRefFile__ = (path: string) => {
-      useRefsStore.getState().addRefFile(path);
-    };
-    (window as any).__mycli_addTextRef__ = (text: string) => {
-      setTextRefs(prev => prev.includes(text) ? prev : [...prev, text]);
-    };
+    (window as any).__mycli_addRefFile__ = (path: string) => useRefsStore.getState().addRefFile(path);
+    (window as any).__mycli_addTextRef__ = (text: string) => useRefsStore.getState().addTextRef(text);
     return () => {
       delete (window as any).__mycli_addRefFile__;
       delete (window as any).__mycli_addTextRef__;
     };
   }, []);
 
-  const showMention = value.includes('@') && openTabs.length > 0;
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);
   const [showModeSelect, setShowModeSelect] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { openTabs } = useFilesStore();
+  const showMention = value.includes('@') && openTabs.length > 0;
   const { models, activeModelId, setActiveModel } = useModelStore();
   const { createSession } = useChatStore();
   const { installedPlugins, loadInstalled } = usePluginStore();
+  const refs = useRefsStore();
 
   const activeModel = models.find(m => m.id === activeModelId) ?? models[0];
   const { mode, setMode } = useModeStore();
@@ -112,11 +106,11 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       if (trimmed) {
         const cmd = matchCommand(trimmed, pluginCommands);
         const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
-        const prefix = refFiles.map(p => `@${p} `).join('');
-        const suffix = textRefs.length > 0 ? '\n\n---\n引用消息：\n' + textRefs.join('\n---\n') : '';
+        const prefix = refs.refFiles.map(p => `@${p} `).join('');
+        const suffix = refs.textRefs.length > 0 ? '\n\n---\n引用消息：\n' + refs.textRefs.join('\n---\n') : '';
         onSend(prefix + (msg || trimmed) + suffix, cmd || undefined);
         setValue('');
-        useRefsStore.getState().clearRefs();
+        refs.clearRefs();
         setAtMaxHeight(false);
         if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
       }
@@ -134,7 +128,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
   const insertMention = (path: string) => {
     setValue(v => v.slice(0, v.lastIndexOf('@')).trimEnd());
-    setRefFiles(prev => prev.includes(path) ? prev : [...prev, path]);
+    refs.addRefFile(path);
     textareaRef.current?.focus();
   };
 
@@ -154,10 +148,10 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     if (trimmed) {
       const cmd = matchCommand(trimmed, pluginCommands);
       const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
-      const prefix = refFiles.map(p => `@${p} `).join('');
+      const prefix = refs.refFiles.map(p => `@${p} `).join('');
       onSend(prefix + (msg || trimmed), cmd || undefined);
       setValue('');
-      setRefFiles([]);
+      refs.clearRefs();
       setAtMaxHeight(false);
       if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
     }
@@ -204,30 +198,14 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       )}
 
       {/* Text reference chips */}
-      {textRefs.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 12px 0' }}>
-          {textRefs.map((text, i) => {
+      {refs.textRefs.length > 0 && (
+        <div className={styles.chipBar}>
+          {refs.textRefs.map((text, i) => {
             const label = text.length > 40 ? text.slice(0, 40) + '...' : text;
             return (
-              <div key={i} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '2px 6px', borderRadius: 4,
-                background: 'rgba(124,58,237,0.08)',
-                border: '1px solid rgba(124,58,237,0.15)',
-                fontSize: 10, color: 'var(--text-secondary)',
-              }}>
-                <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {label}
-                </span>
-                <span
-                  onClick={() => setTextRefs(prev => prev.filter((_, j) => j !== i))}
-                  style={{
-                    cursor: 'pointer', width: 14, height: 14, borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 9, flexShrink: 0, lineHeight: 1,
-                  }}
-                  title="取消引用"
-                >✕</span>
+              <div key={i} className={`${styles.chip} ${styles.chipText}`}>
+                <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                <span className={styles.chipClose} onClick={() => refs.removeTextRef(text)} title="取消引用">✕</span>
               </div>
             );
           })}
@@ -235,30 +213,14 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       )}
 
       {/* Referenced files chips */}
-      {refFiles.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 12px 0' }}>
-          {refFiles.map((path, i) => {
+      {refs.refFiles.length > 0 && (
+        <div className={styles.chipBar}>
+          {refs.refFiles.map((path, i) => {
             const name = path.split(/[\\/]/).pop() || path;
             return (
-              <div key={i} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '2px 6px', borderRadius: 4,
-                background: 'rgba(124,58,237,0.12)',
-                border: '1px solid rgba(124,58,237,0.2)',
-                fontSize: 10, color: 'var(--text-secondary)',
-              }}>
-                <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {name}
-                </span>
-                <span
-                  onClick={() => setRefFiles(prev => prev.filter((_, j) => j !== i))}
-                  style={{
-                    cursor: 'pointer', width: 14, height: 14, borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 9, flexShrink: 0, lineHeight: 1,
-                  }}
-                  title="取消引用"
-                >✕</span>
+              <div key={i} className={`${styles.chip} ${styles.chipFile}`}>
+                <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <span className={styles.chipClose} onClick={() => refs.removeRefFile(path)} title="取消引用">✕</span>
               </div>
             );
           })}
