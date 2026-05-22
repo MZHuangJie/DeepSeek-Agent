@@ -12,12 +12,16 @@
     "dev": "node scripts/dev.js",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "node scripts/setup-monaco.js"
   },
   "build": {
     "appId": "com.deepseek.agent",
     "productName": "DeepSeek Agent",
-    "directories": { "output": "release" },
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "dist/**/*",
       "public/assets/**/*",
@@ -44,7 +48,13 @@
       "!node_modules/monaco-editor/esm/**",
       "!node_modules/node-pty/build/**"
     ],
-    "win": { "target": ["nsis", "zip"], "icon": "public/assets/logo.png" },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "public/assets/logo.png"
+    },
     "publish": null,
     "compression": "maximum",
     "npmRebuild": false,
@@ -55,7 +65,12 @@
       "createStartMenuShortcut": true
     }
   },
-  "keywords": ["electron", "deepseek", "agent", "ide"],
+  "keywords": [
+    "electron",
+    "deepseek",
+    "agent",
+    "ide"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -63,11 +78,13 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/ui": "^4.1.7",
     "concurrently": "^9.1.2",
     "electron": "^34.0.0",
     "electron-builder": "^26.8.1",
     "typescript": "^5.7.3",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^4.1.7"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
