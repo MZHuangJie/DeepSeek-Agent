@@ -498,7 +498,7 @@ ${r.summary}
         for (let i = 0; i < result.urls.length; i++) {
           const u = result.urls[i];
           if (u.startsWith('data:')) {
-            const imgDir = path.join(context.projectDir || process.cwd(), '.mycli-images');
+            const imgDir = path.join(context.projectDir || process.cwd(), '.deepseek-agent-images');
             fs.mkdirSync(imgDir, { recursive: true });
             const tmpFile = path.join(imgDir, `img-${Date.now()}-${i}.png`);
             const base64Data = u.replace(/^data:image\/\w+;base64,/, '');
@@ -653,7 +653,7 @@ ${r.summary}
         }
         const base64 = await webScreenshot(url, context?.signal);
         // 截图存到项目目录
-        const imgDir = path.join(context?.projectDir || process.cwd(), '.mycli-images');
+        const imgDir = path.join(context?.projectDir || process.cwd(), '.deepseek-agent-images');
         fs.mkdirSync(imgDir, { recursive: true });
         const imgFile = path.join(imgDir, `screenshot-${Date.now()}.png`);
         const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');

@@ -313,7 +313,7 @@ export default function FileTree() {
                       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                       {contextMenu.node && !contextMenu.node.isDirectory && (
                         <ContextMenuItem label="添加到对话" onClick={() => {
-                          const addRef = (window as any).__mycli_addRefFile__;
+                          const addRef = (window as any).__dsagent_addRefFile__;
                           if (addRef) addRef(contextMenuRef.current!.path);
                           setContextMenu(null);
                         }} />

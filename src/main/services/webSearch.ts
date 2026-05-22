@@ -14,7 +14,7 @@ export async function webSearch(query: string, maxResults = 10): Promise<SearchR
     const opts = {
       hostname: 'lite.duckduckgo.com',
       path,
-      headers: { 'User-Agent': 'MyCLI/1.0' },
+      headers: { 'User-Agent': 'DeepSeek-Agent/1.0' },
     };
     https.get(opts, (res) => {
       let data = '';

@@ -26,15 +26,15 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
   // 暴露全局方法供 FileTree 右键菜单和 MessageBubble 调用
   useEffect(() => {
-    (window as any).__mycli_addRefFile__ = (path: string) => {
+    (window as any).__dsagent_addRefFile__ = (path: string) => {
       setRefFiles(prev => prev.includes(path) ? prev : [...prev, path]);
     };
-    (window as any).__mycli_addTextRef__ = (text: string) => {
+    (window as any).__dsagent_addTextRef__ = (text: string) => {
       setTextRefs(prev => prev.includes(text) ? prev : [...prev, text]);
     };
     return () => {
-      delete (window as any).__mycli_addRefFile__;
-      delete (window as any).__mycli_addTextRef__;
+      delete (window as any).__dsagent_addRefFile__;
+      delete (window as any).__dsagent_addTextRef__;
     };
   }, []);
 

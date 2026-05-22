@@ -1,7 +1,7 @@
 {
   "name": "deepseek-agent",
   "version": "1.0.0",
-  "description": "DeepSeek Agent Desktop IDE",
+  "description": "DeepSeek Agent — AI-powered desktop IDE with code editing, terminal, and multi-agent collaboration",
   "main": "dist/main/index.js",
   "scripts": {
     "start": "npm run build && electron .",

@@ -71,8 +71,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/MZHuangJie/MyCLI.git
-cd MyCLI
+git clone https://github.com/MZHuangJie/DeepSeek-Agent.git
+cd DeepSeek-Agent
 
 # 安装依赖
 npm install
@@ -116,7 +116,7 @@ npm start
 ## 项目结构
 
 ```
-MyCLI/
+DeepSeek-Agent/
 ├── src/
 │   ├── main/           # Electron 主进程
 │   │   ├── agent/      # Agent 核心（工具、提示词、上下文、子代理）

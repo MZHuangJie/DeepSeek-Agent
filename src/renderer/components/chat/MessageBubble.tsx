@@ -302,7 +302,7 @@ function UserActions({ message, visible }: { message: Message; visible: boolean 
   }, [message.content, fillTextarea]);
 
   const handleAddToContext = useCallback(() => {
-    const addTextRef = (window as any).__mycli_addTextRef__;
+    const addTextRef = (window as any).__dsagent_addTextRef__;
     if (addTextRef) addTextRef(message.content);
   }, [message.content]);
 
