@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Message } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import ThinkingChain from './ThinkingChain';
+import styles from '../../styles/components.module.css';
 
 interface Props {
   message: Message;
@@ -50,24 +51,7 @@ function CopyButton({ text }: { text: string }) {
   }, [text]);
 
   return (
-    <button
-      onClick={handleCopy}
-      style={{
-        background: 'rgba(255,255,255,0.08)',
-        border: '1px solid var(--border)',
-        color: copied ? '#22c55e' : 'var(--text-secondary)',
-        borderRadius: 4,
-        padding: '2px 8px',
-        fontSize: 11,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4,
-        transition: 'all 0.15s',
-      }}
-      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-    >
+    <button onClick={handleCopy} className={styles.copyBtn} style={{ color: copied ? '#22c55e' : undefined }}>
       {copied ? '✓ 已复制' : '📋 复制链接'}
     </button>
   );
@@ -324,28 +308,8 @@ function UserActions({ message, visible }: { message: Message; visible: boolean 
 }
 
 function ActionBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      title={title}
-      style={{
-        background: hovered ? 'var(--bg-tertiary)' : 'transparent',
-        border: 'none', borderRadius: 4,
-        color: hovered ? 'var(--text-primary)' : 'var(--text-secondary)',
-        cursor: 'pointer', padding: 3,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'all 0.15s',
-        opacity: hovered ? 1 : 0.5,
-      }}
-    >
-      {children}
-    </button>
-  );
+  return <button onClick={onClick} title={title} className={styles.actionBtn}>{children}</button>;
 }
-
 const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user';
   const hasThinking = !isUser && !!message.thinkingContent;
