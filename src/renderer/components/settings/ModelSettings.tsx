@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useModelStore, ModelConfig, ImageModelConfig } from '../../stores/model';
+import { useModelStore, ModelConfig, ImageModelConfig, VisionModelConfig } from '../../stores/model';
 
 interface Props {
   onClose: () => void;
 }
 
 export default function ModelSettings({ onClose }: Props) {
-  const { models, saveModels, getActiveModel, setActiveModel, imageModel, loadImageModel, saveImageModel } = useModelStore();
+  const { models, saveModels, getActiveModel, setActiveModel, imageModel, loadImageModel, saveImageModel, visionModel, loadVisionModel, saveVisionModel } = useModelStore();
   const [editing, setEditing] = useState<ModelConfig | null>(null);
   const [list, setList] = useState<ModelConfig[]>(models);
   const [imageConfig, setImageConfig] = useState<ImageModelConfig>(imageModel);
+  const [visionConfig, setVisionConfig] = useState<VisionModelConfig>(visionModel);
 
   useEffect(() => {
     loadImageModel();
+    loadVisionModel();
   }, []);
 
   useEffect(() => {
@@ -28,6 +30,7 @@ export default function ModelSettings({ onClose }: Props) {
   const handleSave = async () => {
     await saveModels(list);
     await saveImageModel(imageConfig);
+    await saveVisionModel(visionConfig);
     onClose();
   };
 
@@ -157,6 +160,61 @@ export default function ModelSettings({ onClose }: Props) {
                   type="password"
                   value={imageConfig.apiKey}
                   onChange={e => setImageConfig(c => ({ ...c, apiKey: e.target.value }))}
+                  placeholder="sk-..."
+                  style={{
+                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 视觉模型配置 */}
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>视觉模型配置</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <input
+              type="checkbox"
+              id="vision-enabled"
+              checked={visionConfig.enabled}
+              onChange={e => setVisionConfig(c => ({ ...c, enabled: e.target.checked }))}
+            />
+            <label htmlFor="vision-enabled" style={{ fontSize: 12, cursor: 'pointer' }}>启用视觉功能（describe_image 工具）</label>
+          </div>
+          {visionConfig.enabled && (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Base URL</div>
+                <input
+                  value={visionConfig.baseUrl}
+                  onChange={e => setVisionConfig(c => ({ ...c, baseUrl: e.target.value }))}
+                  placeholder="https://api.openai.com"
+                  style={{
+                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>模型 ID</div>
+                <input
+                  value={visionConfig.model}
+                  onChange={e => setVisionConfig(c => ({ ...c, model: e.target.value }))}
+                  placeholder="gpt-4o"
+                  style={{
+                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>API Key</div>
+                <input
+                  type="password"
+                  value={visionConfig.apiKey}
+                  onChange={e => setVisionConfig(c => ({ ...c, apiKey: e.target.value }))}
                   placeholder="sk-..."
                   style={{
                     width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',

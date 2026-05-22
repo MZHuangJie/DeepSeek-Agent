@@ -13,7 +13,7 @@ import { Command } from '../../commands';
 
 export default function ChatPanel() {
   const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions } = useChatStore();
-  const { loadModels, getActiveModel, loadImageModel } = useModelStore();
+  const { loadModels, getActiveModel, loadImageModel, loadVisionModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
   const agentStore = useAgentStore();
@@ -65,6 +65,7 @@ export default function ChatPanel() {
     (async () => {
       await loadModels();
       await loadImageModel();
+      await loadVisionModel();
       await loadSessions();
       // 加载完会话后，如果没有历史会话，创建一个新的
       const { sessions, activeSessionId } = useChatStore.getState();

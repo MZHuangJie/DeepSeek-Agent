@@ -48,12 +48,22 @@ interface ModelState {
   models: ModelConfig[];
   activeModelId: string;
   imageModel: ImageModelConfig;
+  visionModel: VisionModelConfig;
   loadModels: () => Promise<void>;
   saveModels: (models: ModelConfig[]) => Promise<void>;
   setActiveModel: (id: string) => Promise<void>;
   getActiveModel: () => ModelConfig;
   loadImageModel: () => Promise<void>;
   saveImageModel: (config: ImageModelConfig) => Promise<void>;
+  loadVisionModel: () => Promise<void>;
+  saveVisionModel: (config: VisionModelConfig) => Promise<void>;
+}
+
+export interface VisionModelConfig {
+  enabled: boolean;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
 }
 
 const DEFAULT_IMAGE_MODEL: ImageModelConfig = {
@@ -63,10 +73,18 @@ const DEFAULT_IMAGE_MODEL: ImageModelConfig = {
   apiKey: '',
 };
 
+const DEFAULT_VISION_MODEL: VisionModelConfig = {
+  enabled: false,
+  baseUrl: 'https://api.openai.com',
+  model: 'gpt-4o',
+  apiKey: '',
+};
+
 export const useModelStore = create<ModelState>((set, get) => ({
   models: DEFAULT_MODELS,
   activeModelId: 'deepseek-chat',
   imageModel: DEFAULT_IMAGE_MODEL,
+  visionModel: DEFAULT_VISION_MODEL,
 
   loadModels: async () => {
     try {
@@ -117,6 +135,23 @@ export const useModelStore = create<ModelState>((set, get) => ({
     } catch {
       // use default
     }
+  },
+
+  loadVisionModel: async () => {
+    try {
+      const saved = await window.api.settings.get('visionModel');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        set({ visionModel: { ...DEFAULT_VISION_MODEL, ...parsed } });
+      }
+    } catch {
+      // use default
+    }
+  },
+
+  saveVisionModel: async (config) => {
+    set({ visionModel: config });
+    await window.api.settings.set('visionModel', JSON.stringify(config));
   },
 
   saveImageModel: async (config) => {

@@ -479,6 +479,8 @@ export function setupAgentHandlers() {
 
             const imageModelRaw = getSetting('imageModel');
             const imageModelConfig = imageModelRaw ? JSON.parse(imageModelRaw) : null;
+            const visionModelRaw = getSetting('visionModel');
+            const visionModelConfig = visionModelRaw ? JSON.parse(visionModelRaw) : null;
             if (abortController.signal.aborted) break;
 
             const toolContext = {
@@ -495,6 +497,11 @@ export function setupAgentHandlers() {
                 baseUrl: imageModelConfig.baseUrl,
                 model: imageModelConfig.model,
                 apiKey: imageModelConfig.apiKey,
+              } : undefined,
+              visionModelConfig: visionModelConfig?.enabled ? {
+                baseUrl: visionModelConfig.baseUrl,
+                model: visionModelConfig.model,
+                apiKey: visionModelConfig.apiKey,
               } : undefined,
             };
             toolResult = await tool.execute(args, toolContext);

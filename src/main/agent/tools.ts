@@ -7,6 +7,7 @@ import { ModelConfig } from './client';
 import { webSearch } from '../services/webSearch';
 import { webFetch, webScreenshot } from '../services/browser';
 import { presentWebPreview } from '../services/webPreview';
+import { describeImage, VisionModelConfig } from '../services/vision';
 import { generateImage, ImageModelConfig } from '../services/imageGen';
 
 function safeResolve(baseDir: string, targetPath: string): string {
@@ -694,6 +695,28 @@ ${r.summary}
         } catch {}
         const result = await presentWebPreview({ html }, context?.signal, sendToRenderer);
         return JSON.stringify(result);
+      },
+    },
+    {
+      name: 'describe_image',
+      description: '调用视觉模型描述图片内容。当你看到用户消息中包含图片文件引用（@图片路径）且无法直接理解图片时，使用此工具获取图片的文字描述。',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: '图片文件的完整路径' },
+          prompt: { type: 'string', description: '可选的描述侧重点，如"重点关注图中文字"、"描述图中人物的动作和表情"' },
+        },
+        required: ['path'],
+      },
+      execute: async (args, context) => {
+        const visionConfig = (context as any)?.visionModelConfig as VisionModelConfig | undefined;
+        if (!visionConfig?.enabled || !visionConfig.apiKey) {
+          throw new Error('未配置视觉模型，请在模型设置中配置视觉 API（推荐 GPT-4o 或 Claude）');
+        }
+        const imagePath = args.path as string;
+        const prompt = args.prompt as string | undefined;
+        const description = await describeImage(visionConfig, imagePath, prompt, context?.signal);
+        return description;
       },
     },
   ];
