@@ -208,3 +208,64 @@
 .copyBtn:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+/* ── 对话框 ── */
+.dialogBox {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 100%;
+  margin-bottom: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(124,58,237,0.15);
+  z-index: 50;
+}
+.dialogHeader {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.dialogBody {
+  padding: 8px 14px;
+}
+.dialogFooter {
+  padding: 8px 12px 12px;
+  display: flex;
+  gap: 8px;
+}
+.dialogApprove {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+.dialogApprove:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+.dialogCancel {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.dialogCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
