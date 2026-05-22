@@ -378,11 +378,12 @@ export default function ChatPanel() {
     try {
       await window.api.agent.send({
         messages: history,
-        apiKey,
+        apiKey: modelConfig.apiKey || apiKey,
         projectDir,
         newMessage: content || displayContent,
         model: modelConfig.model,
         baseUrl: modelConfig.baseUrl,
+        provider: modelConfig.provider,
         contextMax: modelConfig.contextWindow || 64000,
         commandPrompt: command?.systemPrompt,
         mode,

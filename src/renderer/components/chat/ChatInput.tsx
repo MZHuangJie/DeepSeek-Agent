@@ -38,13 +38,13 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     };
   }, []);
 
-  const showMention = value.includes('@') && openTabs.length > 0;
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);
   const [showModeSelect, setShowModeSelect] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { openTabs } = useFilesStore();
+  const showMention = value.includes('@') && openTabs.length > 0;
   const { models, activeModelId, setActiveModel } = useModelStore();
   const { createSession } = useChatStore();
   const { installedPlugins, loadInstalled } = usePluginStore();

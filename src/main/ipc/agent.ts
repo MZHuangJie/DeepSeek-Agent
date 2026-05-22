@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { streamChat } from '../agent/client';
+import { anthropicStreamChat } from '../agent/anthropic-client';
 import { buildCachePrefix, buildMessages } from '../agent/cache';
 import { getAllTools, getToolSchemas, ToolDef } from '../agent/tools';
 import { buildProjectContext } from '../agent/context';
@@ -20,6 +21,7 @@ export function setupAgentHandlers() {
     newMessage: string;
     model?: string;
     baseUrl?: string;
+    provider?: string;
     contextMax?: number;
     commandPrompt?: string;
     mode?: AgentMode;
@@ -56,6 +58,11 @@ export function setupAgentHandlers() {
       model: payload.model || 'deepseek-chat',
       baseUrl: payload.baseUrl ?? 'https://api.deepseek.com',
     };
+    const isAnthropic = payload.provider === 'anthropic';
+    const doStreamChat = (apiKey: string, messages: any[], tools: any[], cbs: any, sig?: AbortSignal) =>
+      isAnthropic
+        ? anthropicStreamChat(apiKey, messages, tools, modelConfig, cbs, sig)
+        : streamChat(apiKey, messages, tools, modelConfig, cbs, sig);
     const enableTools = true;
     const toolSchemas = enableTools ? getToolSchemas(tools) : [];
 
@@ -114,7 +121,7 @@ export function setupAgentHandlers() {
           }
         }, 16);
 
-        result = await streamChat(
+        result = await doStreamChat(
           payload.apiKey,
           messages,
           toolSchemas,
@@ -157,7 +164,7 @@ export function setupAgentHandlers() {
 
           // 重试本次 API 调用
           try {
-            result = await streamChat(
+            result = await doStreamChat(
               payload.apiKey,
               messages,
               toolSchemas,
