@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useFilesStore, FileNode } from '../../stores/files';
 import { useBrowserStore } from '../../stores/browser';
+import { useRefsStore } from '../../stores/refs';
 import { getFileIconInfo } from '../../utils/icons';
 
 function FileIcon({ name }: { name: string }) {
@@ -313,8 +314,7 @@ export default function FileTree() {
                       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                       {contextMenu.node && !contextMenu.node.isDirectory && (
                         <ContextMenuItem label="添加到对话" onClick={() => {
-                          const addRef = (window as any).__mycli_addRefFile__;
-                          if (addRef) addRef(contextMenuRef.current!.path);
+                          useRefsStore.getState().addRefFile(contextMenuRef.current!.path);
                           setContextMenu(null);
                         }} />
                       )}

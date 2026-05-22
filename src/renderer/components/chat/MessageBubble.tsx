@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Message } from '../../stores/chat';
+import { useRefsStore } from '../../stores/refs';
 import ThinkingChain from './ThinkingChain';
 
 interface Props {
@@ -302,8 +303,7 @@ function UserActions({ message, visible }: { message: Message; visible: boolean 
   }, [message.content, fillTextarea]);
 
   const handleAddToContext = useCallback(() => {
-    const addTextRef = (window as any).__mycli_addTextRef__;
-    if (addTextRef) addTextRef(message.content);
+    useRefsStore.getState().addTextRef(message.content);
   }, [message.content]);
 
   return (
