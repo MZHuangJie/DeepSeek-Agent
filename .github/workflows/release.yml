@@ -23,9 +23,7 @@ jobs:
           node-version: '20'
 
       - name: Install
-        run: |
-          npm cache clean --force
-          npm install
+        run: npm install
         shell: powershell
 
       - name: Verify build config
