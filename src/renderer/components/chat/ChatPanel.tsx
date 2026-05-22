@@ -10,6 +10,7 @@ import ChatInput from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
 import ChoiceDialog from './ChoiceDialog';
 import { Command } from '../../commands';
+import styles from '../../styles/components.module.css';
 
 export default function ChatPanel() {
   const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions } = useChatStore();
@@ -20,7 +21,6 @@ export default function ChatPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
-  const [scrollBtnHover, setScrollBtnHover] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -190,15 +190,7 @@ export default function ChatPanel() {
           readFileCount: chunk.readFileCount,
           totalFiles: chunk.totalFiles,
         });
-      }
         agentStore.setExploreProgress({
-          readPercentage: chunk.readPercentage,
-          readFileCount: chunk.readFileCount,
-          totalFiles: chunk.totalFiles,
-          step: chunk.step,
-          total: chunk.total,
-        }); else if (chunk.type === 'explore-progress') {
-        useAgentStore.getState().setExploreProgress({
           readPercentage: chunk.readPercentage,
           readFileCount: chunk.readFileCount,
           totalFiles: chunk.totalFiles,
@@ -429,27 +421,9 @@ export default function ChatPanel() {
         )}
         <div ref={endRef} />
         {showScrollDown && (
-          <div
-            onClick={() => {
-              endRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            onMouseEnter={() => setScrollBtnHover(true)}
-            onMouseLeave={() => setScrollBtnHover(false)}
-            style={{
-              position: 'sticky', bottom: 8, float: 'right',
-              width: 32, height: 32, borderRadius: '50%',
-              background: scrollBtnHover ? 'var(--accent)' : 'var(--bg-tertiary)',
-              border: scrollBtnHover ? '1px solid var(--accent)' : '1px solid var(--border)',
-              boxShadow: scrollBtnHover ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
-              transform: scrollBtnHover ? 'translateY(-1px)' : 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', opacity: 0.85,
-              transition: 'all 0.2s',
-            }}
-            title="回到底部"
-          >
+          <div className={styles.scrollDownBtn} onClick={() => endRef.current?.scrollIntoView({ behavior: 'smooth' })} title="回到底部">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 3v8M4 8l4 4 4-4" stroke={scrollBtnHover ? '#fff' : 'var(--text-secondary)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path className={styles.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
         )}
