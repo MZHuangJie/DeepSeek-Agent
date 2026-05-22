@@ -1,6 +1,6 @@
 # DeepSeek Agent
 
-基于 Electron + React + TypeScript 构建的桌面端 AI 编程助手，集成 DeepSeek 大模型，提供代码编写、项目管理、AI 对话等一站式开发体验。
+基于 Electron + React + TypeScript 构建的桌面端 AI 编程助手。支持 **OpenAI**、**Anthropic（原生 API）**、**Google Gemini**、**DeepSeek**、**通义千问**、**智谱 GLM**、**Moonshot** 等多种大模型，提供代码编写、项目管理、AI 对话、网络搜索、图片生成等一站式开发体验。
 
 ## 功能介绍
 
@@ -71,8 +71,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/MZHuangJie/MyCLI.git
-cd MyCLI
+git clone https://github.com/MZHuangJie/DeepSeek-Agent.git
+cd DeepSeek-Agent
 
 # 安装依赖
 npm install
@@ -84,11 +84,17 @@ npm run dev
 ### 生产构建
 
 ```bash
-# 编译并打包为安装程序
+# 编译并打包（NSIS 安装包 + ZIP 便携版）
 npm run dist
 ```
 
-安装包输出在 `release/` 目录。
+安装包输出在 `release/` 目录。发布版由 GitHub Actions 自动构建，推送 tag 触发：
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+CI 构建完成后安装包自动出现在 [Releases](https://github.com/MZHuangJie/DeepSeek-Agent/releases) 页面。
 
 ### 直接从源码运行
 
@@ -99,10 +105,48 @@ npm start
 
 ## 配置
 
-首次启动后在聊天面板底部输入 DeepSeek API Key。
-可以在模型设置中添加自定义模型，支持 OpenAI 兼容 API。
+### 基本配置
 
-生图功能需要在模型设置中单独配置生图 API（支持 OpenAI 兼容的图像生成接口）。
+首次启动后在聊天面板底部输入 **API Key** 即可开始使用。API Key 通过 Electron `safeStorage` 加密存储。
+
+### 模型管理
+
+点击左侧 Activity Bar 底部 ⚙ 设置图标，或输入框左侧模型选择菜单 → "管理模型"。
+
+**添加模型** — 选择**提供商**，系统自动填入默认 Base URL、模型 ID、上下文窗口：
+
+| 提供商 | API 格式 | 默认模型 | 上下文窗口 |
+|--------|----------|----------|-----------|
+| OpenAI | OpenAI 兼容 | gpt-4o | 128K |
+| Anthropic | **Anthropic 原生 Messages API** | claude-sonnet-4-20250514 | 200K |
+| Google Gemini | OpenAI 兼容端点 | gemini-2.5-flash | 1M |
+| DeepSeek | OpenAI 兼容 | deepseek-chat | 64K |
+| 通义千问 | OpenAI 兼容 | qwen-plus | 128K |
+| 智谱 GLM | OpenAI 兼容 | glm-4-plus | 128K |
+| Moonshot | OpenAI 兼容 | moonshot-v1-8k | 8K |
+| 自定义 | OpenAI 兼容 | 任意 | 可配 |
+
+**Anthropic 原生支持**：选择 Anthropic 提供商后，Agent 直接调用 Anthropic Messages API（`/v1/messages`），无需第三方代理。支持流式 SSE、Thinking、Tool Use 等完整功能。
+
+**每个模型可单独配置 API Key**（密码框，留空则使用全局 Key）。
+
+**多模型切换**：输入框左侧显示当前模型，点击即可切换，切换即时生效。
+
+**上下文窗口**可根据实际模型手动调整，用于 Token 用量预估和上下文自动压缩。
+
+### 生图模型
+
+在模型设置 → "生图" 标签页单独配置：
+
+- **Base URL**：图像生成 API 端点
+- **模型 ID**：如 `gpt-image-2`
+- **API Key**：生图专用密钥
+
+支持 HTTP URL 和 base64 两种输出。base64 图片自动存入 `.deepseek-agent-images/` 避免撑爆上下文。
+
+### 下载安装包
+
+从 [GitHub Releases](https://github.com/MZHuangJie/DeepSeek-Agent/releases) 下载最新的安装包（`.exe` 安装程序或 `.zip` 便携版）。安装包由 GitHub Actions 自动构建发布。
 
 ## 技术栈
 
@@ -116,7 +160,7 @@ npm start
 ## 项目结构
 
 ```
-MyCLI/
+DeepSeek-Agent/
 ├── src/
 │   ├── main/           # Electron 主进程
 │   │   ├── agent/      # Agent 核心（工具、提示词、上下文、子代理）
@@ -124,7 +168,7 @@ MyCLI/
 │   │   ├── ipc/        # IPC 处理器
 │   │   ├── plugin/     # 插件注册与发现
 │   │   ├── security/   # 密钥管理
-│   │   └── services/   # 生图、浏览器、网页预览、搜索等服务
+│   │   └── services/   # 生图、浏览器、网页预览、搜索、Anthropic 客户端
 │   ├── preload/        # 预加载脚本
 │   └── renderer/       # 渲染进程
 │       ├── components/ # React 组件
