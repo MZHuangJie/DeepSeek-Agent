@@ -8,6 +8,7 @@ import { usePluginStore } from '../../stores/plugin';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
+import styles from '../../styles/components.module.css';
 
 interface Props {
   onSend: (message: string, command?: Command) => void;
@@ -218,16 +219,9 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
       {/* @ mention popup */}
       {showMention && (
-        <div style={{
-          position: 'absolute', bottom: '100%', left: 12, background: 'var(--bg-tertiary)',
-          border: '1px solid var(--border)', borderRadius: 6, padding: 4, maxHeight: 160,
-          overflow: 'auto', zIndex: 100, minWidth: 200, marginBottom: 4,
-        }}>
+        <div className={styles.mentionPopup}>
           {openTabs.map(t => (
-            <div key={t.path} onClick={() => insertMention(t.path)} style={{
-              padding: '4px 8px', cursor: 'pointer', fontSize: 12, borderRadius: 3,
-              color: 'var(--text-primary)',
-            }}>{t.name}</div>
+            <div key={t.path} className={styles.mentionItem} onClick={() => insertMention(t.path)}>{t.name}</div>
           ))}
         </div>
       )}
@@ -295,12 +289,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       )}
 
       {/* Input area */}
-      <div style={{
-        background: 'var(--bg-tertiary)',
-        border: `1px solid ${activeCommand ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 10,
-        transition: 'border-color 0.2s',
-      }}>
+      <div className={`${styles.inputWrapper} ${activeCommand ? styles.inputWrapperActive : ''}`}>
         {/* Textarea */}
         <textarea
           ref={textareaRef}
@@ -310,14 +299,8 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           placeholder={disabled ? 'AI 正在回复...' : 'Ask DeepSeek Agent... (/ commands · @ files)'}
           disabled={disabled}
           spellCheck={false}
+          className={styles.textarea}
           style={{
-            width: '100%',
-            background: 'transparent', border: 'none',
-            color: 'var(--text-primary)',
-            padding: '10px 12px 4px',
-            fontSize: 13, resize: 'none',
-            fontFamily: 'inherit', outline: 'none',
-            lineHeight: 1.6,
             minHeight: MIN_HEIGHT,
             maxHeight: MAX_HEIGHT,
             overflow: atMaxHeight ? 'auto' : 'hidden',
@@ -482,23 +465,5 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 }
 
 function ToolbarBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        background: 'transparent', border: 'none',
-        color: 'var(--text-secondary)',
-        cursor: 'pointer',
-        padding: '4px 6px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 4,
-        transition: 'background 0.15s',
-      }}
-      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-    >
-      {children}
-    </button>
-  );
+  return <button onClick={onClick} title={title} className={styles.toolbarBtn}>{children}</button>;
 }

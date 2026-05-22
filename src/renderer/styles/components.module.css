@@ -1,0 +1,172 @@
+/* ── 通用按钮 ── */
+.toolbarBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.toolbarBtn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── 下拉菜单 ── */
+.dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 180px;
+  max-height: 240px;
+  overflow: auto;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.dropdownItem {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.dropdownItem:last-child {
+  border-bottom: none;
+}
+.dropdownItem:hover {
+  background: var(--bg-tertiary);
+}
+.dropdownItemActive {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--accent);
+}
+
+/* ── 悬浮提示 ── */
+.mentionPopup {
+  position: absolute;
+  bottom: 100%;
+  left: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  max-height: 160px;
+  overflow: auto;
+  z-index: 100;
+  min-width: 200px;
+  margin-bottom: 4px;
+}
+.mentionItem {
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+.mentionItem:hover {
+  background: var(--bg-tertiary);
+}
+
+/* ── 输入区 ── */
+.inputWrapper {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color 0.2s;
+}
+.inputWrapperActive {
+  border-color: var(--accent);
+}
+.textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 10px 12px 4px;
+  font-size: 13px;
+  resize: none;
+  font-family: inherit;
+  outline: none;
+  line-height: 1.6;
+}
+
+/* ── 底栏 ── */
+.bottomBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 6px;
+  gap: 8px;
+}
+.bottomLeft {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── 发送/停止按钮 ── */
+.sendBtn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: 6px;
+  width: 32px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s;
+}
+.sendBtn:disabled {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+/* ── 引用 chip ── */
+.chipBar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px 12px 0;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.chipFile {
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+}
+.chipText {
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+.chipClose {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  flex-shrink: 0;
+  line-height: 1;
+}
