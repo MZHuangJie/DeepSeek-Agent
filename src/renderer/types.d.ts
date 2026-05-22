@@ -1,5 +1,10 @@
 import type { API } from '../preload/index';
 
+declare module 'react' {
+  interface CSSProperties {
+    WebkitAppRegion?: string;
+  }
+}
 
 declare global {
   interface Window {
