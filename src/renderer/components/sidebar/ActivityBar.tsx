@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from '../../styles/components.module.css';
 
-export type PanelView = 'files' | 'sessions' | 'browser' | 'agent';
+export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify';
 
 interface Props {
   openView: PanelView | null;
@@ -15,6 +15,7 @@ const ITEMS: Array<{ id: PanelView; label: string; icon: string }> = [
   { id: 'sessions', label: '会话', icon: '/assets/session.png' },
   { id: 'browser', label: '浏览器', icon: '/assets/web.png' },
   { id: 'agent', label: 'AGENT', icon: '/assets/usaged.png' },
+  { id: 'modify', label: '文件修改', icon: '' },
 ];
 
 function BarBtn({ icon, title, onClick, active }: { icon: string; title: string; onClick: () => void; active?: boolean }) {
@@ -22,7 +23,7 @@ function BarBtn({ icon, title, onClick, active }: { icon: string; title: string;
     <div onClick={onClick} title={title} className={styles.barBtn}
       style={{ background: active ? 'var(--accent)' : 'transparent', opacity: active ? 1 : 0.5 }}
     >
-      <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
+      {icon ? <img src={icon} alt={title} style={{ width: 18, height: 18 }} /> : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>M</span>}
       {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 2, height: 20, background: '#fff', borderRadius: 1 }} />}
     </div>
   );

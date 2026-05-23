@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import styles from './styles/components.module.css';
 import Sidebar from './components/sidebar/Sidebar';
 import SessionList from './components/sidebar/SessionList';
+import ModifyPanel from './components/agent/ModifyPanel';
 import ActivityBar, { PanelView } from './components/sidebar/ActivityBar';
 import BrowserView from './components/chat/BrowserView';
 import ChatPanel from './components/chat/ChatPanel';
@@ -144,6 +145,7 @@ export default function App() {
           <div style={{ width: isLeftOpen ? (isBrowserVisible ? '100%' : sidebarWidth) : '100%', height: '100%' }}>
             {!isBrowserVisible && openView === 'files' && <Sidebar />}
             {!isBrowserVisible && openView === 'sessions' && <SessionList />}
+            {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
             {isBrowserVisible && <BrowserView initialUrl={browserUrl} />}
           </div>
         </div>
