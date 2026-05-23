@@ -15,6 +15,7 @@ import TerminalTabs from './components/terminal/TerminalTabs';
 import TerminalList from './components/terminal/TerminalList';
 import StatusBar from './components/statusbar/StatusBar';
 import ModelSettings from './components/settings/ModelSettings';
+import ThemeSettings from './components/settings/ThemeSettings';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
 import { useChatStore } from './stores/chat';
@@ -47,6 +48,7 @@ export default function App() {
   }, []);
 
   const [showModelSettings, setShowModelSettings] = React.useState(false);
+  const [showThemeSettings, setShowThemeSettings] = React.useState(false);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
 
@@ -152,6 +154,7 @@ export default function App() {
           openView={isBrowserVisible ? 'browser' : openView}
           onToggle={handleToggleView}
           onOpenSettings={() => setShowModelSettings(true)}
+          onOpenTheme={() => setShowThemeSettings(true)}
           onToggleTerminal={() => { setBottomClosed(false); setBottomExpanded(true); }}
         />
 
@@ -261,6 +264,7 @@ export default function App() {
 
       {/* Status Bar */}
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
+      {showThemeSettings && <ThemeSettings onClose={() => setShowThemeSettings(false)} />}
       <StatusBar language={activeFile ? getLanguage(activeFile.name) : ''} />
     </div>
   );

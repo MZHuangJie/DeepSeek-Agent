@@ -1,11 +1,5 @@
 import React from 'react';
 import styles from '../../styles/components.module.css';
-import { useThemeStore, ThemePreset } from '../../stores/theme';
-
-const CYCLE: ThemePreset[] = ['dark', 'light', 'dark-hc', 'light-warm'];
-const NEXT: Record<ThemePreset, ThemePreset> = {
-  dark: 'light', light: 'dark-hc', 'dark-hc': 'light-warm', 'light-warm': 'dark',
-};
 
 export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify';
 
@@ -13,6 +7,7 @@ interface Props {
   openView: PanelView | null;
   onToggle: (view: PanelView) => void;
   onOpenSettings?: () => void;
+  onOpenTheme?: () => void;
   onToggleTerminal?: () => void;
 }
 
@@ -35,10 +30,7 @@ function BarBtn({ icon, title, onClick, active, children }: { icon: string; titl
   );
 }
 
-export default function ActivityBar({ openView, onToggle, onOpenSettings, onToggleTerminal }: Props) {
-  const { global, setGlobalTheme } = useThemeStore();
-  const themeLabel = global === 'dark' ? '🌙' : global === 'light' ? '☀️' : global === 'dark-hc' ? '◼' : '📄';
-
+export default function ActivityBar({ openView, onToggle, onOpenSettings, onOpenTheme, onToggleTerminal }: Props) {
   return (
     <div style={{
       width: 44, flexShrink: 0, background: 'var(--bg-tertiary)',
@@ -58,9 +50,11 @@ export default function ActivityBar({ openView, onToggle, onOpenSettings, onTogg
 
       {/* 底部操作按钮 */}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, paddingBottom: 8 }}>
-        <BarBtn icon="" title={`主题: ${global}（点击切换）`} onClick={() => setGlobalTheme(NEXT[global])}>
-          <span style={{ fontSize: 14 }}>{themeLabel}</span>
-        </BarBtn>
+        {onOpenTheme && (
+          <BarBtn icon="" title="主题配置" onClick={onOpenTheme}>
+            <span style={{ fontSize: 14 }}>🎨</span>
+          </BarBtn>
+        )}
         {onToggleTerminal && (
           <BarBtn icon="/assets/3.png" title="终端" onClick={onToggleTerminal} />
         )}

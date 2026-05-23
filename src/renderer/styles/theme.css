@@ -80,8 +80,8 @@ html, body, #root {
   font-size: 13px;
 }
 
-/* 图标自动适配主题颜色 */
-img[src*="/assets/"] {
+/* 图标自动适配主题颜色（头像除外） */
+img[src*="/assets/"]:not([src*="head.png"]):not([src*="ai_avater.png"]):not([src*="logo.png"]):not([src*="4.png"]) {
   filter: var(--icon-filter);
 }
 
