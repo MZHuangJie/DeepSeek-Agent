@@ -24,16 +24,6 @@ const MAX_HEIGHT = 180;  // ~8 rows + padding
 export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Props) {
   const [value, setValue] = useState('');
   const [atMaxHeight, setAtMaxHeight] = useState(false);
-  // 清理全局方法（已迁移到 useRefsStore）
-  useEffect(() => {
-    (window as any).__mycli_addRefFile__ = (path: string) => useRefsStore.getState().addRefFile(path);
-    (window as any).__mycli_addTextRef__ = (text: string) => useRefsStore.getState().addTextRef(text);
-    return () => {
-      delete (window as any).__mycli_addRefFile__;
-      delete (window as any).__mycli_addTextRef__;
-    };
-  }, []);
-
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);

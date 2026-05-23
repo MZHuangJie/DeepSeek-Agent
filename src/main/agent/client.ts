@@ -1,5 +1,6 @@
 import https from 'https';
 import http from 'http';
+import type { ChatMessage, ToolCallResult } from './types';
 import { debugLog } from '../logger';
 
 // VPN TUN 模式下需要显式 SNI + 禁用连接复用，否则 TLS 握手阶段 ECONNRESET
@@ -76,8 +77,8 @@ export interface ModelConfig {
 
 export async function streamChat(
   apiKey: string,
-  messages: any[],
-  tools: Array<unknown>,
+  messages: ChatMessage[],
+  tools: Array<Record<string, unknown>>,
   modelConfig: ModelConfig,
   callbacks: StreamCallbacks,
   signal?: AbortSignal
@@ -89,7 +90,7 @@ export async function streamChat(
   }
   const isHttps = true;
 
-  const bodyObj: any = {
+  const bodyObj: Record<string, unknown> = {
     model,
     messages,
     stream: true,
@@ -100,9 +101,7 @@ export async function streamChat(
   }
   const body = JSON.stringify(bodyObj);
 
-  debugLog('[DEBUG streamChat] messages count:', messages.length, 'body size:', body.length, 'tools count:', tools.length);
-  const msgSummary = messages.map((m: any, i: number) => `[${i}] ${m.role}: ${(m.content ?? '').slice(0, 60)}...`).join('\n');
-  debugLog('[DEBUG streamChat] messages summary:\n' + msgSummary);
+  debugLog('[streamChat]', 'start', { msgCount: messages.length, bodyLen: body.length, toolCount: tools.length });
 
   const maxRetries = 2;
   let lastError: unknown;
