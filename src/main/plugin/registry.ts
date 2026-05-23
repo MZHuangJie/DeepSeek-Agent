@@ -98,13 +98,42 @@ export async function discoverFromRepo(repoUrl: string): Promise<PluginMeta[]> {
   return skills;
 }
 
-function parseFrontmatter(content: string): { name: string; description: string } {
+function parseFrontmatter(content: string): {
+  name: string; description: string; version?: string;
+  commands?: Array<{ name: string; description: string; handler: 'prompt' | 'tool' }>;
+  onInstall?: string; onUninstall?: string;
+  systemPrompt?: string;
+} {
   const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
   if (!match) return { name: '', description: '' };
   const yaml = match[1];
   const name = (yaml.match(/^name:\s*(.+)$/m) || [])[1]?.trim() || '';
   const description = (yaml.match(/^description:\s*(.+)$/m) || [])[1]?.trim() || '';
-  return { name, description };
+  const version = (yaml.match(/^version:\s*(.+)$/m) || [])[1]?.trim();
+
+  // 解析 commands 列表
+  const commands: Array<{ name: string; description: string; handler: 'prompt' | 'tool' }> = [];
+  const cmdMatch = yaml.match(/^commands:\s*\n([\s\S]*?)(?=\n\S|$)/m);
+  if (cmdMatch) {
+    for (const line of cmdMatch[1].split('\n')) {
+      const entry = line.match(/^\s*-\s*\{?\s*name:\s*["']?(\S+?)["']?\s*,\s*description:\s*["']?(.+?)["']?\s*(?:,\s*handler:\s*(\S+))?\s*\}?/);
+      if (entry) {
+        commands.push({ name: entry[1], description: entry[2], handler: (entry[3] as 'prompt' | 'tool') || 'prompt' });
+      }
+    }
+  }
+
+  // 解析 hooks
+  let onInstall: string | undefined;
+  let onUninstall: string | undefined;
+  const onInstallMatch = yaml.match(/^onInstall:\s*["']?(.+?)["']?\s*$/m);
+  if (onInstallMatch) onInstall = onInstallMatch[1];
+  const onUninstallMatch = yaml.match(/^onUninstall:\s*["']?(.+?)["']?\s*$/m);
+  if (onUninstallMatch) onUninstall = onUninstallMatch[1];
+
+  const bodyContent = content.slice((match.index ?? 0) + match[0].length).trim();
+
+  return { name, description, version, commands: commands.length > 0 ? commands : undefined, onInstall, onUninstall, systemPrompt: bodyContent || undefined };
 }
 
 export function downloadSkillContent(filePath: string): Promise<string> {
