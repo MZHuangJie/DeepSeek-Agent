@@ -1,3 +1,6 @@
+// 子代理生成 — spawn_sub_agent 工具
+// 参数: task_type, description, target_path
+// 支持并行子代理，独立上下文窗口
 import type { SubAgentTask } from '../sub-agent';
 import type { ToolDef, ToolContext } from './index';
 

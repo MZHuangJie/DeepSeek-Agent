@@ -1,3 +1,6 @@
+// 读取文件内容 — read_file 工具
+// 参数: path(路径), offset(起始行), limit(行数)
+// 安全: 拒绝读取敏感文件(.env, .pem, id_rsa等)
 import fs from 'fs';
 import { checkSensitiveFile, safeResolve } from './security';
 import type { ToolDef } from './index';

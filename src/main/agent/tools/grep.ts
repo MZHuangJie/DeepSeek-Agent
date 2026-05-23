@@ -1,3 +1,6 @@
+// 文本搜索 — grep 工具
+// 参数: pattern(搜索模式), path(路径), glob(文件过滤)
+// 递归搜索目录树，支持通配符
 import fs from 'fs';
 import path from 'path';
 import { safeResolve } from './security';

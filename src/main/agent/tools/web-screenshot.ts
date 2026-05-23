@@ -1,3 +1,6 @@
+// 网页截图 — web_screenshot 工具
+// 参数: url
+// Electron窗口截图存到.deepseek-agent-images/
 import fs from 'fs';
 import path from 'path';
 import { webScreenshot } from '../services/browser';

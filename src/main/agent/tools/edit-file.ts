@@ -1,3 +1,6 @@
+// 精确字符串替换编辑 — edit_file 工具
+// 参数: path, old_string(原文), new_string(新文)
+// 安全: 需要用户确认
 import fs from 'fs';
 import { safeResolve } from './security';
 import type { ToolDef } from './index';

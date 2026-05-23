@@ -1,3 +1,5 @@
+// 列出目录内容 — list_files 工具
+// 参数: path(目录路径，默认项目根)
 import fs from 'fs';
 import { safeResolve } from './security';
 import type { ToolDef } from './index';

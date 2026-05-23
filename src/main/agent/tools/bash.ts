@@ -1,3 +1,6 @@
+// 终端命令执行 — bash 工具
+// 参数: command(命令)
+// 安全: 需确认，拦截危险命令，异步执行不阻塞UI
 import { exec } from 'child_process';
 import { checkDangerousCommand } from './security';
 import type { ToolDef } from './index';

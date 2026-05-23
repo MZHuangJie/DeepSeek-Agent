@@ -1,3 +1,6 @@
+// AI生图 — generate_image 工具
+// 参数: prompt, size, quality, n
+// 调用生图模型，base64存项目目录
 import fs from 'fs';
 import path from 'path';
 import { generateImage, ImageModelConfig } from '../services/imageGen';

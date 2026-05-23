@@ -1,3 +1,6 @@
+// 写入/创建文件 — write_file 工具
+// 参数: path(路径), content(内容)
+// 安全: 需要用户确认，路径防越界
 import fs from 'fs';
 import path from 'path';
 import { safeResolve } from './security';

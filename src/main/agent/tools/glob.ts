@@ -1,3 +1,5 @@
+// 文件匹配 — glob 工具
+// 参数: pattern(glob模式如 **/*.ts)
 import type { ToolDef } from './index';
 
 export function createGlobTool(projectDir: string): ToolDef {

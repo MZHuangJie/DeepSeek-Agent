@@ -1,3 +1,6 @@
+// 自动任务分解 — auto_decompose_task 工具
+// 参数: user_query(用户查询)
+// >50文件自动触发子代理并行探索
 import { TaskDecomposer } from '../task-decomposer';
 import type { ToolDef, ToolContext } from './index';
 

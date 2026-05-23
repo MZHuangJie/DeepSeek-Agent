@@ -1,3 +1,6 @@
+// 内置浏览器打开 — browse_url 工具
+// 参数: url(完整网址)
+// 在左侧浏览器面板打开，不弹外部窗口
 import type { ToolDef } from './index';
 
 export function createBrowseUrlTool(): ToolDef {

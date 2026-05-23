@@ -1,3 +1,6 @@
+// 交互式网页展示 — present_web 工具
+// 参数: html(完整HTML)
+// 启动HTTP服务，data-action按钮返回选择
 import { presentWebPreview } from '../services/webPreview';
 import type { ToolDef } from './index';
 

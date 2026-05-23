@@ -1,3 +1,6 @@
+// 多选弹框 — present_choices 工具
+// 参数: message, choices[{label,description}]
+// 弹出选项框等用户勾选+反馈
 import { ipcMain } from 'electron';
 import type { ToolDef } from './index';
 
