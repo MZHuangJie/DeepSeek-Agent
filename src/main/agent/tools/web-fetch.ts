@@ -1,0 +1,15 @@
+import { webFetch } from '../services/browser';
+import type { ToolDef } from './index';
+
+export function createWebFetchTool(): ToolDef {
+  return {
+    name: 'web_fetch', description: '获取网页文本内容',
+    parameters: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
+    execute: async (args, context) => {
+      const url = args.url as string;
+      if (!url.startsWith('http')) throw new Error('URL 必须以 http/https 开头');
+      const r = await webFetch(url, context?.signal);
+      return JSON.stringify({ url: r.url, title: r.title, text: r.text });
+    },
+  };
+}

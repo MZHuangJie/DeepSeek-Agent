@@ -11,7 +11,13 @@ import { createListFilesTool } from './tools/list-files';
 import { createSpawnSubAgentTool } from './tools/spawn-sub-agent';
 import { createAutoDecomposeTaskTool } from './tools/auto-decompose-task';
 import { createBrowseUrlTool } from './tools/browse-url';
-import { getExtraTools } from './tools-extras';
+import { createWebSearchTool } from './tools/web-search';
+import { createWebFetchTool } from './tools/web-fetch';
+import { createWebScreenshotTool } from './tools/web-screenshot';
+import { createPresentWebTool } from './tools/present-web';
+import { createPresentChoicesTool } from './tools/present-choices';
+import { createGenerateImageTool } from './tools/generate-image';
+import { createDescribeImageTool } from './tools/describe-image';
 
 export function getAllTools(projectDir: string): ToolDef[] {
   return [
@@ -25,7 +31,13 @@ export function getAllTools(projectDir: string): ToolDef[] {
     createSpawnSubAgentTool(projectDir),
     createAutoDecomposeTaskTool(projectDir),
     createBrowseUrlTool(),
-    ...getExtraTools(projectDir),
+    createWebSearchTool(),
+    createWebFetchTool(),
+    createWebScreenshotTool(),
+    createPresentWebTool(),
+    createPresentChoicesTool(),
+    createGenerateImageTool(),
+    createDescribeImageTool(),
   ];
 }
 
