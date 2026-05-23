@@ -82,7 +82,14 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const cmdFocusIdx = useDropdownNav(filteredCommands.length, (i) => selectCommand(filteredCommands[i]), () => {}, showCommandPalette && filteredCommands.length > 0);
   const mentionFocusIdx = useDropdownNav(openTabs.length, (i) => insertMention(openTabs[i].path), () => {}, showMention);
 
+  const hasDropdownOpen = showCommandPalette || showMention || showModelSelect || showModeSelect;
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // 有下拉框打开时，Enter 和 Escape 交给下拉框处理
+    if (hasDropdownOpen && (e.key === 'Enter' || e.key === 'Escape')) {
+      return; // 让事件冒泡到 window，由 useDropdownNav hook 处理
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const trimmed = value.trim();
@@ -113,7 +120,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       if (isStreaming) { onStop(); return; }
       setShowModelSelect(false); setShowModeSelect(false);
     }
-  }, [value, onSend, isStreaming, onStop]);
+  }, [value, onSend, isStreaming, onStop, hasDropdownOpen]);
 
   const selectCommand = (cmd: Command) => {
     setValue('/' + cmd.name + ' ');
