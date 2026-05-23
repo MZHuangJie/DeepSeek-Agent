@@ -285,5 +285,22 @@ export function getExtraTools(projectDir: string): ToolDef[] {
         return `【图片内容描述】\n${description}\n\n---\n请在回复中基于以上描述回答用户关于图片的问题，不要在回复中输出图片路径。`;
       },
     },
+    {
+      name: 'browse_url',
+      description: '在应用内置浏览器面板中打开指定网址。当需要向用户展示网页内容、预览效果时使用。',
+      parameters: { type: 'object', properties: { url: { type: 'string', description: '完整的 URL，如 https://example.com' } }, required: ['url'] },
+      execute: async (args, context) => {
+        const url = (args.url as string).trim();
+        if (!url.startsWith('http')) throw new Error('URL 必须以 http/https 开头');
+        try {
+          const { subAgentManager } = context as any;
+          const win = subAgentManager?.win;
+          if (win && !win.isDestroyed()) {
+            win.webContents.send('browser:load-url', { url });
+          }
+        } catch {}
+        return `已在内置浏览器中打开: ${url}`;
+      },
+    },
   ];
 }

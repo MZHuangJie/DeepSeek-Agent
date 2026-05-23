@@ -60,6 +60,15 @@ export default function App() {
     }
   };
 
+  // 监听工具调用的 browser:load-url
+  useEffect(() => {
+    const unsub = window.api.browser.onLoadUrl((url) => {
+      setBrowserOpen(true);
+      useBrowserStore.getState().setUrl(url);
+    });
+    return unsub;
+  }, [setBrowserOpen]);
+
   // 同步 browser store 的 open 状态到面板
   React.useEffect(() => {
     if (browserOpen) setOpenView(null); // 关闭其他面板

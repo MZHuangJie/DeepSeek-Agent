@@ -199,41 +199,47 @@ function parseDDGHTML(html: string, maxResults: number): SearchResult[] {
 
 async function searchBing(query: string, maxResults: number): Promise<SearchResult[]> {
   const encoded = encodeURIComponent(query);
-  // 优先用 cn.bing.com（国内可直连），失败再试 www.bing.com
+
+  // 同时尝试 cn 和 www，取先成功的
   let html: string;
   try {
     html = await httpRequestWithRetry('cn.bing.com', `/search?q=${encoded}&count=${maxResults}`, { timeout: 10000 });
   } catch {
-    html = await httpRequestWithRetry('www.bing.com', `/search?q=${encoded}&count=${maxResults}`, { timeout: 10000 });
+    try {
+      html = await httpRequestWithRetry('www.bing.com', `/search?q=${encoded}&count=${maxResults}`, { timeout: 10000 });
+    } catch {
+      throw new Error('Bing 无法连接');
+    }
   }
 
-  const results: SearchResult[] = [];
-
-  // cn.bing.com 结构:
-  // <li class="b_algo" ...>
-  //   <h2><a href="url">标题</a></h2>
-  //   <p>摘要</p> 或 <div class="b_caption"><p>摘要</p></div>
-  //   <a class="tilk" href="url">  (显示URL)
-  // </li>
-
-  // 先定位 ol#b_results
+  // 先定位 ol#b_results（cn 和 www 都有）
   const olMatch = html.match(/<ol[^>]*id="b_results"[^>]*>([\s\S]*?)<\/ol>/i);
   const searchArea = olMatch ? olMatch[1] : html;
 
+  const results: SearchResult[] = [];
   const blockRe = /<li class="b_algo"[\s\S]*?<\/li>/gi;
   let m: RegExpExecArray | null;
 
   while ((m = blockRe.exec(searchArea)) !== null) {
     const block = m[0];
 
-    // 标题: <h2><a href="url">标题</a></h2>
-    const titleMatch = block.match(/<h2[^>]*>\s*<a[^>]*href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>\s*<\/h2>/i);
+    // 标题: <h2><a href="url">标题</a></h2>（cn 和 www 通用）
+    const titleMatch = block.match(/<h2[^>]*>\s*<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>\s*<\/h2>/i);
 
     if (titleMatch) {
-      const url = titleMatch[1].replace(/&amp;/g, '&');
+      let url = titleMatch[1].replace(/&amp;/g, '&');
       const title = titleMatch[2].replace(/<[^>]*>/g, '').trim();
 
-      // 摘要: <p class="b_lineclamp..."> 或 <div class="b_caption"> 中的 <p>
+      // www.bing.com 的链接是 Bing 跳转格式: https://www.bing.com/ck/a?!&&p=...&u=REAL_URL...
+      // 需要提取真实 URL
+      if (url.includes('bing.com/ck/a') || url.includes('bing.com/ck/a?')) {
+        const uMatch = url.match(/[&?]u=(https?%3[AaFf]%2[Ff]%2[Ff][^&]*)/);
+        if (uMatch) {
+          url = decodeURIComponent(uMatch[1]);
+        }
+      }
+
+      // 摘要: cn 版用 b_lineclamp / b_caption，www 版用通用 <p>
       let snippet = '';
       const snippetM = block.match(/<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>/i)
                     || block.match(/<div[^>]*class="[^"]*b_caption[^"]*"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i)
