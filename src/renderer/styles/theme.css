@@ -1,4 +1,12 @@
-:root {
+/* ============================================================
+   Theme System — 支持全局 + 区域独立主题
+   使用方式: <div data-theme="light">...</div>
+   切换: document.documentElement.setAttribute('data-theme', 'light')
+   ============================================================ */
+
+/* ── 深色主题（默认） ── */
+:root,
+[data-theme="dark"] {
   --bg-primary: #1e1e2e;
   --bg-secondary: #252536;
   --bg-tertiary: #2d2d44;
@@ -13,8 +21,54 @@
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
+  --icon-filter: none;
+  --editor-bg: #1e1e1e;
 }
 
+/* ── 浅色主题 ── */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #ebebeb;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --text-primary: #1e1e1e;
+  --text-secondary: #666666;
+  --border: #d4d4d4;
+  --terminal-bg: #1e1e1e;
+  --chat-user: rgba(124, 58, 237, 0.08);
+  --chat-ai: #f0f0f0;
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+  --icon-filter: invert(1);
+  --editor-bg: #ffffff;
+}
+
+/* ── 深色主题-高对比度 ── */
+[data-theme="dark-hc"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0d0d0d;
+  --bg-tertiary: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #aaaaaa;
+  --border: #444444;
+  --icon-filter: none;
+}
+
+/* ── 浅色主题-暖色 ── */
+[data-theme="light-warm"] {
+  --bg-primary: #fefdf9;
+  --bg-secondary: #f5f0e8;
+  --bg-tertiary: #ede4d3;
+  --text-primary: #3d3522;
+  --text-secondary: #8b7e65;
+  --border: #d4c9b0;
+  --chat-ai: #f5f0e8;
+  --icon-filter: invert(0.8) sepia(0.3);
+}
+
+/* ── 全局基础 ── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body, #root {
@@ -26,9 +80,12 @@ html, body, #root {
   font-size: 13px;
 }
 
-::-webkit-scrollbar {
-  width: 6px; height: 6px;
+/* 图标自动适配主题颜色 */
+img[src*="/assets/"] {
+  filter: var(--icon-filter);
 }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
@@ -41,6 +98,4 @@ html, body, #root {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.editor-tabs-scroll::-webkit-scrollbar {
-  display: none;
-}
+.editor-tabs-scroll::-webkit-scrollbar { display: none; }

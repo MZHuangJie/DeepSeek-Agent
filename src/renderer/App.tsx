@@ -156,7 +156,7 @@ export default function App() {
         />
 
         {/* Left Panel — files/sessions/browser 滑动面板 */}
-        <div style={{
+        <div data-area="sidebar" style={{
           width: isLeftOpen ? leftPanelWidth : 0,
           flexShrink: 0, background: 'var(--bg-secondary)',
           borderRight: isLeftOpen ? '1px solid var(--border)' : 'none',
@@ -181,7 +181,7 @@ export default function App() {
             {/* Editor Area — 仅在有打开的文件时显示 */}
             {openTabs.length > 0 && (
               <>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div data-area="editor" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   <EditorTabs />
                   <div style={{ flex: 1, overflow: 'hidden', display: activeFile ? 'block' : 'none' }}>
                     {activeFile && (isImageFile(activeFile.name) ? (
@@ -198,7 +198,7 @@ export default function App() {
                 <ResizeHandle direction="horizontal" onResize={(d) => setChatPanelWidth(w => Math.max(260, w - d))} />
               </>
             )}
-            <div style={{
+            <div data-area="chat" style={{
               width: openTabs.length > 0 ? chatPanelWidth : '100%',
               flex: openTabs.length > 0 ? '0 0 auto' : 1,
               flexShrink: 0, overflow: 'hidden',
@@ -223,7 +223,7 @@ export default function App() {
                 if (!bottomExpanded) { setBottomExpanded(true); }
                 setTerminalHeight(h => Math.max(80, h - d));
               }} />
-              <div style={{
+              <div data-area="terminal" style={{
                 height: bottomExpanded ? terminalHeight : 28, flexShrink: 0,
                 background: 'var(--terminal-bg)', borderTop: '1px solid var(--border)',
                 display: 'flex', flexDirection: 'column',
@@ -243,7 +243,7 @@ export default function App() {
         </div>
 
         {/* Agent Panel — 右侧滑动面板 */}
-        <div style={{
+        <div data-area="agentPanel" style={{
           width: openView === 'agent' ? agentPanelWidth : 0,
           flexShrink: 0, background: 'var(--bg-secondary)',
           borderLeft: openView === 'agent' ? '1px solid var(--border)' : 'none',
