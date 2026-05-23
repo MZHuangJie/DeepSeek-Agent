@@ -68,12 +68,6 @@ function isImageUrl(url: string): boolean {
   return false;
 }
 
-function looksLikeImageLink(text: string): boolean {
-  const lower = text.toLowerCase();
-  const imageKeywords = ['图', '图片', '下载', 'image', 'photo', 'pic', 'download', '原图', '查看', '生成'];
-  return imageKeywords.some(k => lower.includes(k));
-}
-
 function ImageCard({ url, alt }: { url: string; alt: string }) {
   const [loaded, setLoaded] = useState(true);
   const [resolved, setResolved] = useState<string | null>(null);
@@ -181,7 +175,7 @@ function MessageContent({ content }: { content: string }) {
           return <ImageCard key={idx} url={part.url} alt={part.alt} />;
         }
         if (part.type === 'link') {
-          if (isImageUrl(part.url) || looksLikeImageLink(part.text) || imageContext) {
+          if (isImageUrl(part.url)) {
             return <ImageCard key={idx} url={part.url} alt={part.text} />;
           }
           return (
