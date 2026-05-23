@@ -80,29 +80,35 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   setAreaPreset: (area, p) => {
-    const el = document.querySelector(`[data-area="${area}"]`);
-    if (p === 'custom') {
-      const prev = get().areas[area];
-      if (prev?.custom) applyColors(el as HTMLElement, prev.custom, area);
-    } else {
-      if (p === get().globalPreset || get().globalPreset !== 'custom') {
-        clearColors(el as HTMLElement, area);
+    const el = document.querySelector(`[data-area="${area}"]`) as HTMLElement | null;
+    if (!el) return;
+    clearColors(el, area);
+    el.removeAttribute('data-theme');
+    if (p !== get().globalPreset) {
+      if (p === 'custom') {
+        const prev = get().areas[area];
+        if (prev?.custom) applyColors(el, prev.custom, area);
       } else {
-        applyColors(el as HTMLElement, PRESET_COLORS[p], area);
+        el.setAttribute('data-theme', p);
       }
     }
     set(s => ({ areas: { ...s.areas, [area]: { ...s.areas[area], preset: p } } }));
   },
 
   setAreaCustom: (area, c) => {
-    const el = document.querySelector(`[data-area="${area}"]`);
-    applyColors(el as HTMLElement, c, area);
+    const el = document.querySelector(`[data-area="${area}"]`) as HTMLElement | null;
+    if (!el) return;
+    el.removeAttribute('data-theme');
+    applyColors(el, c, area);
     set(s => ({ areas: { ...s.areas, [area]: { ...s.areas[area], custom: c } } }));
   },
 
   resetArea: (area) => {
-    const el = document.querySelector(`[data-area="${area}"]`);
-    clearColors(el as HTMLElement, area);
+    const el = document.querySelector(`[data-area="${area}"]`) as HTMLElement | null;
+    if (el) {
+      clearColors(el, area);
+      el.removeAttribute('data-theme');
+    }
     set(s => {
       const a = { ...s.areas };
       delete a[area];
