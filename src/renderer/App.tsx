@@ -34,6 +34,18 @@ export default function App() {
 
   const activeFile = openTabs.find(t => t.path === activeTab);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        const state = useFilesStore.getState();
+        if (state.activeTab) state.saveFile(state.activeTab);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const [showModelSettings, setShowModelSettings] = React.useState(false);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
