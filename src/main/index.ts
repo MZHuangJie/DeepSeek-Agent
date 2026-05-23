@@ -6,6 +6,10 @@ import { infoLog, errorLog } from './logger';
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
+  const preloadPath = path.join(__dirname, '../preload/index.js');
+  const rendererPath = path.join(__dirname, '../renderer/index.html');
+  infoLog('app', 'creating-window', { preload: preloadPath, renderer: rendererPath, __dirname });
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -15,7 +19,7 @@ function createWindow() {
     titleBarStyle: 'hidden',
     frame: false,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
@@ -24,11 +28,20 @@ function createWindow() {
 
   mainWindow.setMenu(null);
 
+  // 监听加载失败
+  mainWindow.webContents.on('did-fail-load', (_event, code, desc, url) => {
+    errorLog('app', 'load-failed', { code, desc, url });
+  });
+
   const devServerUrl = process.env.VITE_DEV_SERVER_URL || '';
   if (devServerUrl) {
+    infoLog('app', 'load-dev-url', { url: devServerUrl });
     mainWindow.loadURL(devServerUrl);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    infoLog('app', 'load-file', { path: rendererPath });
+    mainWindow.loadFile(rendererPath).catch(err => {
+      errorLog('app', 'load-file-error', { error: err.message, path: rendererPath });
+    });
   }
 }
 
