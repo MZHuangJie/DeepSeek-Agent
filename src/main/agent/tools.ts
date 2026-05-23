@@ -53,7 +53,7 @@ export function getAllTools(projectDir: string): ToolDef[] {
         const dir = path.dirname(filePath);
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(filePath, args.content as string, 'utf-8');
-        return `文件已写入: ${filePath}`;
+        return `OK`;
       },
     },
     {
@@ -77,7 +77,7 @@ export function getAllTools(projectDir: string): ToolDef[] {
         }
         content = content.replace(args.old_string as string, args.new_string as string);
         fs.writeFileSync(filePath, content, 'utf-8');
-        return `文件已编辑: ${filePath}`;
+        return `OK`;
       },
     },
     {
