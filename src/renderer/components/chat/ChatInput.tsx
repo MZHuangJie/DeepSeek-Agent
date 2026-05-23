@@ -8,7 +8,7 @@ import { usePluginStore } from '../../stores/plugin';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
-import Dropdown, { DropdownItem } from './Dropdown';
+import Dropdown, { DropdownItem, useDropdownNav } from './Dropdown';
 import styles from '../../styles/components.module.css';
 
 interface Props {
@@ -77,6 +77,10 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     if (!query) return allCommands;
     return allCommands.filter(c => c.name.includes(query));
   }, [value, showCommandPalette, pluginCommands]);
+
+  // 键盘导航
+  const cmdFocusIdx = useDropdownNav(filteredCommands.length, (i) => selectCommand(filteredCommands[i]), () => {}, showCommandPalette && filteredCommands.length > 0);
+  const mentionFocusIdx = useDropdownNav(openTabs.length, (i) => insertMention(openTabs[i].path), () => {}, showMention);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -153,8 +157,8 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       {showCommandPalette && filteredCommands.length > 0 && (
         <Dropdown maxHeight={260}>
           <div style={{ fontSize: 10, color: 'var(--text-secondary)', padding: '6px 10px 4px', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>命令</div>
-          {filteredCommands.map(cmd => (
-            <DropdownItem key={cmd.name} onClick={() => selectCommand(cmd)}>
+          {filteredCommands.map((cmd, i) => (
+            <DropdownItem key={cmd.name} onClick={() => selectCommand(cmd)} focused={cmdFocusIdx === i}>
               <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 600, flexShrink: 0, marginRight: 8 }}>/{cmd.name}</span>
               <span style={{ color: 'var(--text-secondary)' }}>{cmd.description}</span>
             </DropdownItem>
@@ -181,8 +185,9 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       {/* @ mention popup */}
       {showMention && (
         <div className={styles.mentionPopup}>
-          {openTabs.map(t => (
-            <div key={t.path} className={styles.mentionItem} onClick={() => insertMention(t.path)}>{t.name}</div>
+          {openTabs.map((t, i) => (
+            <div key={t.path} className={styles.mentionItem} onClick={() => insertMention(t.path)}
+              style={{ background: mentionFocusIdx === i ? 'var(--bg-tertiary)' : undefined }}>{t.name}</div>
           ))}
         </div>
       )}

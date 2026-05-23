@@ -19,12 +19,12 @@ const ITEMS: Array<{ id: PanelView; label: string; icon: string }> = [
   { id: 'modify', label: '文件修改', icon: '/assets/modify.png' },
 ];
 
-function BarBtn({ icon, title, onClick, active, children }: { icon: string; title: string; onClick: () => void; active?: boolean; children?: React.ReactNode }) {
+function BarBtn({ icon, title, onClick, active }: { icon: string; title: string; onClick: () => void; active?: boolean }) {
   return (
     <div onClick={onClick} title={title} className={styles.barBtn}
       style={{ background: active ? 'var(--accent)' : 'transparent', opacity: active ? 1 : 0.5 }}
     >
-      {icon ? <img src={icon} alt={title} style={{ width: 18, height: 18 }} /> : children}
+      <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
       {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 2, height: 20, background: '#fff', borderRadius: 1 }} />}
     </div>
   );
@@ -51,9 +51,7 @@ export default function ActivityBar({ openView, onToggle, onOpenSettings, onOpen
       {/* 底部操作按钮 */}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, paddingBottom: 8 }}>
         {onOpenTheme && (
-          <BarBtn icon="" title="主题配置" onClick={onOpenTheme}>
-            <span style={{ fontSize: 14 }}>🎨</span>
-          </BarBtn>
+          <BarBtn icon="/assets/color_setting.png" title="主题配置" onClick={onOpenTheme} />
         )}
         {onToggleTerminal && (
           <BarBtn icon="/assets/3.png" title="终端" onClick={onToggleTerminal} />
