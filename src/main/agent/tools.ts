@@ -7,8 +7,9 @@ import { webSearch } from '../services/webSearch';
 import { webFetch, webScreenshot } from '../services/browser';
 import { presentWebPreview } from '../services/webPreview';
 import { describeImage, VisionModelConfig } from '../services/vision';
-import { safeResolve, checkSensitiveFile, checkDangerousCommand, ToolDef, ToolContext } from './tools/index';
-export { ToolDef, ToolContext } from './tools/index';
+import { safeResolve, checkSensitiveFile, checkDangerousCommand } from './tools/index';
+import type { ToolDef, ToolContext } from './tools/index';
+export type { ToolDef, ToolContext };
 import { generateImage, ImageModelConfig } from '../services/imageGen';
 
 export function getAllTools(projectDir: string): ToolDef[] {
