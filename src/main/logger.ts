@@ -5,28 +5,18 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const LOG_DIR = path.join(process.cwd(), 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'debug.log');
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB 轮转
+const MAX_SIZE = 5 * 1024 * 1024;
 
 if (!fs.existsSync(LOG_DIR)) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
+// 每次启动覆盖日志
 let initialized = false;
 
 function fmtTime(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds()).toString().padStart(3, '0')}`;
-}
-
-function rotateIfNeeded() {
-  try {
-    const stat = fs.statSync(LOG_FILE);
-    if (stat.size > MAX_SIZE) {
-      const bak = LOG_FILE.replace('.log', `.${Date.now()}.bak`);
-      fs.renameSync(LOG_FILE, bak);
-      initialized = false;
-    }
-  } catch {}
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${d.getMilliseconds().toString().padStart(3, '0')}`;
 }
 
 export function log(level: LogLevel, module: string, message: string, data?: Record<string, unknown>) {
@@ -39,21 +29,26 @@ export function log(level: LogLevel, module: string, message: string, data?: Rec
   });
   const line = entry + '\n';
   try {
-    rotateIfNeeded();
     if (!initialized) {
       fs.writeFileSync(LOG_FILE, line, 'utf-8');
       initialized = true;
     } else {
-      fs.appendFileSync(LOG_FILE, line, 'utf-8');
+      const stat = fs.statSync(LOG_FILE);
+      if (stat.size > MAX_SIZE) {
+        fs.writeFileSync(LOG_FILE, line, 'utf-8');
+      } else {
+        fs.appendFileSync(LOG_FILE, line, 'utf-8');
+      }
     }
-  } catch {
-    // 日志写入失败时静默降级
-  }
+  } catch {}
 }
 
-// 便捷函数
 export function debugLog(...args: any[]) {
-  log('debug', module, message, data);
+  const line = `[${fmtTime(new Date())}] [DEBUG] ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')}\n`;
+  try {
+    if (!initialized) { initialized = true; fs.writeFileSync(LOG_FILE, line, 'utf-8'); }
+    else { fs.appendFileSync(LOG_FILE, line, 'utf-8'); }
+  } catch {}
 }
 
 export function infoLog(module: string, message: string, data?: Record<string, unknown>) {

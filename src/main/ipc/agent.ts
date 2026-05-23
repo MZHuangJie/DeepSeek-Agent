@@ -6,7 +6,7 @@ import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
 import { getSetting } from '../db/settings';
-import { debugLog } from '../logger';
+import { debugLog, errorLog, infoLog } from '../logger';
 import { compressToolResult } from '../agent/compression';
 
 
@@ -31,9 +31,7 @@ export function setupAgentHandlers() {
     const abortController = new AbortController();
     activeAbort = abortController;
 
-    debugLog('[DEBUG agent:send] payload.messages.length:', payload.messages.length, 'newMessage.length:', payload.newMessage.length, 'mode:', payload.mode);
-    const payloadTotalChars = payload.messages.reduce((sum: number, m: any) => sum + (m.content?.length ?? 0) + (m.reasoning_content?.length ?? 0), 0);
-    debugLog('[DEBUG agent:send] payload messages total chars:', payloadTotalChars);
+    infoLog('agent', 'send-start', { model: payload.model, mode: payload.mode, provider: (payload as any).provider, msgCount: payload.messages.length, newMsgLen: payload.newMessage.length });
 
     try {
       const tools = getAllTools(payload.projectDir);
@@ -51,7 +49,7 @@ export function setupAgentHandlers() {
     let messages: any[] = buildMessages(prefix, payload.messages, payload.newMessage);
 
     const builtTotalChars = messages.reduce((sum: number, m: any) => sum + (m.content?.length ?? 0), 0);
-    debugLog('[DEBUG agent:send] built messages.length:', messages.length, 'total chars:', builtTotalChars, 'sysPrompt length:', prefix.systemPrompt.length, 'projectContext length:', prefix.projectContext.length);
+    infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length, ctxLen: prefix.projectContext.length });
 
     const modelConfig = {
       model: payload.model || 'deepseek-chat',

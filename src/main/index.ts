@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { registerAllHandlers } from './ipc';
+import { infoLog, errorLog } from './logger';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -32,8 +33,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  infoLog('app', 'startup', { electron: process.versions.electron, node: process.versions.node, platform: process.platform });
   registerAllHandlers();
   createWindow();
+  infoLog('app', 'window-created');
 });
 
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => {
+  infoLog('app', 'shutdown');
+  app.quit();
+});
