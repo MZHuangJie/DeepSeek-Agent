@@ -1,5 +1,15 @@
+import { exec } from 'child_process';
 import { checkDangerousCommand } from './security';
 import type { ToolDef } from './index';
+
+function execAsync(command: string, cwd: string, timeout: number): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    exec(command, { cwd, timeout, maxBuffer: 1024 * 1024, shell: process.platform === 'win32' ? 'powershell.exe' : '/bin/sh' }, (err, stdout, stderr) => {
+      if (err && !stdout && !stderr) reject(err);
+      else resolve({ stdout: stdout || '', stderr: stderr || '' });
+    });
+  });
+}
 
 export function createBashTool(projectDir: string): ToolDef {
   return {
@@ -7,13 +17,11 @@ export function createBashTool(projectDir: string): ToolDef {
     parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] },
     requiresConfirm: true,
     execute: async (args) => {
-      const { spawnSync } = await import('child_process');
       const command = (args.command as string).trim();
       if (!command) throw new Error('命令不能为空');
       checkDangerousCommand(command);
-      const result = spawnSync(command, [], { cwd: projectDir, encoding: 'utf-8', maxBuffer: 1024 * 1024, shell: true, timeout: 30000 });
-      if (result.error) throw result.error;
-      return (result.stdout || '') + (result.stderr ? `\n[stderr]\n${result.stderr}` : '');
+      const { stdout, stderr } = await execAsync(command, projectDir, 30000);
+      return stdout + (stderr ? `\n[stderr]\n${stderr}` : '');
     },
   };
 }
