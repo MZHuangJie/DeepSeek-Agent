@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './ConfirmDialog.module.css';
 
 interface Props {
   name: string;
@@ -23,29 +24,27 @@ export default function ConfirmDialog({ name, args, onApprove, onDeny }: Props) 
   }, [onApprove, onDeny, alwaysAllow]);
 
   return (
-    <div className={styles.dialogBox}>
-      <div className={styles.dialogHeader}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>⚡ 确认执行操作</div>
-        <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)' }}>
-          确认允许 AI 执行 <b style={{ color: 'var(--accent)' }}>{name}</b> 操作？
+    <div className={shared.dialogBox}>
+      <div className={shared.dialogHeader}>
+        <div className={styles.confirmTitle}>⚡ 确认执行操作</div>
+        <div className={styles.confirmMessage}>
+          确认允许 AI 执行 <b className={styles.confirmName}>{name}</b> 操作？
         </div>
         {args && (
-          <pre style={{ margin: '8px 0 0', padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 4, fontSize: 10, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 160, overflow: 'auto' }}>
-            {args}
-          </pre>
+          <pre className={styles.diffPreview}>{args}</pre>
         )}
       </div>
 
-      <div className={styles.dialogBody}>
-        <label className={styles.dialogCheckbox}>
+      <div className={shared.dialogBody}>
+        <label className={shared.dialogCheckbox}>
           <input type="checkbox" checked={alwaysAllow} onChange={(e) => setAlwaysAllow(e.target.checked)} />
           本次会话内自动允许 {name} 操作
         </label>
       </div>
 
-      <div className={styles.dialogFooter} style={{ flexDirection: 'column', gap: 6 }}>
-        <button ref={approveRef} onClick={() => onApprove(alwaysAllow)} style={{ width: '100%' }} className={styles.dialogApprove}>允许执行 (Enter)</button>
-        <button onClick={onDeny} style={{ width: '100%' }} className={styles.dialogCancel}>拒绝 (Esc)</button>
+      <div className={shared.dialogFooter} style={{ flexDirection: 'column', gap: 6 }}>
+        <button ref={approveRef} onClick={() => onApprove(alwaysAllow)} className={`${shared.dialogApprove} ${styles.footerWide}`}>允许执行 (Enter)</button>
+        <button onClick={onDeny} className={`${shared.dialogCancel} ${styles.footerWide}`}>拒绝 (Esc)</button>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ interface ProviderPreset {
 export const PROVIDERS: Record<ProviderKey, ProviderPreset> = {
   openai:     { label: 'OpenAI',             baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000 },
   gemini:     { label: 'Google Gemini',      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.5-flash', contextWindow: 1048576 },
-  anthropic:  { label: 'Anthropic Claude',   baseUrl: 'https://api.anthropic.com',                       defaultModel: 'claude-sonnet-4-20250514', contextWindow: 200000 },
+  anthropic:  { label: 'Anthropic Claude',   baseUrl: 'https://api.anthropic.com/v1',                     defaultModel: 'claude-sonnet-4-20250514', contextWindow: 200000 },
   deepseek:   { label: 'DeepSeek',           baseUrl: 'https://api.deepseek.com',                        defaultModel: 'deepseek-chat',            contextWindow: 64000 },
   qwen:       { label: '通义千问',            baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus',          contextWindow: 131072 },
   zhipu:      { label: '智谱 GLM',           baseUrl: 'https://open.bigmodel.cn/api/paas/v4',            defaultModel: 'glm-4-plus',               contextWindow: 128000 },
@@ -74,7 +74,7 @@ const DEFAULT_MODELS: ModelConfig[] = [
     id: 'claude-sonnet-4',
     name: 'Claude Sonnet 4',
     provider: 'anthropic',
-    baseUrl: 'https://api.anthropic.com',
+    baseUrl: 'https://api.anthropic.com/v1',
     model: 'claude-sonnet-4-20250514',
     contextWindow: 200000,
   },

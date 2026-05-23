@@ -9,7 +9,8 @@ import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
 import Dropdown, { DropdownItem, useDropdownNav } from './Dropdown';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './ChatInput.module.css';
 
 interface Props {
   onSend: (message: string, command?: Command) => void;
@@ -18,8 +19,8 @@ interface Props {
   onStop: () => void;
 }
 
-const MIN_HEIGHT = 48;   // ~2 rows + padding
-const MAX_HEIGHT = 180;  // ~8 rows + padding
+const MIN_HEIGHT = 48;
+const MAX_HEIGHT = 180;
 
 export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Props) {
   const [value, setValue] = useState('');
@@ -42,7 +43,6 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
   useEffect(() => { loadInstalled(); }, []);
 
-  // 将已安装插件转换为动态命令
   const pluginCommands: Command[] = useMemo(() =>
     installedPlugins.map(p => ({
       name: p.name,
@@ -51,7 +51,6 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       systemPrompt: p.system_prompt,
     })), [installedPlugins]);
 
-  // auto-resize: only grow when content overflows current height
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -78,16 +77,14 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     return allCommands.filter(c => c.name.includes(query));
   }, [value, showCommandPalette, pluginCommands]);
 
-  // 键盘导航
   const cmdFocusIdx = useDropdownNav(filteredCommands.length, (i) => selectCommand(filteredCommands[i]), () => {}, showCommandPalette && filteredCommands.length > 0);
   const mentionFocusIdx = useDropdownNav(openTabs.length, (i) => insertMention(openTabs[i].path), () => {}, showMention);
 
   const hasDropdownOpen = showCommandPalette || showMention || showModelSelect || showModeSelect;
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // 有下拉框打开时，Enter 和 Escape 交给下拉框处理
     if (hasDropdownOpen && (e.key === 'Enter' || e.key === 'Escape')) {
-      return; // 让事件冒泡到 window，由 useDropdownNav hook 处理
+      return;
     }
 
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -159,15 +156,15 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   };
 
   return (
-    <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', position: 'relative', background: 'var(--bg-secondary)' }}>
+    <div className={styles.container}>
       {/* Command palette */}
       {showCommandPalette && filteredCommands.length > 0 && (
         <Dropdown maxHeight={260}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', padding: '6px 10px 4px', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>命令</div>
+          <div className={styles.paletteHeading}>命令</div>
           {filteredCommands.map((cmd, i) => (
             <DropdownItem key={cmd.name} onClick={() => selectCommand(cmd)} focused={cmdFocusIdx === i}>
-              <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 600, flexShrink: 0, marginRight: 8 }}>/{cmd.name}</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{cmd.description}</span>
+              <span className={styles.cmdChip}>/{cmd.name}</span>
+              <span className={styles.cmdDesc}>{cmd.description}</span>
             </DropdownItem>
           ))}
         </Dropdown>
@@ -175,25 +172,17 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
       {/* Active command indicator */}
       {activeCommand && (
-        <div style={{
-          padding: '2px 12px 4px', fontSize: 11, color: 'var(--accent)',
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          <span style={{
-            background: 'rgba(124,58,237,0.15)', borderRadius: 4,
-            padding: '1px 6px', fontWeight: 600,
-          }}>
-            /{activeCommand.name}
-          </span>
-          <span style={{ color: 'var(--text-secondary)' }}>{activeCommand.detail}</span>
+        <div className={styles.cmdHint}>
+          <span className={styles.cmdBadge}>/{activeCommand.name}</span>
+          <span className={styles.cmdDetail}>{activeCommand.detail}</span>
         </div>
       )}
 
       {/* @ mention popup */}
       {showMention && (
-        <div className={styles.mentionPopup}>
+        <div className={shared.mentionPopup}>
           {openTabs.map((t, i) => (
-            <div key={t.path} className={styles.mentionItem} onClick={() => insertMention(t.path)}
+            <div key={t.path} className={shared.mentionItem} onClick={() => insertMention(t.path)}
               style={{ background: mentionFocusIdx === i ? 'var(--bg-tertiary)' : undefined }}>{t.name}</div>
           ))}
         </div>
@@ -201,13 +190,13 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
       {/* Text reference chips */}
       {refs.textRefs.length > 0 && (
-        <div className={styles.chipBar}>
+        <div className={shared.chipBar}>
           {refs.textRefs.map((text, i) => {
             const label = text.length > 40 ? text.slice(0, 40) + '...' : text;
             return (
-              <div key={i} className={`${styles.chip} ${styles.chipText}`}>
-                <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-                <span className={styles.chipClose} onClick={() => refs.removeTextRef(text)} title="取消引用">✕</span>
+              <div key={i} className={`${shared.chip} ${shared.chipText}`}>
+                <span className={styles.chipLabel}>{label}</span>
+                <span className={shared.chipClose} onClick={() => refs.removeTextRef(text)} title="取消引用">✕</span>
               </div>
             );
           })}
@@ -216,13 +205,13 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
       {/* Referenced files chips */}
       {refs.refFiles.length > 0 && (
-        <div className={styles.chipBar}>
+        <div className={shared.chipBar}>
           {refs.refFiles.map((path, i) => {
             const name = path.split(/[\\/]/).pop() || path;
             return (
-              <div key={i} className={`${styles.chip} ${styles.chipFile}`}>
-                <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span className={styles.chipClose} onClick={() => refs.removeRefFile(path)} title="取消引用">✕</span>
+              <div key={i} className={`${shared.chip} ${shared.chipFile}`}>
+                <span className={styles.fileChipLabel}>{name}</span>
+                <span className={shared.chipClose} onClick={() => refs.removeRefFile(path)} title="取消引用">✕</span>
               </div>
             );
           })}
@@ -230,8 +219,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       )}
 
       {/* Input area */}
-      <div className={`${styles.inputWrapper} ${activeCommand ? styles.inputWrapperActive : ''}`}>
-        {/* Textarea */}
+      <div className={`${shared.inputWrapper} ${activeCommand ? shared.inputWrapperActive : ''}`}>
         <textarea
           ref={textareaRef}
           value={value}
@@ -240,7 +228,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           placeholder={disabled ? 'AI 正在回复...' : 'Ask DeepSeek Agent... (/ commands · @ files)'}
           disabled={disabled}
           spellCheck={false}
-          className={styles.textarea}
+          className={shared.textarea}
           style={{
             minHeight: MIN_HEIGHT,
             maxHeight: MAX_HEIGHT,
@@ -248,76 +236,58 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           }}
         />
 
-        {/* Bottom toolbar */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '4px 8px 6px', gap: 8,
-        }}>
-          {/* Left: Model selector + hint + new session */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <div className={styles.toolbar}>
+          <div className={styles.toolbarLeft}>
             {/* Model dropdown */}
-            <div style={{ position: 'relative' }}>
+            <div className={styles.modelTrigger}>
               <button
                 onClick={() => setShowModelSelect(!showModelSelect)}
-                style={{
-                  background: 'transparent', border: 'none',
-                  color: 'var(--text-primary)', cursor: 'pointer',
-                  padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 4,
-                  fontSize: 12, fontWeight: 500, borderRadius: 4,
-                }}
-                className={styles.hoverSubtle}
+                className={`${styles.modelBtn} ${shared.hoverSubtle}`}
               >
                 <span>{activeModel?.name || 'Agent'}</span>
-                <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
+                <span className={styles.dropdownCaret}>▼</span>
               </button>
 
               {showModelSelect && (
                 <Dropdown minWidth={200}>
                   {models.map(m => (
                     <DropdownItem key={m.id} active={m.id === activeModelId} onClick={() => { setActiveModel(m.id); setShowModelSelect(false); }}>
-                      <div style={{ fontWeight: 500 }}>{m.name}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{m.model}</div>
+                      <div className={styles.itemName}>{m.name}</div>
+                      <div className={styles.itemMeta}>{m.model}</div>
                     </DropdownItem>
                   ))}
                   <DropdownItem onClick={() => { setShowModelSelect(false); setShowModelSettings(true); }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>管理模型...</span>
+                    <span className={styles.itemSub}>管理模型...</span>
                   </DropdownItem>
                 </Dropdown>
               )}
             </div>
 
-            {/* New session */}
             <ToolbarBtn title="新建会话" onClick={() => createSession()}>
-              <img src="/assets/13.png" alt="new" style={{ width: 14, height: 14, opacity: 0.7 }} />
+              <img src="/assets/13.png" alt="new" className={styles.toolbarIcon} />
             </ToolbarBtn>
 
             {/* Mode selector */}
-            <div style={{ position: 'relative' }}>
+            <div className={styles.modelTrigger}>
               <button
                 onClick={() => setShowModeSelect(!showModeSelect)}
                 title={activeMode.description}
-                style={{
-                  background: 'transparent', border: 'none',
-                  color: 'var(--text-primary)', cursor: 'pointer',
-                  padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 4,
-                  fontSize: 12, fontWeight: 500, borderRadius: 4,
-                }}
-                className={styles.hoverSubtle}
+                className={`${styles.modelBtn} ${shared.hoverSubtle}`}
               >
-                <img src={activeMode.icon} alt="" style={{ width: 14, height: 14 }} />
+                <img src={activeMode.icon} alt="" className={styles.toolbarIcon} style={{ opacity: 1 }} />
                 <span>{activeMode.label}</span>
-                <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
+                <span className={styles.dropdownCaret}>▼</span>
               </button>
 
               {showModeSelect && (
                 <Dropdown minWidth={180}>
                   {MODES.map(m => (
                     <DropdownItem key={m.id} active={m.id === mode} onClick={() => { setMode(m.id as AgentMode); setShowModeSelect(false); }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <img src={m.icon} alt="" style={{ width: 16, height: 16 }} />
+                      <div className={styles.modeRow}>
+                        <img src={m.icon} alt="" className={styles.modeIcon} />
                         <div>
-                          <div style={{ fontWeight: 500 }}>{m.label}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{m.description}</div>
+                          <div className={styles.modeName}>{m.label}</div>
+                          <div className={styles.modeDesc}>{m.description}</div>
                         </div>
                       </div>
                     </DropdownItem>
@@ -327,39 +297,18 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
             </div>
           </div>
 
-          {/* Right: send/stop */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <div className={styles.toolbarRight}>
             {isStreaming ? (
-              <button
-                onClick={onStop}
-                title="停止生成 (Esc)"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: 2,
-                }}
-              >
-                <img src="/assets/stop.png" alt="stop" style={{ width: 20, height: 20 }} />
+              <button onClick={onStop} title="停止生成 (Esc)" className={styles.stopBtn}>
+                <img src="/assets/stop.png" alt="stop" className={styles.stopIcon} />
               </button>
             ) : (
               <button
                 onClick={handleSend}
                 disabled={disabled || !value.trim()}
-                style={{
-                  background: disabled || !value.trim() ? 'transparent' : 'var(--accent)',
-                  border: disabled || !value.trim() ? '1px solid var(--border)' : 'none',
-                  color: disabled || !value.trim() ? 'var(--text-secondary)' : '#fff',
-                  borderRadius: 6,
-                  width: 32, height: 28,
-                  cursor: disabled || !value.trim() ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: 0,
-                  transition: 'all 0.15s',
-                }}
+                className={disabled || !value.trim() ? styles.sendBtnDisabled : styles.sendBtn}
               >
-                <img src="/assets/9.png" alt="send" style={{ width: 14, height: 12 }} />
+                <img src="/assets/9.png" alt="send" className={styles.sendIcon} />
               </button>
             )}
           </div>
@@ -373,5 +322,5 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 }
 
 function ToolbarBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
-  return <button onClick={onClick} title={title} className={styles.toolbarBtn}>{children}</button>;
+  return <button onClick={onClick} title={title} className={shared.toolbarBtn}>{children}</button>;
 }

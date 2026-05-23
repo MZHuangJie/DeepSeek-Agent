@@ -1,44 +1,23 @@
 import React, { useEffect, useRef } from 'react';
 import { useAgentStore, ToolCallEntry } from '../../stores/agent';
+import styles from './ToolTimeline.module.css';
 
 function ToolCallRow({ tc }: { tc: ToolCallEntry }) {
-  const statusIcon = tc.status === 'running' ? <img src="/assets/8.png" alt="running" style={{ width: 12, height: 12 }} /> : tc.status === 'success' ? <img src="/assets/6.png" alt="success" style={{ width: 12, height: 12 }} /> : <img src="/assets/12.png" alt="error" style={{ width: 12, height: 12 }} />;
+  const statusIcon = tc.status === 'running' ? <img src="/assets/8.png" alt="running" className={styles.iconImg} /> : tc.status === 'success' ? <img src="/assets/6.png" alt="success" className={styles.iconImg} /> : <img src="/assets/12.png" alt="error" className={styles.iconImg} />;
   const time = new Date(tc.timestamp).toLocaleTimeString();
   const isSubAgentTool = tc.name === 'spawn_sub_agent' || tc.name === 'auto_decompose_task';
 
   return (
-    <div style={{
-      fontSize: 11,
-      padding: isSubAgentTool ? '6px 8px' : '4px 0',
-      marginBottom: isSubAgentTool ? 4 : 0,
-      borderBottom: '1px solid rgba(255,255,255,0.05)',
-      background: isSubAgentTool ? 'rgba(79, 195, 247, 0.08)' : 'transparent',
-      borderLeft: isSubAgentTool ? '2px solid #4fc3f7' : 'none',
-      borderRadius: isSubAgentTool ? 3 : 0,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <div className={`${styles.row} ${isSubAgentTool ? styles.rowSubAgent : ''}`}>
+      <div className={styles.rowTop}>
         <span>{statusIcon}</span>
-        {isSubAgentTool && (
-          <span style={{
-            fontSize: 9,
-            fontWeight: 700,
-            color: '#fff',
-            background: '#4fc3f7',
-            padding: '1px 5px',
-            borderRadius: 3,
-            letterSpacing: 0.3,
-          }}>子代理</span>
-        )}
-        <span style={{ color: isSubAgentTool ? '#4fc3f7' : 'var(--accent)', fontWeight: 500 }}>{tc.name}</span>
-        <span style={{ color: 'var(--text-secondary)', marginLeft: 'auto', fontSize: 10 }}>{time}</span>
+        {isSubAgentTool && <span className={styles.subAgentBadge}>子代理</span>}
+        <span className={isSubAgentTool ? styles.toolNameSubAgent : styles.toolNameDefault}>{tc.name}</span>
+        <span className={styles.time}>{time}</span>
       </div>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginTop: 2, paddingLeft: 20, wordBreak: 'break-word' }}>
-        {tc.args}
-      </div>
+      <div className={styles.args}>{tc.args}</div>
       {tc.result && (
-        <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginTop: 2, paddingLeft: 20, opacity: 0.7, maxHeight: 40, overflow: 'hidden' }}>
-          {tc.result.slice(0, 100)}
-        </div>
+        <div className={styles.result}>{tc.result.slice(0, 100)}</div>
       )}
     </div>
   );
@@ -53,14 +32,12 @@ export default function ToolTimeline() {
   }, [toolCalls]);
 
   return (
-    <div style={{ padding: 10, borderBottom: '1px solid var(--border)' }}>
-      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-        工具调用时间线
-      </div>
+    <div className={styles.container}>
+      <div className={styles.header}>工具调用时间线</div>
       {toolCalls.length === 0 && (
-        <div style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.5 }}>暂无工具调用</div>
+        <div className={styles.empty}>暂无工具调用</div>
       )}
-      <div style={{ maxHeight: 200, overflow: 'auto' }}>
+      <div className={styles.list}>
         {toolCalls.map(tc => <ToolCallRow key={tc.id} tc={tc} />)}
         <div ref={bottomRef} />
       </div>

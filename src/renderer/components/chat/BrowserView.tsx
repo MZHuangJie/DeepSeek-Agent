@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './BrowserView.module.css';
 
 interface Props {
   initialUrl?: string;
@@ -56,11 +57,8 @@ export default function BrowserView({ initialUrl }: Props) {
   }, []);
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{
-        padding: '6px 8px', borderBottom: '1px solid var(--border)',
-        display: 'flex', gap: 4, alignItems: 'center', background: 'var(--bg-secondary)',
-      }}>
+    <div className={styles.container}>
+      <div className={styles.toolbar}>
         <NavBtn onClick={goBack} title="后退">◀</NavBtn>
         <NavBtn onClick={goForward} title="前进">▶</NavBtn>
         <NavBtn onClick={reload} title="刷新">↻</NavBtn>
@@ -71,21 +69,17 @@ export default function BrowserView({ initialUrl }: Props) {
           onKeyDown={(e) => e.key === 'Enter' && navigate()}
           placeholder="输入网址..."
           spellCheck={false}
-          style={{
-            flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-            borderRadius: 4, color: 'var(--text-primary)', padding: '4px 8px',
-            fontSize: 11, outline: 'none',
-          }}
+          className={styles.urlInput}
         />
         <NavBtn onClick={sendPageToAI} title="将当前页面内容发送给 AI">
           {sending ? '...' : '📤'}
         </NavBtn>
       </div>
-      <webview ref={webviewRef} src={url} style={{ flex: 1, border: 'none' }} />
+      <webview ref={webviewRef} src={url} className={styles.webview} />
     </div>
   );
 }
 
 function NavBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
-  return <button onClick={onClick} title={title} className={styles.toolbarBtn} style={{ padding: '4px 9px', fontSize: 11 }}>{children}</button>;
+  return <button onClick={onClick} title={title} className={shared.toolbarBtn} style={{ padding: '4px 9px', fontSize: 11 }}>{children}</button>;
 }

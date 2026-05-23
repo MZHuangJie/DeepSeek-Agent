@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useModelStore, ModelConfig, ImageModelConfig, VisionModelConfig, PROVIDERS, ProviderKey } from '../../stores/model';
+import styles from './ModelSettings.module.css';
 
 interface Props {
   onClose: () => void;
@@ -17,13 +18,8 @@ export default function ModelSettings({ onClose }: Props) {
     loadVisionModel();
   }, []);
 
-  useEffect(() => {
-    setImageConfig(imageModel);
-  }, [imageModel]);
-
-  useEffect(() => {
-    setList(models);
-  }, [models]);
+  useEffect(() => { setImageConfig(imageModel); }, [imageModel]);
+  useEffect(() => { setList(models); }, [models]);
 
   const active = getActiveModel();
 
@@ -62,208 +58,86 @@ export default function ModelSettings({ onClose }: Props) {
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8,
-        width: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-      }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>模型设置</span>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-            <img src="/assets/图层 12_w.png" alt="close" style={{ width: 14, height: 14 }} />
+    <div className={styles.overlay}>
+      <div className={styles.panel}>
+        <div className={styles.header}>
+          <span className={styles.title}>模型设置</span>
+          <button onClick={onClose} className={styles.closeBtn}>
+            <img src="/assets/图层 12_w.png" alt="close" className={styles.closeIcon} />
           </button>
         </div>
 
-        <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
+        <div className={styles.modelList}>
           {list.map(m => (
-            <div key={m.id} style={{
-              padding: '8px 10px', borderRadius: 6, marginBottom: 6,
-              background: m.id === active.id ? 'rgba(124,58,237,0.1)' : 'var(--bg-tertiary)',
-              border: m.id === active.id ? '1px solid var(--accent)' : '1px solid transparent',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
+            <div key={m.id} className={`${styles.modelRow} ${m.id === active.id ? styles.modelRowActive : styles.modelRowInactive}`}>
               <input
                 type="radio"
                 checked={m.id === active.id}
                 onChange={() => setActiveModel(m.id)}
-                style={{ cursor: 'pointer' }}
+                className={styles.radio}
               />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  {m.provider} / {m.model}
+              <div className={styles.modelInfo}>
+                <div className={styles.modelName}>{m.name} {m.apiKey ? '🔑' : ''}</div>
+                <div className={styles.modelMeta}>
+                  {m.provider} / {m.model} {m.apiKey ? '（独立Key）' : ''}
                 </div>
               </div>
-              <button onClick={() => setEditing({ ...m })} style={{
-                background: 'transparent', border: 'none', color: 'var(--text-secondary)',
-                cursor: 'pointer', fontSize: 12, padding: '2px 6px',
-              }}>编辑</button>
-              <button onClick={() => removeModel(m.id)} style={{
-                background: 'transparent', border: 'none', color: '#ef4444',
-                cursor: 'pointer', fontSize: 12, padding: '2px 6px',
-              }}>删除</button>
+              <button onClick={() => setEditing({ ...m })} className={styles.actionBtn}>编辑</button>
+              <button onClick={() => removeModel(m.id)} className={styles.deleteBtn}>删除</button>
             </div>
           ))}
 
-          <button onClick={addModel} style={{
-            width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px dashed var(--border)',
-            color: 'var(--text-secondary)', borderRadius: 6, cursor: 'pointer', fontSize: 13,
-          }}>
+          <button onClick={addModel} className={styles.addBtn}>
             + 添加模型
           </button>
         </div>
 
-        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>生图模型配置</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <input
-              type="checkbox"
-              id="img-enabled"
-              checked={imageConfig.enabled}
-              onChange={e => setImageConfig(c => ({ ...c, enabled: e.target.checked }))}
-            />
-            <label htmlFor="img-enabled" style={{ fontSize: 12, cursor: 'pointer' }}>启用生图功能</label>
-          </div>
-          {imageConfig.enabled && (
-            <>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Base URL</div>
-                <input
-                  value={imageConfig.baseUrl}
-                  onChange={e => setImageConfig(c => ({ ...c, baseUrl: e.target.value }))}
-                  placeholder="https://api.openai.com"
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>模型 ID</div>
-                <input
-                  value={imageConfig.model}
-                  onChange={e => setImageConfig(c => ({ ...c, model: e.target.value }))}
-                  placeholder="gpt-image-1"
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>API Key</div>
-                <input
-                  type="password"
-                  value={imageConfig.apiKey}
-                  onChange={e => setImageConfig(c => ({ ...c, apiKey: e.target.value }))}
-                  placeholder="sk-..."
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-            </>
-          )}
-        </div>
+        <ModelSection
+          title="生图模型配置"
+          enabled={imageConfig.enabled}
+          onEnableChange={v => setImageConfig(c => ({ ...c, enabled: v }))}
+          baseUrl={imageConfig.baseUrl}
+          onBaseUrlChange={v => setImageConfig(c => ({ ...c, baseUrl: v }))}
+          model={imageConfig.model}
+          onModelChange={v => setImageConfig(c => ({ ...c, model: v }))}
+          apiKey={imageConfig.apiKey}
+          onApiKeyChange={v => setImageConfig(c => ({ ...c, apiKey: v }))}
+          checkboxLabel="启用生图功能"
+        />
 
-        {/* 视觉模型配置 */}
-        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>视觉模型配置</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <input
-              type="checkbox"
-              id="vision-enabled"
-              checked={visionConfig.enabled}
-              onChange={e => setVisionConfig(c => ({ ...c, enabled: e.target.checked }))}
-            />
-            <label htmlFor="vision-enabled" style={{ fontSize: 12, cursor: 'pointer' }}>启用视觉功能（describe_image 工具）</label>
-          </div>
-          {visionConfig.enabled && (
-            <>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Base URL</div>
-                <input
-                  value={visionConfig.baseUrl}
-                  onChange={e => setVisionConfig(c => ({ ...c, baseUrl: e.target.value }))}
-                  placeholder="https://api.openai.com"
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>模型 ID</div>
-                <input
-                  value={visionConfig.model}
-                  onChange={e => setVisionConfig(c => ({ ...c, model: e.target.value }))}
-                  placeholder="gpt-4o"
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>API Key</div>
-                <input
-                  type="password"
-                  value={visionConfig.apiKey}
-                  onChange={e => setVisionConfig(c => ({ ...c, apiKey: e.target.value }))}
-                  placeholder="sk-..."
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-            </>
-          )}
-        </div>
+        <ModelSection
+          title="视觉模型配置"
+          enabled={visionConfig.enabled}
+          onEnableChange={v => setVisionConfig(c => ({ ...c, enabled: v }))}
+          baseUrl={visionConfig.baseUrl}
+          onBaseUrlChange={v => setVisionConfig(c => ({ ...c, baseUrl: v }))}
+          model={visionConfig.model}
+          onModelChange={v => setVisionConfig(c => ({ ...c, model: v }))}
+          apiKey={visionConfig.apiKey}
+          onApiKeyChange={v => setVisionConfig(c => ({ ...c, apiKey: v }))}
+          checkboxLabel="启用视觉功能（describe_image 工具）"
+        />
 
-        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onClose} style={{
-            padding: '6px 14px', background: 'transparent', border: '1px solid var(--border)',
-            color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 13,
-          }}>取消</button>
-          <button onClick={handleSave} style={{
-            padding: '6px 14px', background: 'var(--accent)', border: 'none',
-            color: '#fff', borderRadius: 4, cursor: 'pointer', fontSize: 13,
-          }}>保存</button>
+        <div className={styles.footer}>
+          <button onClick={onClose} className={styles.cancelBtn}>取消</button>
+          <button onClick={handleSave} className={styles.saveBtn}>保存</button>
         </div>
       </div>
 
       {editing && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1001,
-        }}>
-          <div style={{
-            background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8,
-            width: 400, padding: 16,
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{editing.id.startsWith('custom-') && !list.find(m => m.id === editing.id) ? '添加模型' : '编辑模型'}</div>
-            {([{ key: 'name', label: '显示名称' }] as { key: keyof ModelConfig; label: string }[]).map(({ key, label }) => (
-              <div key={key} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
-                <input
-                  value={editing[key] as string}
-                  onChange={e => setEditing({ ...editing, [key]: e.target.value })}
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-            ))}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>提供商</div>
+        <div className={styles.overlay} style={{ zIndex: 1001 }}>
+          <div className={styles.editPanel}>
+            <div className={styles.editTitle}>
+              {editing.id.startsWith('custom-') && !list.find(m => m.id === editing.id) ? '添加模型' : '编辑模型'}
+            </div>
+            <FieldRow label="显示名称">
+              <input
+                value={editing.name}
+                onChange={e => setEditing({ ...editing, name: e.target.value })}
+                className={styles.input}
+              />
+            </FieldRow>
+            <FieldRow label="提供商">
               <select
                 value={editing.provider}
                 onChange={e => {
@@ -271,51 +145,39 @@ export default function ModelSettings({ onClose }: Props) {
                   const preset = PROVIDERS[p];
                   setEditing({ ...editing, provider: p, baseUrl: preset.baseUrl, model: preset.defaultModel, contextWindow: preset.contextWindow });
                 }}
-                style={{
-                  width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                  color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                }}
+                className={styles.select}
               >
                 {(Object.keys(PROVIDERS) as ProviderKey[]).map(k => (
                   <option key={k} value={k}>{PROVIDERS[k].label}</option>
                 ))}
               </select>
-            </div>
-            {([
-              { key: 'baseUrl', label: 'Base URL' },
-              { key: 'model', label: '模型 ID' },
-            ] as { key: keyof ModelConfig; label: string }[]).map(({ key, label }) => (
-              <div key={key} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
-                <input
-                  value={editing[key] as string}
-                  onChange={e => setEditing({ ...editing, [key]: e.target.value })}
-                  style={{
-                    width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
-                />
-              </div>
-            ))}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>上下文窗口</div>
-              <div style={{ display: 'flex', gap: 8 }}>
+            </FieldRow>
+            <FieldRow label="Base URL">
+              <input
+                value={editing.baseUrl}
+                onChange={e => setEditing({ ...editing, baseUrl: e.target.value })}
+                className={styles.input}
+              />
+            </FieldRow>
+            <FieldRow label="模型 ID">
+              <input
+                value={editing.model}
+                onChange={e => setEditing({ ...editing, model: e.target.value })}
+                className={styles.input}
+              />
+            </FieldRow>
+            <FieldRow label="上下文窗口">
+              <div className={styles.rowSplit}>
                 <input
                   type="number"
                   value={editing.contextWindow ?? 64000}
                   onChange={e => setEditing({ ...editing, contextWindow: parseInt(e.target.value) || 0 })}
-                  style={{
-                    flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
+                  className={styles.input}
                 />
                 <select
                   value={editing.contextWindow ?? 64000}
                   onChange={e => setEditing({ ...editing, contextWindow: parseInt(e.target.value) })}
-                  style={{
-                    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 4, fontSize: 13, outline: 'none',
-                  }}
+                  className={styles.select}
                 >
                   <option value={8000}>8k</option>
                   <option value={32000}>32k</option>
@@ -325,19 +187,78 @@ export default function ModelSettings({ onClose }: Props) {
                   <option value={2000000}>2M</option>
                 </select>
               </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button onClick={() => setEditing(null)} style={{
-                padding: '6px 14px', background: 'transparent', border: '1px solid var(--border)',
-                color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 13,
-              }}>取消</button>
-              <button onClick={saveEdit} style={{
-                padding: '6px 14px', background: 'var(--accent)', border: 'none',
-                color: '#fff', borderRadius: 4, cursor: 'pointer', fontSize: 13,
-              }}>确定</button>
+            </FieldRow>
+            <FieldRow label="API Key（可选，覆盖全局 Key）">
+              <input
+                type="password"
+                value={editing.apiKey || ''}
+                onChange={e => setEditing({ ...editing, apiKey: e.target.value || undefined })}
+                className={styles.input}
+                placeholder="留空则使用全局 API Key"
+              />
+            </FieldRow>
+            <div className={styles.editFooter}>
+              <button onClick={() => setEditing(null)} className={styles.cancelBtn}>取消</button>
+              <button onClick={saveEdit} className={styles.saveBtn}>确定</button>
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className={styles.fieldGroup}>
+      <div className={styles.fieldLabel}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function ModelSection({
+  title, enabled, onEnableChange,
+  baseUrl, onBaseUrlChange,
+  model, onModelChange,
+  apiKey, onApiKeyChange,
+  checkboxLabel,
+}: {
+  title: string;
+  enabled: boolean;
+  onEnableChange: (v: boolean) => void;
+  baseUrl: string;
+  onBaseUrlChange: (v: string) => void;
+  model: string;
+  onModelChange: (v: string) => void;
+  apiKey: string;
+  onApiKeyChange: (v: string) => void;
+  checkboxLabel: string;
+}) {
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{title}</div>
+      <div className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          id={`section-${title}`}
+          checked={enabled}
+          onChange={e => onEnableChange(e.target.checked)}
+        />
+        <label htmlFor={`section-${title}`} className={styles.checkboxLabel}>{checkboxLabel}</label>
+      </div>
+      {enabled && (
+        <>
+          <FieldRow label="Base URL">
+            <input value={baseUrl} onChange={e => onBaseUrlChange(e.target.value)} className={styles.input} placeholder="https://api.openai.com" />
+          </FieldRow>
+          <FieldRow label="模型 ID">
+            <input value={model} onChange={e => onModelChange(e.target.value)} className={styles.input} placeholder="gpt-4o" />
+          </FieldRow>
+          <FieldRow label="API Key">
+            <input type="password" value={apiKey} onChange={e => onApiKeyChange(e.target.value)} className={styles.input} placeholder="sk-..." />
+          </FieldRow>
+        </>
       )}
     </div>
   );

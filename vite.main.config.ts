@@ -26,6 +26,7 @@ export default defineConfig({
         'glob',
         'minipass',
         'path-scurry',
+        'worker_threads',
       ],
       plugins: [],
     },

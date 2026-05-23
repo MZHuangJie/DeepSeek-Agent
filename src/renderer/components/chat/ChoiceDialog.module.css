@@ -1,0 +1,71 @@
+.choiceTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.choiceMessage {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.choiceList {
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.choiceItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: all 0.1s;
+}
+
+.choiceItemSelected {
+  background: rgba(124,58,237,0.12);
+  border-color: var(--accent);
+}
+
+.choiceCheckbox {
+  margin-top: 2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.choiceLabel {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.choiceDesc {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.feedbackInput {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.feedbackWrap {
+  padding: 8px 14px;
+}

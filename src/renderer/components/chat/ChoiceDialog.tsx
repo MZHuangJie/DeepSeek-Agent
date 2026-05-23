@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './ChoiceDialog.module.css';
 
 interface Choice {
   label: string;
@@ -35,47 +36,36 @@ export default function ChoiceDialog({ message, choices, onConfirm, onCancel }: 
   };
 
   return (
-    <div className={styles.dialogBox}>
-      {/* Header */}
-      <div className={styles.dialogHeader}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>📋 请选择</div>
-        <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-          {message}
-        </div>
+    <div className={shared.dialogBox}>
+      <div className={shared.dialogHeader}>
+        <div className={styles.choiceTitle}>📋 请选择</div>
+        <div className={styles.choiceMessage}>{message}</div>
       </div>
 
-      {/* Choices */}
-      <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 240, overflow: 'auto' }}>
+      <div className={styles.choiceList}>
         {choices.map((c, i) => (
           <label
             key={i}
             onClick={() => toggle(i)}
-            style={{
-              display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
-              padding: '6px 8px', borderRadius: 4,
-              background: selected.has(i) ? 'rgba(124,58,237,0.12)' : 'transparent',
-              border: selected.has(i) ? '1px solid var(--accent)' : '1px solid transparent',
-              transition: 'all 0.1s',
-            }}
+            className={`${styles.choiceItem} ${selected.has(i) ? styles.choiceItemSelected : ''}`}
           >
             <input
               type="checkbox"
               checked={selected.has(i)}
               onChange={() => toggle(i)}
-              style={{ marginTop: 2, accentColor: 'var(--accent)', cursor: 'pointer' }}
+              className={styles.choiceCheckbox}
             />
             <div>
-              <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 500 }}>{c.label}</div>
+              <div className={styles.choiceLabel}>{c.label}</div>
               {c.description && (
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 1 }}>{c.description}</div>
+                <div className={styles.choiceDesc}>{c.description}</div>
               )}
             </div>
           </label>
         ))}
       </div>
 
-      {/* Feedback input */}
-      <div style={{ padding: '8px 14px' }}>
+      <div className={styles.feedbackWrap}>
         <input
           type="text"
           value={feedback}
@@ -87,24 +77,19 @@ export default function ChoiceDialog({ message, choices, onConfirm, onCancel }: 
             }
           }}
           placeholder="告诉 AI 你的想法..."
-          style={{
-            width: '100%', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-            borderRadius: 4, color: 'var(--text-primary)', padding: '6px 10px',
-            fontSize: 12, outline: 'none', boxSizing: 'border-box',
-          }}
+          className={styles.feedbackInput}
         />
       </div>
 
-      {/* Actions */}
-      <div className={styles.dialogFooter}>
+      <div className={shared.dialogFooter}>
         <button
           onClick={() => onConfirm(Array.from(selected).sort(), feedback)}
           disabled={selected.size === 0}
-          className={styles.dialogApprove}
+          className={shared.dialogApprove}
         >
           确认{selected.size > 0 ? ` (${selected.size})` : ''}
         </button>
-        <button onClick={onCancel} className={styles.dialogCancel}>取消 (Esc)</button>
+        <button onClick={onCancel} className={shared.dialogCancel}>取消 (Esc)</button>
       </div>
     </div>
   );

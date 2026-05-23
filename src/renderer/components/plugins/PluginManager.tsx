@@ -4,6 +4,7 @@ import DiscoverTab from './DiscoverTab';
 import InstalledTab from './InstalledTab';
 import MarketplacesTab from './MarketplacesTab';
 import ErrorsTab from './ErrorsTab';
+import styles from './PluginManager.module.css';
 
 interface Props {
   onClose: () => void;
@@ -26,54 +27,29 @@ export default function PluginManager({ onClose }: Props) {
   }, []);
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8,
-        width: 700, height: 520, display: 'flex', flexDirection: 'column',
-      }}>
-        {/* Header */}
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>插件管理器</span>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 18 }}>
-            ×
-          </button>
+    <div className={styles.overlay}>
+      <div className={styles.panel}>
+        <div className={styles.header}>
+          <span className={styles.title}>插件管理器</span>
+          <button onClick={onClose} className={styles.closeBtn}>×</button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+        <div className={styles.tabs}>
           {TABS.map(tab => (
             <div
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              style={{
-                padding: '8px 16px',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: activeTab === tab.key ? 600 : 400,
-                color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-secondary)',
-                borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
-                background: activeTab === tab.key ? 'var(--bg-tertiary)' : 'transparent',
-                transition: 'all 0.15s',
-                position: 'relative',
-              }}
+              className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
             >
               {tab.label}
               {tab.key === 'errors' && errors.length > 0 && (
-                <span style={{
-                  marginLeft: 4, background: '#ef4444', color: '#fff', fontSize: 9,
-                  padding: '1px 5px', borderRadius: 10, fontWeight: 700,
-                }}>{errors.length}</span>
+                <span className={styles.tabBadge}>{errors.length}</span>
               )}
             </div>
           ))}
         </div>
 
-        {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+        <div className={styles.content}>
           {activeTab === 'discover' && <DiscoverTab />}
           {activeTab === 'installed' && <InstalledTab />}
           {activeTab === 'marketplaces' && <MarketplacesTab />}

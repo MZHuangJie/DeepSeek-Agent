@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFilesStore } from '../../stores/files';
 import { getFileIconInfo } from '../../utils/icons';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './EditorTabs.module.css';
 
 function FileIcon({ name }: { name: string }) {
   const info = getFileIconInfo(name);
@@ -34,27 +35,26 @@ export default function EditorTabs() {
 
   return (
     <>
-      <div ref={containerRef} onWheel={handleWheel} style={{ display: 'flex', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', overflow: 'auto' }}>
+      <div ref={containerRef} onWheel={handleWheel} className={styles.container}>
         {openTabs.map(tab => {
           const isActive = activeTab === tab.path;
           const isDirty = tab.content !== tab.originalContent;
           return (
             <div key={tab.path} onClick={() => setActiveTab(tab.path)} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ visible: true, x: e.clientX, y: e.clientY, tabPath: tab.path }); }}
-              className={`${styles.editorTab} ${isActive ? styles.editorTabActive : styles.editorTabInactive}`}
-              style={{ background: isActive ? '#1e1e1e' : 'transparent', borderTopLeftRadius: 4, borderTopRightRadius: 4 }}
+              className={`${shared.editorTab} ${isActive ? shared.editorTabActive : shared.editorTabInactive} ${isActive ? styles.tabActiveBg : styles.tabBg}`}
             >
               <FileIcon name={tab.name} />
               <span>{tab.name}</span>
-              <span className={styles.dirtyDot} style={{ background: isDirty ? 'var(--accent)' : 'transparent' }} title={isDirty ? '未保存' : ''} />
-              <span onClick={(e) => { e.stopPropagation(); closeTab(tab.path); }} title="关闭" className={styles.closeTab}>
-                <img src="/assets/图层 12_w.png" alt="close" style={{ width: 12, height: 12 }} />
+              <span className={shared.dirtyDot} style={{ background: isDirty ? 'var(--accent)' : 'transparent' }} title={isDirty ? '未保存' : ''} />
+              <span onClick={(e) => { e.stopPropagation(); closeTab(tab.path); }} title="关闭" className={shared.closeTab}>
+                <img src="/assets/图层 12_w.png" alt="close" className={styles.closeIcon} />
               </span>
             </div>
           );
         })}
       </div>
       {menu.visible && (
-        <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', top: menu.y, left: menu.x, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 0', minWidth: 180, boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 1000 }}>
+        <div onClick={e => e.stopPropagation()} className={styles.contextMenu} style={{ top: menu.y, left: menu.x }}>
           <MenuItem onClick={() => { closeTab(menu.tabPath); setMenu(m => ({ ...m, visible: false })); }}>关闭</MenuItem>
           <MenuItem onClick={() => { closeOtherTabs(menu.tabPath); setMenu(m => ({ ...m, visible: false })); }}>关闭其他</MenuItem>
           <MenuItem onClick={() => { closeTabsToRight(menu.tabPath); setMenu(m => ({ ...m, visible: false })); }}>关闭右侧</MenuItem>
@@ -66,5 +66,5 @@ export default function EditorTabs() {
 }
 
 function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return <div onClick={onClick} className={styles.menuItem}>{children}</div>;
+  return <div onClick={onClick} className={shared.menuItem}>{children}</div>;
 }

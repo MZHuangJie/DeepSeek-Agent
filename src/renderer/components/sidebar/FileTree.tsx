@@ -4,7 +4,8 @@ import { useFilesStore, FileNode } from '../../stores/files';
 import { useBrowserStore } from '../../stores/browser';
 import { useRefsStore } from '../../stores/refs';
 import { getFileIconInfo } from '../../utils/icons';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './FileTree.module.css';
 
 function FileIcon({ name }: { name: string }) {
   const info = getFileIconInfo(name);
@@ -19,7 +20,7 @@ function FileIcon({ name }: { name: string }) {
 interface ContextMenuState {
   x: number;
   y: number;
-  node: FileNode | null; // null = 空白区域
+  node: FileNode | null;
 }
 
 function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void }) {
@@ -37,15 +38,6 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
     }
   }, [node, expanded, openFile]);
 
-  const handleDelete = async () => {
-    try {
-      await window.api.files.delete(node.path);
-      onRefresh();
-    } catch (err: any) {
-      alert(err.message || '删除失败');
-    }
-  };
-
   const startRename = () => {
     setRenameValue(node.name);
     setRenaming(true);
@@ -58,11 +50,8 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
     try {
       const dir = node.path.substring(0, node.path.lastIndexOf('\\'));
       const newPath = dir + '\\' + renameValue;
-      // 对于本项目，重命名 = 创建新 + 删除旧（简化实现）
-      const content = !node.isDirectory ? await window.api.files.read(node.path).catch(() => '') : '';
       if (!node.isDirectory) {
         await window.api.files.createFile(newPath);
-        // 写入原内容（简化：用 bash 做 copy）
       }
       await window.api.files.delete(node.path);
       onRefresh();
@@ -71,30 +60,18 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
     }
   };
 
-  const itemStyle: React.CSSProperties = {
-    padding: '4px 8px 4px ' + (8 + depth * 12) + 'px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 12,
-    color: 'var(--text-primary)',
-    whiteSpace: 'nowrap',
-    borderRadius: 4,
-    margin: '1px 4px',
-    transition: 'background 0.1s',
-  };
-
   return (
     <div>
       <div
         onClick={handleClick}
         onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, node); }}
-        className={styles.treeItem}
+        className={shared.treeItem}
+        style={{ paddingLeft: 8 + depth * 12 }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', width: 16, height: 16, flexShrink: 0, justifyContent: 'center' }}>
+        <span className={styles.nodeIcon}>
           {node.isDirectory ? (
-            <img src={expanded ? "/assets/展开.png" : "/assets/收起.png"} alt={expanded ? 'expanded' : 'collapsed'} style={{ maxWidth: 14, maxHeight: 14, width: expanded ? 14 : 10, height: expanded ? 8 : 14, objectFit: 'contain', flexShrink: 0 }} />
+            <img src={expanded ? "/assets/展开.png" : "/assets/收起.png"} alt={expanded ? 'expanded' : 'collapsed'}
+              className={styles.nodeIconImg} style={{ width: expanded ? 14 : 10, height: expanded ? 8 : 14 }} />
           ) : (
             <FileIcon name={node.name} />
           )}
@@ -107,10 +84,10 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
             onBlur={commitRename}
             onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false); }}
             onClick={(e) => e.stopPropagation()}
-            style={{ flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--accent)', color: 'var(--text-primary)', fontSize: 12, padding: '1px 4px', borderRadius: 2, outline: 'none', minWidth: 0 }}
+            className={styles.renameInput}
           />
         ) : (
-          <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.name}</span>
+          <span className={styles.nodeName}>{node.name}</span>
         )}
       </div>
       {expanded && node.children?.map(child => (
@@ -145,8 +122,8 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel }: { parentPat
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px 2px 36px' }}>
-      <span style={{ fontSize: 12, color: 'var(--text-secondary)', flexShrink: 0 }}><img src={isDirectory ? '/assets/文件夹.png' : '/assets/file.png'} alt="" style={{ width: 14, height: 14 }} /></span>
+    <div className={styles.createRow}>
+      <span className={styles.createIcon}><img src={isDirectory ? '/assets/文件夹.png' : '/assets/file.png'} alt="" style={{ width: 14, height: 14 }} /></span>
       <input
         ref={inputRef}
         value={value}
@@ -154,7 +131,7 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel }: { parentPat
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel(); }}
         placeholder={isDirectory ? '文件夹名称' : '文件名称'}
-        style={{ flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--accent)', color: 'var(--text-primary)', fontSize: 12, padding: '2px 6px', borderRadius: 3, outline: 'none', minWidth: 0 }}
+        className={styles.createInput}
       />
     </div>
   );
@@ -181,7 +158,6 @@ export default function FileTree() {
     return () => { unsubscribe(); };
   }, []);
 
-  // 点击其他地方关闭右键菜单
   useEffect(() => {
     const handler = () => setContextMenu(null);
     window.addEventListener('click', handler);
@@ -257,28 +233,28 @@ export default function FileTree() {
   const workspaceName = currentWorkspace ? currentWorkspace.split(/[\\/]/).pop() || currentWorkspace : '未打开文件夹';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', userSelect: 'none' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', flex: showExplorer ? 1 : '0 0 auto', overflow: 'hidden' }}>
-        <div onClick={() => setShowExplorer(!showExplorer)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', padding: '6px 12px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-          <span><img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14, marginRight: 6, verticalAlign: 'middle' }} />资源管理器 ({workspaceName})</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <img src="/assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" style={{ cursor: 'pointer', width: 14, height: 14, opacity: 0.7 }} />
+    <div className={styles.container}>
+      <div className={`${styles.mainSection} ${showExplorer ? styles.mainSectionExpanded : styles.mainSectionCollapsed}`}>
+        <div onClick={() => setShowExplorer(!showExplorer)} className={styles.sectionHeader}>
+          <span><img src="/assets/文件夹.png" alt="" className={styles.sectionIcon} />资源管理器 ({workspaceName})</span>
+          <div className={styles.headerActions}>
+            <img src="/assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" className={styles.refreshIcon} />
             <span>{showExplorer ? '▼' : '▶'}</span>
           </div>
         </div>
 
         {showExplorer && (
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-            <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button onClick={selectAndOpenWorkspace} style={{ flex: 1, border: 'none', background: 'var(--accent)', color: '#fff', padding: '6px 12px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'opacity 0.2s' }}
+          <div className={styles.mainSection}>
+            <div className={styles.toolbar}>
+              <button onClick={selectAndOpenWorkspace} className={styles.openBtn}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
                 <img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14, marginRight: 4, verticalAlign: 'middle' }} /> 打开其他文件夹
               </button>
             </div>
 
-            <div ref={treeAreaRef} style={{ flex: 1, overflow: 'auto', padding: '4px 0', position: 'relative' }} onContextMenu={handleBlankContextMenu}>
+            <div ref={treeAreaRef} className={styles.treeArea} onContextMenu={handleBlankContextMenu}>
               {tree.length === 0 ? (
-                <div style={{ padding: '20px', color: 'var(--text-secondary)', fontSize: 12, textAlign: 'center' }}>工作区无可见文件</div>
+                <div className={styles.emptyHint}>工作区无可见文件</div>
               ) : (
                 tree.map(node => <TreeNode key={node.path} node={node} onContextMenu={handleContextMenu} onRefresh={handleRefresh} />)
               )}
@@ -286,31 +262,24 @@ export default function FileTree() {
                 <InlineCreate parentPath={creating.parentPath} isDirectory={creating.isDirectory} onDone={onCreated} onCancel={() => setCreating(null)} />
               )}
 
-              {/* 右键菜单 — Portal 到 body 避免被父容器裁切 */}
               {contextMenu && createPortal(
-                <div style={{
-                  position: 'fixed', left: contextMenu.x, top: contextMenu.y,
-                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                  borderRadius: 6, padding: '4px 0', minWidth: 160,
-                  zIndex: 9999, boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                }}
+                <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}
                   onClick={(e) => e.stopPropagation()}>
                   <ContextMenuItem label="新建文件" onClick={() => startCreate(false)} />
                   <ContextMenuItem label="新建文件夹" onClick={() => startCreate(true)} />
                   {contextMenu.node && (
                     <>
-                      <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                      <div className={styles.contextDivider} />
                       <ContextMenuItem label="重命名" onClick={() => {
                         const node = contextMenuRef.current;
                         setContextMenu(null);
-                        // 触发双击重命名：找到对应 DOM 元素并双击
                         if (node) {
                           const el = document.querySelector(`[data-path="${node.path.replace(/\\/g, '\\\\')}"]`);
                           if (el) el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
                         }
                       }} />
                       <ContextMenuItem label="删除" onClick={handleDelete} />
-                      <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                      <div className={styles.contextDivider} />
                       {contextMenu.node && !contextMenu.node.isDirectory && (
                         <ContextMenuItem label="添加到对话" onClick={() => {
                           useRefsStore.getState().addRefFile(contextMenuRef.current!.path);
@@ -342,29 +311,28 @@ export default function FileTree() {
         )}
       </div>
 
-      {/* SECTION 2: RECENT WORKSPACES */}
-      <div style={{ display: 'flex', flexDirection: 'column', height: showRecent ? '180px' : 'auto', overflow: 'hidden', borderTop: '1px solid var(--border)' }}>
-        <div onClick={() => setShowRecent(!showRecent)} style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', padding: '6px 12px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-          <span><img src="/assets/recent.png" alt="" style={{ width: 14, height: 14, marginRight: 6, verticalAlign: 'middle' }} />最近打开的工作区</span>
+      {/* RECENT WORKSPACES */}
+      <div className={`${styles.recentSection} ${showRecent ? styles.recentSectionExpanded : styles.recentSectionCollapsed}`}>
+        <div onClick={() => setShowRecent(!showRecent)} className={styles.sectionHeader}>
+          <span><img src="/assets/recent.png" alt="" className={styles.sectionIcon} />最近打开的工作区</span>
           <span>{showRecent ? '▼' : '▶'}</span>
         </div>
         {showRecent && (
-          <div style={{ flex: 1, overflow: 'auto', padding: '6px 0' }}>
+          <div className={styles.recentList}>
             {recentWorkspaces.length === 0 ? (
-              <div style={{ padding: '16px', color: 'var(--text-secondary)', fontSize: 11, textAlign: 'center' }}>暂无历史打开记录</div>
+              <div className={styles.recentEmpty}>暂无历史打开记录</div>
             ) : (
               recentWorkspaces.map(p => {
                 const name = p.split(/[\\/]/).pop() || p;
                 const isActive = p === currentWorkspace;
                 return (
-                  <div key={p} style={{ position: 'relative' }}>
-                    <div onClick={() => openWorkspace(p)} className={`${styles.recentItem} ${isActive ? styles.recentItemActive : ''}`}
+                  <div key={p} className={styles.recentRow}>
+                    <div onClick={() => openWorkspace(p)} className={`${shared.recentItem} ${isActive ? shared.recentItemActive : ''}`}
                     title={p}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14 }} /> {name}</div>
-                    <div style={{ fontSize: '9px', color: 'var(--text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p}</div>
+                    <div className={styles.recentPath}>{p}</div>
                   </div>
-                  <span onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }} className={styles.chipClose}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}
+                  <span onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }} className={`${shared.chipClose} ${styles.recentRemove}`}
                     title="从列表中移除">✕</span>
                 </div>
                 );
@@ -378,5 +346,5 @@ export default function FileTree() {
 }
 
 function ContextMenuItem({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
-  return <div onClick={onClick} className={styles.menuItem} style={{ color: danger ? '#ef4444' : undefined }}>{label}</div>;
+  return <div onClick={onClick} className={shared.menuItem} style={{ color: danger ? '#ef4444' : undefined }}>{label}</div>;
 }

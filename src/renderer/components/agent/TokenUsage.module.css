@@ -1,0 +1,42 @@
+.container {
+  padding: 10px;
+}
+
+.header {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.total {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.row {
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.rowLabel {
+  color: var(--text-secondary);
+}
+
+.bar {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  height: 4px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 4px;
+}

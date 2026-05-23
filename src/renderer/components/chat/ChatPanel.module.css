@@ -1,0 +1,114 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.scrollArea {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 16px;
+  position: relative;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+.emptyLogo {
+  margin-bottom: 12px;
+}
+
+.emptyLogoImg {
+  width: 48px;
+  height: 44px;
+}
+
+.emptyTitle {
+  font-size: 14px;
+}
+
+.emptyHint {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.thinkingHint {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.thinkingIcon {
+  animation: pulse 1s infinite;
+}
+
+.thinkingIconImg {
+  width: 16px;
+  height: 16px;
+}
+
+.apiBar {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.apiRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.apiRowWithError {
+  margin-bottom: 8px;
+}
+
+.apiLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.apiInput {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+}
+
+.apiSaveBtn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.errorMsg {
+  font-size: 12px;
+  color: #ff6b6b;
+  margin-top: 4px;
+}
+
+.inputWrap {
+  position: relative;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

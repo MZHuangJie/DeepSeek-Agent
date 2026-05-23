@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useEditorStore } from '../../stores/editor';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './StatusBar.module.css';
 
 interface Props {
   language: string;
@@ -14,20 +15,19 @@ export default function StatusBar({ language }: Props) {
   const indentText = insertSpaces ? `空格: ${tabSize}` : `制表符: ${tabSize}`;
 
   return (
-    <div className={styles.statusBar}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className={shared.statusBar}>
+      <div className={styles.leftGroup}>
         <StatusItem>
-          <img src="/assets/error.png" alt="errors" style={{ width: 12, height: 12, marginRight: 4 }} />
+          <img src="/assets/error.png" alt="errors" className={styles.statusIcon} />
           <span>{errorCount}</span>
         </StatusItem>
         <StatusItem>
-          <span style={{ fontSize: 14, marginRight: 2 }}>⚠</span>
+          <span className={styles.warningIcon}>⚠</span>
           <span>{warningCount}</span>
         </StatusItem>
       </div>
 
-      {/* Right: cursor, indent, encoding, eol, language */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+      <div className={styles.rightGroup}>
         <StatusItem>
           <span>行 {line}, 列 {column}</span>
         </StatusItem>
@@ -58,8 +58,8 @@ export default function StatusBar({ language }: Props) {
         </StatusItem>
 
         <StatusItem>
-          <span style={{ fontFamily: 'Consolas, monospace', fontWeight: 600 }}>{'{ }'}</span>
-          <span style={{ marginLeft: 4 }}>{languageLabel(language)}</span>
+          <span className={styles.languageIcon}>{'{ }'}</span>
+          <span className={styles.languageLabel}>{languageLabel(language)}</span>
         </StatusItem>
       </div>
     </div>
@@ -81,25 +81,14 @@ function languageLabel(lang: string): string {
 }
 
 function StatusItem({ children, onClick, clickable }: { children: React.ReactNode; onClick?: () => void; clickable?: boolean }) {
-  return <div onClick={onClick} className={styles.statusItem} style={{ cursor: clickable ? 'pointer' : 'default' }}>{children}</div>;
+  return <div onClick={onClick} className={shared.statusItem} style={{ cursor: clickable ? 'pointer' : 'default' }}>{children}</div>;
 }
 
 function DropdownMenu({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <>
-      <div
-        style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
-        }}
-        onClick={onClose}
-      />
-      <div style={{
-        position: 'absolute', bottom: '100%', right: 0, marginBottom: 2,
-        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-        borderRadius: 4, minWidth: 120, padding: '2px 0',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        zIndex: 201,
-      }}>
+      <div className={styles.dropdownOverlay} onClick={onClose} />
+      <div className={styles.dropdown}>
         {children}
       </div>
     </>
@@ -107,16 +96,5 @@ function DropdownMenu({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        padding: '4px 12px', fontSize: 12, color: 'var(--text-primary)',
-        cursor: 'pointer', whiteSpace: 'nowrap',
-      }}
-      className={styles.statusDropdown}
-    >
-      {children}
-    </div>
-  );
+  return <div onClick={onClick} className={shared.statusDropdown}>{children}</div>;
 }

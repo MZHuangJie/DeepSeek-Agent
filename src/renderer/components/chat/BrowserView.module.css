@@ -1,0 +1,30 @@
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: var(--bg-secondary);
+}
+
+.urlInput {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 11px;
+  outline: none;
+}
+
+.webview {
+  flex: 1;
+  border: none;
+}

@@ -5,30 +5,22 @@ import ToolTimeline from './ToolTimeline';
 import ExploreProgress from './ExploreProgress';
 import TokenUsage from './TokenUsage';
 import SubAgentList from './SubAgentList';
+import styles from './AgentPanel.module.css';
 
 export default function AgentPanel() {
   const { currentStep, toolCalls, subAgents } = useAgentStore();
-
   const hasData = currentStep || toolCalls.length > 0 || subAgents.length > 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{
-        padding: '10px 12px', fontWeight: 600, fontSize: 12,
-        borderBottom: '1px solid var(--border)', textTransform: 'uppercase',
-        letterSpacing: 0.5, color: 'var(--text-secondary)',
-        display: 'flex', alignItems: 'center', gap: 6,
-        flexShrink: 0,
-      }}>
-        <img src="/assets/logo.png" alt="agent" style={{ width: 20, height: 18 }} />
+    <div className={styles.panel}>
+      <div className={styles.header}>
+        <img src="/assets/logo.png" alt="agent" className={styles.headerIcon} />
         <span>Agent 观测</span>
       </div>
 
-      {/* Scrollable content */}
-      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+      <div className={styles.content}>
         {!hasData && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: 12, padding: 20, textAlign: 'center', height: '100%' }}>
+          <div className={styles.emptyHint}>
             发送消息后，此处将显示<br />Agent 的思考过程与工具调用
           </div>
         )}
@@ -43,12 +35,7 @@ export default function AgentPanel() {
         )}
       </div>
 
-      {/* Fixed bottom: Token Usage */}
-      <div style={{
-        borderTop: '1px solid var(--border)',
-        flexShrink: 0,
-        background: 'var(--bg-secondary)',
-      }}>
+      <div className={styles.tokenFooter}>
         <TokenUsage />
       </div>
     </div>

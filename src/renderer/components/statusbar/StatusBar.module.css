@@ -1,0 +1,51 @@
+.leftGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rightGroup {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.statusIcon {
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+}
+
+.warningIcon {
+  font-size: 14px;
+  margin-right: 2px;
+}
+
+.languageIcon {
+  font-family: Consolas, monospace;
+  font-weight: 600;
+}
+
+.languageLabel {
+  margin-left: 4px;
+}
+
+.dropdownOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 200;
+}
+
+.dropdown {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 2px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  min-width: 120px;
+  padding: 2px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 201;
+}

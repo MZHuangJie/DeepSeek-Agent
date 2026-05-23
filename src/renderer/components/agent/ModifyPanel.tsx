@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAgentStore, ToolCallEntry } from '../../stores/agent';
 import { useFilesStore } from '../../stores/files';
+import styles from './ModifyPanel.module.css';
 
 interface FileChange {
   path: string;
@@ -37,7 +38,6 @@ function extractChanges(toolCalls: ToolCallEntry[]): FileChange[] {
     if (tc.status !== 'success') continue;
     let path = '';
     try { path = JSON.parse(tc.args || '{}').path || ''; } catch {}
-
     if (!path) continue;
     if (seen.has(path + tc.name)) continue;
     seen.add(path + tc.name);
@@ -70,13 +70,11 @@ export default function ModifyPanel() {
   });
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '10px 12px', fontWeight: 600, fontSize: 12, borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        文件修改
-      </div>
-      <div style={{ flex: 1, overflow: 'auto' }}>
+    <div className={styles.container}>
+      <div className={styles.header}>文件修改</div>
+      <div className={styles.list}>
         {changes.length === 0 && (
-          <div style={{ padding: 16, fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center' }}>暂无文件修改记录</div>
+          <div className={styles.empty}>暂无文件修改记录</div>
         )}
         {changes.map((c, i) => {
           const color = c.type === 'A' ? '#22c55e' : c.type === 'D' ? '#ef4444' : '#ffb74d';
@@ -85,29 +83,17 @@ export default function ModifyPanel() {
           return (
             <div key={i}>
               <div onClick={() => toggle(i)}
-                style={{
-                  padding: '6px 12px', cursor: 'pointer', fontSize: 11,
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: open ? 'var(--bg-tertiary)' : 'transparent',
-                }}
+                className={`${styles.row} ${open ? styles.rowOpen : ''}`}
               >
-                <span style={{ fontSize: 9 }}>{open ? '▼' : '▶'}</span>
-                <span style={{ color, fontWeight: 700, width: 16, textAlign: 'center', flexShrink: 0 }}>{c.type}</span>
-                <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
+                <span className={styles.caret}>{open ? '▼' : '▶'}</span>
+                <span className={styles.typeTag} style={{ color }}>{c.type}</span>
+                <span className={styles.fileName}
                   onClick={(e) => { e.stopPropagation(); openFile(c.path, name); }}
                   title="点击在编辑器中打开">{name}</span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: 9, flexShrink: 0 }}>{new Date(c.timestamp).toLocaleTimeString()}</span>
+                <span className={styles.fileTime}>{new Date(c.timestamp).toLocaleTimeString()}</span>
               </div>
               {open && (
-                <pre style={{
-                  margin: 0, padding: '6px 12px 6px 44px', fontSize: 10, fontFamily: 'Consolas, monospace',
-                  whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--text-secondary)',
-                  background: 'var(--bg-primary)', borderBottom: '1px solid rgba(255,255,255,0.03)',
-                  maxHeight: 200, overflow: 'auto',
-                }}>
-                  {c.diff}
-                </pre>
+                <pre className={styles.diff}>{c.diff}</pre>
               )}
             </div>
           );

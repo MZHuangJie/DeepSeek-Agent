@@ -1,0 +1,55 @@
+.container {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.header {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.bar {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.pct {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.stats {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.warning {
+  font-size: 11px;
+  color: #ffb74d;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(255,183,77,0.1);
+  border-radius: 4px;
+}

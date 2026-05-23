@@ -1,0 +1,31 @@
+.confirmTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.confirmMessage {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+}
+
+.confirmName {
+  color: var(--accent);
+}
+
+.diffPreview {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.footerWide {
+  width: 100%;
+}

@@ -1,0 +1,237 @@
+/* Shared card/list styles used across all plugin tabs */
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.searchInput {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+.actionBtn {
+  padding: 6px 12px;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.actionBtn:disabled {
+  opacity: 0.6;
+}
+
+.emptyHint {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+.emptyTitle {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.emptyDesc {
+  font-size: 12px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card {
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardError {
+  background: rgba(239,68,68,0.08);
+  border-color: rgba(239,68,68,0.3);
+}
+
+.cardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cardDesc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMeta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.installBtn {
+  padding: 4px 12px;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.installBtn:disabled {
+  opacity: 0.6;
+}
+
+.removeBtn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.installedBadge {
+  font-size: 11px;
+  color: #22c55e;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.clearBtn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.errorActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.errorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.errorBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.errorName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+.errorSource {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.errorMsg {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.errorTime {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  margin-top: 4px;
+}
+
+.retryBtn {
+  padding: 4px 10px;
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.4);
+  color: #ef4444;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.addForm {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.addInput {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+.addBtn {
+  padding: 7px 16px;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.addBtn:disabled {
+  opacity: 0.6;
+}
+
+.helpText {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}

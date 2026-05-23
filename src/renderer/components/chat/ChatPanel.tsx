@@ -11,7 +11,8 @@ import ConfirmDialog from './ConfirmDialog';
 import ChoiceDialog from './ChoiceDialog';
 import { Command } from '../../commands';
 import { useStreamHandler } from './useStreamHandler';
-import styles from '../../styles/components.module.css';
+import shared from '../../styles/components.module.css';
+import styles from './ChatPanel.module.css';
 
 export default function ChatPanel() {
   const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions } = useChatStore();
@@ -29,7 +30,6 @@ export default function ChatPanel() {
   const [choiceReq, setChoiceReq] = useState<{ choiceId: string; message: string; choices: Array<{ label: string; description?: string }> } | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set());
   const currentStepRef = useRef(0);
-  // 流式内容累积
   const totalContentRef = useRef('');
   const totalThinkingRef = useRef('');
   const pendingContentRef = useRef('');
@@ -56,14 +56,12 @@ export default function ChatPanel() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load API key & project dir & models & sessions on mount
   useEffect(() => {
     (async () => {
       await loadModels();
       await loadImageModel();
       await loadVisionModel();
       await loadSessions();
-      // 加载完会话后，如果没有历史会话，创建一个新的
       const { sessions, activeSessionId } = useChatStore.getState();
       if (sessions.length === 0 && !activeSessionId) {
         useChatStore.getState().createSession();
@@ -75,7 +73,6 @@ export default function ChatPanel() {
     })();
   }, []);
 
-  // Stream chunk handler (extracted to useStreamHandler hook)
   const handleStreamChunk = useStreamHandler({
     currentStepRef, totalContentRef, totalThinkingRef,
     pendingContentRef, pendingThinkingRef, flushRafBuffer,
@@ -88,11 +85,9 @@ export default function ChatPanel() {
     return () => { unsubscribe(); };
   }, [handleStreamChunk]);
 
-  // Listen for confirm requests from agent
   useEffect(() => {
     const unsubscribe = window.api.agent.onConfirmRequest((req) => {
       if (autoApprovedRef.current.has(req.name)) {
-        // 已自动允许，直接回复
         window.api.agent.confirmResponse(req.confirmId, true);
       } else {
         setConfirmReq(req);
@@ -101,7 +96,6 @@ export default function ChatPanel() {
     return () => { unsubscribe(); };
   }, []);
 
-  // Listen for choice requests from agent
   useEffect(() => {
     const unsubscribe = window.api.agent.onChoiceRequest((req) => {
       setChoiceReq(req);
@@ -126,14 +120,10 @@ export default function ChatPanel() {
     if (!apiKey) { setShowKeyInput(true); return; }
     setErrorMsg('');
 
-    const totalChars = messages.reduce((sum, m) => sum + m.content.length + (m.thinkingContent?.length ?? 0), 0);
-
     const displayContent = command ? `/${command.name} ${content}` : content;
 
-    // 截断 tool result 中的 base64 图片数据，避免历史消息膨胀
     function truncateToolResult(result: string): string {
       if (typeof result !== 'string') return result;
-      // 匹配 data:image/xxx;base64, 后跟大量 base64 字符
       const base64Regex = /data:image\/\w+;base64,[A-Za-z0-9+/=]{500,}/g;
       if (!base64Regex.test(result)) return result;
       base64Regex.lastIndex = 0;
@@ -149,7 +139,6 @@ export default function ChatPanel() {
         entry.reasoning_content = m.thinkingContent;
       }
       if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
-        // 只保留有 result 的 tool call（兼容旧数据中因 bug 缺失 result 的记录）
         const validCalls = m.toolCalls.filter(tc => tc.result !== undefined);
         if (validCalls.length > 0) {
           entry.tool_calls = validCalls.map(tc => ({
@@ -160,7 +149,6 @@ export default function ChatPanel() {
         }
       }
       history.push(entry);
-      // 每个带 tool_calls 的 assistant 消息后必须跟随 tool 消息
       if (entry.tool_calls && entry.tool_calls.length > 0) {
         for (const tc of (m.toolCalls ?? [])) {
           if (tc.result !== undefined) {
@@ -187,10 +175,12 @@ export default function ChatPanel() {
 
     const modelConfig = getActiveModel();
     const mode = useModeStore.getState().mode;
+    // 优先使用模型专属 API Key，否则用全局 Key
+    const effectiveApiKey = modelConfig.apiKey || apiKey;
     try {
       await window.api.agent.send({
         messages: history,
-        apiKey,
+        apiKey: effectiveApiKey,
         projectDir,
         newMessage: content || displayContent,
         model: modelConfig.model,
@@ -206,10 +196,10 @@ export default function ChatPanel() {
   }, [activeSessionId, apiKey, projectDir, messages, addMessage, setStreaming]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+    <div className={styles.container}>
       <div
         ref={scrollRef}
-        style={{ flex: 1, overflow: 'auto', padding: '12px 16px', position: 'relative' }}
+        className={styles.scrollArea}
         onScroll={() => {
           const el = scrollRef.current;
           if (el) {
@@ -218,63 +208,54 @@ export default function ChatPanel() {
         }}
       >
         {messages.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
-            <div style={{ marginBottom: 12 }}><img src="/assets/logo.png" alt="ai" style={{ width: 48, height: 44 }} /></div>
-            <div style={{ fontSize: 14 }}>开始与 DeepSeek Agent 对话</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>输入消息或 @ 引用文件</div>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyLogo}><img src="/assets/logo.png" alt="ai" className={styles.emptyLogoImg} /></div>
+            <div className={styles.emptyTitle}>开始与 DeepSeek Agent 对话</div>
+            <div className={styles.emptyHint}>输入消息或 @ 引用文件</div>
           </div>
         )}
         {messages.map(msg => <MessageBubble key={msg.id} message={msg} />)}
         {isStreaming && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--text-secondary)', fontSize: 12, padding: '4px 0' }}>
-            <span style={{ animation: 'pulse 1s infinite' }}><img src="/assets/8.png" alt="thinking" style={{ width: 16, height: 16 }} /></span>
+          <div className={styles.thinkingHint}>
+            <span className={styles.thinkingIcon}><img src="/assets/8.png" alt="thinking" className={styles.thinkingIconImg} /></span>
             <span>思考中...</span>
           </div>
         )}
         <div ref={endRef} />
         {showScrollDown && (
-          <div className={styles.scrollDownBtn} onClick={() => endRef.current?.scrollIntoView({ behavior: 'smooth' })} title="回到底部">
+          <div className={shared.scrollDownBtn} onClick={() => endRef.current?.scrollIntoView({ behavior: 'smooth' })} title="回到底部">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path className={styles.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path className={shared.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
         )}
       </div>
 
       {(showKeyInput || errorMsg) && (
-        <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+        <div className={styles.apiBar}>
           {showKeyInput && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: errorMsg ? 8 : 0 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>API Key:</span>
+            <div className={`${styles.apiRow} ${errorMsg ? styles.apiRowWithError : ''}`}>
+              <span className={styles.apiLabel}>API Key:</span>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
                 placeholder="输入 DeepSeek API Key"
-                style={{
-                  flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 4,
-                  color: 'var(--text-primary)', padding: '4px 8px', fontSize: 12, outline: 'none',
-                }}
+                className={styles.apiInput}
               />
-              <button
-                onClick={handleSaveKey}
-                style={{
-                  background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 4,
-                  padding: '4px 10px', fontSize: 12, cursor: 'pointer',
-                }}
-              >
+              <button onClick={handleSaveKey} className={styles.apiSaveBtn}>
                 保存
               </button>
             </div>
           )}
           {errorMsg && (
-            <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 4 }}>{errorMsg}</div>
+            <div className={styles.errorMsg}>{errorMsg}</div>
           )}
         </div>
       )}
 
-      <div style={{ position: 'relative' }}>
+      <div className={styles.inputWrap}>
         {choiceReq && (
           <ChoiceDialog
             message={choiceReq.message}

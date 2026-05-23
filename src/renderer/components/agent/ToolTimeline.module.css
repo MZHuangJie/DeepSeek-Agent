@@ -1,0 +1,97 @@
+.container {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.header {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.empty {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.list {
+  max-height: 200px;
+  overflow: auto;
+}
+
+.row {
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.rowSubAgent {
+  margin-bottom: 4px;
+  background: rgba(79, 195, 247, 0.08);
+  border-left: 2px solid #4fc3f7;
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.subAgentBadge {
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  background: #4fc3f7;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+}
+
+.toolName {
+  font-weight: 500;
+}
+
+.toolNameDefault {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.toolNameSubAgent {
+  color: #4fc3f7;
+  font-weight: 500;
+}
+
+.time {
+  color: var(--text-secondary);
+  margin-left: auto;
+  font-size: 10px;
+}
+
+.args {
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-top: 2px;
+  padding-left: 20px;
+  word-break: break-word;
+}
+
+.result {
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-top: 2px;
+  padding-left: 20px;
+  opacity: 0.7;
+  max-height: 40px;
+  overflow: hidden;
+}
+
+.iconImg {
+  width: 12px;
+  height: 12px;
+}

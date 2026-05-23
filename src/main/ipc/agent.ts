@@ -6,9 +6,10 @@ import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
 import { getSetting } from '../db/settings';
-import { debugLog, errorLog, infoLog } from '../logger';
+import { errorLog, infoLog } from '../logger';
 import { compressToolResult } from '../agent/compression';
 import { buildExploreState, shouldContinueExplore, buildExploreNudge, buildExploreCompletionNudge } from '../agent/explore-monitor';
+import { pluginManager } from '../plugin/manager';
 
 
 let activeAbort: AbortController | null = null;
@@ -65,9 +66,10 @@ export function setupAgentHandlers() {
 
     // 根据模式选择 system prompt，命令 prompt 追加在后
     const baseSystemPrompt = getSystemPrompt(payload.mode);
+    const pluginPrompts = pluginManager.getSystemPrompts();
     const fullSystemPrompt = payload.commandPrompt
-      ? `${baseSystemPrompt}\n\n## 当前命令模式\n${payload.commandPrompt}`
-      : baseSystemPrompt;
+      ? `${baseSystemPrompt}\n\n${pluginPrompts}\n\n## 当前命令模式\n${payload.commandPrompt}`
+      : pluginPrompts ? `${baseSystemPrompt}\n\n${pluginPrompts}` : baseSystemPrompt;
 
     const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
     let messages: any[] = buildMessages(prefix, payload.messages, payload.newMessage);

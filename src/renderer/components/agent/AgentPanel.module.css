@@ -1,0 +1,48 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.header {
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.headerIcon {
+  width: 20px;
+  height: 18px;
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.emptyHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 20px;
+  text-align: center;
+  height: 100%;
+}
+
+.tokenFooter {
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}

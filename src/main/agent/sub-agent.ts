@@ -1,4 +1,5 @@
-import { streamChat, ModelConfig, StreamCallbacks } from './client';
+import { streamChat, ModelConfig } from './client';
+import type { StreamCallbacks } from './providers/types';
 import { getAllTools, getToolSchemas } from './tools';
 import { BrowserWindow } from 'electron';
 
@@ -279,7 +280,7 @@ export class SubAgentManager {
       if (signal.aborted) break;
 
       const callbacks: StreamCallbacks = {
-        onContent: (text) => {
+        onContent: (text: string) => {
           this.win.webContents.send('agent:stream-chunk', {
             type: 'sub-agent-chunk',
             taskId: task.id,
@@ -287,7 +288,7 @@ export class SubAgentManager {
             text,
           });
         },
-        onThinking: (text) => {
+        onThinking: (text: string) => {
           this.win.webContents.send('agent:stream-chunk', {
             type: 'sub-agent-chunk',
             taskId: task.id,
@@ -451,7 +452,7 @@ export class SubAgentManager {
       });
 
       const summaryCallbacks: StreamCallbacks = {
-        onContent: (text) => {
+        onContent: (text: string) => {
           this.win.webContents.send('agent:stream-chunk', {
             type: 'sub-agent-chunk',
             taskId: task.id,
@@ -459,7 +460,7 @@ export class SubAgentManager {
             text,
           });
         },
-        onThinking: (text) => {
+        onThinking: (text: string) => {
           this.win.webContents.send('agent:stream-chunk', {
             type: 'sub-agent-chunk',
             taskId: task.id,
