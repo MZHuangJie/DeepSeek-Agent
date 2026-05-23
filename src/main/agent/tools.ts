@@ -10,6 +10,7 @@ import { createBashTool } from './tools/bash';
 import { createListFilesTool } from './tools/list-files';
 import { createSpawnSubAgentTool } from './tools/spawn-sub-agent';
 import { createAutoDecomposeTaskTool } from './tools/auto-decompose-task';
+import { createBrowseUrlTool } from './tools/browse-url';
 import { getExtraTools } from './tools-extras';
 
 export function getAllTools(projectDir: string): ToolDef[] {
@@ -23,6 +24,7 @@ export function getAllTools(projectDir: string): ToolDef[] {
     createListFilesTool(projectDir),
     createSpawnSubAgentTool(projectDir),
     createAutoDecomposeTaskTool(projectDir),
+    createBrowseUrlTool(),
     ...getExtraTools(projectDir),
   ];
 }
