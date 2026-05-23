@@ -35,23 +35,31 @@ interface ThemeState {
   getAreaColors: (area: ThemeArea) => ThemeColors;
 }
 
-function cssVarKey(area: ThemeArea, name: string): string {
-  return `--ds-${area}-${name.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-}
-
 function applyColors(element: HTMLElement | null, colors: ThemeColors, area: ThemeArea) {
   if (!element) return;
-  const keys: Array<keyof ThemeColors> = ['bgPrimary', 'bgSecondary', 'bgTertiary', 'textPrimary', 'textSecondary', 'accent', 'border', 'chatUser', 'chatAi'];
+  const map: Record<keyof ThemeColors, string> = {
+    bgPrimary: '--bg-primary', bgSecondary: '--bg-secondary', bgTertiary: '--bg-tertiary',
+    textPrimary: '--text-primary', textSecondary: '--text-secondary',
+    accent: '--accent', border: '--border',
+    chatUser: '--chat-user', chatAi: '--chat-ai',
+  };
+  const keys = Object.keys(map) as Array<keyof ThemeColors>;
   for (const k of keys) {
-    element.style.setProperty(cssVarKey(area, k), colors[k]);
+    element.style.setProperty(map[k], colors[k]);
   }
 }
 
 function clearColors(element: HTMLElement | null, area: ThemeArea) {
   if (!element) return;
-  const keys: Array<keyof ThemeColors> = ['bgPrimary', 'bgSecondary', 'bgTertiary', 'textPrimary', 'textSecondary', 'accent', 'border', 'chatUser', 'chatAi'];
+  const map: Record<keyof ThemeColors, string> = {
+    bgPrimary: '--bg-primary', bgSecondary: '--bg-secondary', bgTertiary: '--bg-tertiary',
+    textPrimary: '--text-primary', textSecondary: '--text-secondary',
+    accent: '--accent', border: '--border',
+    chatUser: '--chat-user', chatAi: '--chat-ai',
+  };
+  const keys = Object.keys(map) as Array<keyof ThemeColors>;
   for (const k of keys) {
-    element.style.removeProperty(cssVarKey(area, k));
+    element.style.removeProperty(map[k]);
   }
 }
 
