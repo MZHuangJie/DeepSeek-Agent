@@ -15,7 +15,7 @@ const ITEMS: Array<{ id: PanelView; label: string; icon: string }> = [
   { id: 'sessions', label: '会话', icon: '/assets/session.png' },
   { id: 'browser', label: '浏览器', icon: '/assets/web.png' },
   { id: 'agent', label: 'AGENT', icon: '/assets/usaged.png' },
-  { id: 'modify', label: '文件修改', icon: '' },
+  { id: 'modify', label: '文件修改', icon: '/assets/modify.png' },
 ];
 
 function BarBtn({ icon, title, onClick, active }: { icon: string; title: string; onClick: () => void; active?: boolean }) {
@@ -23,7 +23,7 @@ function BarBtn({ icon, title, onClick, active }: { icon: string; title: string;
     <div onClick={onClick} title={title} className={styles.barBtn}
       style={{ background: active ? 'var(--accent)' : 'transparent', opacity: active ? 1 : 0.5 }}
     >
-      {icon ? <img src={icon} alt={title} style={{ width: 18, height: 18 }} /> : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>M</span>}
+      <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
       {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 2, height: 20, background: '#fff', borderRadius: 1 }} />}
     </div>
   );

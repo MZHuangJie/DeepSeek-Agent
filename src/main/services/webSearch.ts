@@ -6,82 +6,211 @@ interface SearchResult {
   snippet: string;
 }
 
-function httpGet(hostname: string, path: string, timeout = 10000): Promise<string> {
+// ============================================================
+// HTTP 工具
+// ============================================================
+
+function httpRequest(
+  hostname: string,
+  path: string,
+  options?: { method?: string; body?: string; timeout?: number }
+): Promise<string> {
+  const timeout = options?.timeout ?? 15000;
+  const method = options?.method ?? 'GET';
+
   return new Promise((resolve, reject) => {
-    const req = https.get(
-      { hostname, path, headers: { 'User-Agent': 'DeepSeek-Agent/1.0' }, servername: hostname, timeout },
+    const req = https.request(
+      {
+        hostname,
+        path,
+        method,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+          ...(options?.body ? {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': Buffer.byteLength(options.body).toString(),
+          } : {}),
+        },
+        timeout,
+      },
       (res) => {
-        if (res.statusCode === 301 || res.statusCode === 302) {
+        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
           const loc = res.headers.location;
           if (loc) {
             try {
               const u = new URL(loc);
-              httpGet(u.hostname, u.pathname + u.search, timeout).then(resolve).catch(reject);
-            } catch { reject(new Error('重定向失败')); }
+              httpRequest(u.hostname, u.pathname + u.search, { method: 'GET', timeout })
+                .then(resolve).catch(reject);
+            } catch {
+              reject(new Error('重定向失败'));
+            }
           }
           return;
         }
-        let data = '';
-        res.on('data', (c: string) => { data += c; });
-        res.on('end', () => resolve(data));
+
+        if (res.statusCode !== 200) {
+          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
         res.on('error', reject);
       }
     );
+
     req.on('timeout', () => { req.destroy(); reject(new Error('搜索超时')); });
     req.on('error', reject);
+
+    if (options?.body) {
+      req.write(options.body);
+    }
+    req.end();
   });
 }
 
-export async function webSearch(query: string, maxResults = 8): Promise<SearchResult[]> {
-  // 尝试 DuckDuckGo Lite，失败后用 Bing 备选
-  try {
-    return await searchDDG(query, maxResults);
-  } catch {
+// 带重试的请求
+async function httpRequestWithRetry(
+  hostname: string,
+  path: string,
+  options?: { method?: string; body?: string; timeout?: number },
+  retries = 1
+): Promise<string> {
+  for (let i = 0; i <= retries; i++) {
     try {
-      return await searchBing(query, maxResults);
-    } catch (e: any) {
-      throw new Error(`搜索失败: ${e.message}`);
+      return await httpRequest(hostname, path, options);
+    } catch (e) {
+      if (i === retries) throw e;
+      // 等 500ms 后重试
+      await new Promise(r => setTimeout(r, 500));
     }
   }
+  throw new Error('unreachable');
 }
+
+
+// ============================================================
+// 搜索引擎
+// ============================================================
+
+export async function webSearch(query: string, maxResults = 8): Promise<SearchResult[]> {
+  const engines: Array<{ name: string; fn: () => Promise<SearchResult[]> }> = [
+    { name: 'DuckDuckGo', fn: () => searchDDG(query, maxResults) },
+    { name: 'Bing', fn: () => searchBing(query, maxResults) },
+    { name: 'Google', fn: () => searchGoogle(query, maxResults) },
+  ];
+
+  for (const engine of engines) {
+    try {
+      const results = await engine.fn();
+      if (results.length > 0) return results;
+    } catch (e: any) {
+      // 当前引擎失败，尝试下一个
+      continue;
+    }
+  }
+
+  throw new Error('所有搜索引擎均失败');
+}
+
+
+// ============================================================
+// DuckDuckGo HTML 搜索
+// 接口: POST https://html.duckduckgo.com/html/
+// 同时支持 GET 作为 fallback
+// ============================================================
 
 async function searchDDG(query: string, maxResults: number): Promise<SearchResult[]> {
   const encoded = encodeURIComponent(query);
-  const html = await httpGet('lite.duckduckgo.com', `/lite?q=${encoded}`);
-  const results: SearchResult[] = [];
-  const linkRe = /<a[^>]*href="([^"]*)"[^>]*class="result-link"[^>]*>([^<]*)<\/a>/gi;
-  const snippetRe = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi;
 
-  if (html.includes('class="result-link"')) {
-    const links: Array<{ title: string; url: string }> = [];
-    let m;
-    while ((m = linkRe.exec(html)) !== null) {
-      links.push({ url: m[1], title: m[2].replace(/<[^>]*>/g, '').trim() });
-    }
-    const snippets: string[] = [];
-    while ((m = snippetRe.exec(html)) !== null) {
-      snippets.push(m[1].replace(/<[^>]*>/g, '').trim());
-    }
-    for (let i = 0; i < Math.min(links.length, snippets.length, maxResults); i++) {
-      results.push({ ...links[i], snippet: snippets[i] });
-    }
+  // 先尝试 POST
+  let html: string;
+  try {
+    html = await httpRequestWithRetry('html.duckduckgo.com', '/html/', {
+      method: 'POST',
+      body: `q=${encoded}`,
+      timeout: 10000,
+    });
+  } catch {
+    // POST 失败则尝试 GET
+    html = await httpRequestWithRetry('html.duckduckgo.com', `/html/?q=${encoded}`, {
+      method: 'GET',
+      timeout: 10000,
+    });
   }
-  if (results.length === 0) throw new Error('未找到结果');
+
+  return parseDDGHTML(html, maxResults);
+}
+
+function parseDDGHTML(html: string, maxResults: number): SearchResult[] {
+  const results: SearchResult[] = [];
+
+  // DuckDuckGo HTML 版结构:
+  // <div class="result results_links ...">
+  //   <a class="result__a" href="...">标题</a>
+  //   <a class="result__snippet">摘要</a>
+  // </div>
+
+  const blockRe = /<div class="result results_links[\s\S]*?<\/div>\s*<\/div>/gi;
+  let m: RegExpExecArray | null;
+
+  while ((m = blockRe.exec(html)) !== null) {
+    const block = m[0];
+
+    const urlMatch = block.match(/class="result__a"[^>]*href="([^"]*)"/i);
+    const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/i);
+    const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i);
+
+    if (urlMatch && titleMatch) {
+      let url = urlMatch[1]
+        .replace(/&amp;/g, '&')
+        .trim();
+
+      // DDG 会把真实 URL 编码在 uddg 参数里，需要解码
+      if (url.includes('uddg=')) {
+        try {
+          const decoded = decodeURIComponent(url);
+          const uddgMatch = decoded.match(/uddg=([^&]+)/);
+          if (uddgMatch) url = uddgMatch[1];
+        } catch { /* keep original */ }
+      }
+
+      results.push({
+        url,
+        title: titleMatch[1].replace(/<[^>]*>/g, '').trim(),
+        snippet: snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim() : '',
+      });
+    }
+
+    if (results.length >= maxResults) break;
+  }
+
+  if (results.length === 0) throw new Error('DDG 未找到结果');
   return results;
 }
 
+
+// ============================================================
+// Bing 搜索
+// ============================================================
+
 async function searchBing(query: string, maxResults: number): Promise<SearchResult[]> {
   const encoded = encodeURIComponent(query);
-  const html = await httpGet('www.bing.com', `/search?q=${encoded}&count=${maxResults}`);
+  const html = await httpRequestWithRetry('www.bing.com', `/search?q=${encoded}&count=${maxResults}`, { timeout: 10000 });
+
   const results: SearchResult[] = [];
-  // Bing 结果格式: <li class="b_algo"><h2><a href="url">title</a></h2><p>snippet</p>
   const blockRe = /<li class="b_algo">([\s\S]*?)<\/li>/gi;
-  let m;
+  let m: RegExpExecArray | null;
+
   while ((m = blockRe.exec(html)) !== null) {
     const block = m[1];
     const urlM = block.match(/<a[^>]*href="(https?:\/\/[^"]*)"/i);
     const titleM = block.match(/<a[^>]*>([^<]+)<\/a>/i);
     const snippetM = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+
     if (urlM && titleM) {
       results.push({
         url: urlM[1].replace(/&amp;/g, '&'),
@@ -89,8 +218,52 @@ async function searchBing(query: string, maxResults: number): Promise<SearchResu
         snippet: snippetM ? snippetM[1].replace(/<[^>]*>/g, '').trim() : '',
       });
     }
+
     if (results.length >= maxResults) break;
   }
-  if (results.length === 0) throw new Error('未找到结果');
+
+  if (results.length === 0) throw new Error('Bing 未找到结果');
+  return results;
+}
+
+
+// ============================================================
+// Google 搜索（HTML 爬取，无需 API Key）
+// ============================================================
+
+async function searchGoogle(query: string, maxResults: number): Promise<SearchResult[]> {
+  const encoded = encodeURIComponent(query);
+  const html = await httpRequestWithRetry('www.google.com', `/search?q=${encoded}&num=${maxResults}&hl=zh-CN`, { timeout: 10000 });
+
+  const results: SearchResult[] = [];
+
+  // Google 搜索结果结构:
+  // <div class="g"> ... <a href="url"><h3>标题</h3></a> ... <span class="st">摘要</span> ... </div>
+  // 或用正则匹配: <a href="/url?q=REAL_URL&..."><h3>标题</h3></a>
+
+  // 方式1: 匹配 /url?q= 格式的链接（Google 自己的跳转链接）
+  const blockRe = /<a href="\/url\?q=(https?:\/\/[^"&]*)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+
+  while ((m = blockRe.exec(html)) !== null && results.length < maxResults) {
+    const rawUrl = m[1].replace(/&amp;/g, '&');
+    const titleBlock = m[2];
+
+    // 提取标题（去掉 HTML 标签）
+    const titleMatch = titleBlock.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
+    const title = titleMatch
+      ? titleMatch[1].replace(/<[^>]*>/g, '').trim()
+      : titleBlock.replace(/<[^>]*>/g, '').trim();
+
+    // 尝试找摘要
+    const snippetMatch = html.substring(m.index).match(/<span class="[^"]*st[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
+    const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+
+    if (title && rawUrl && !results.find(r => r.url === rawUrl)) {
+      results.push({ url: decodeURIComponent(rawUrl), title, snippet });
+    }
+  }
+
+  if (results.length === 0) throw new Error('Google 未找到结果');
   return results;
 }
