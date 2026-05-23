@@ -8,6 +8,7 @@ import { getSystemPrompt, AgentMode } from '../agent/prompt';
 import { getSetting } from '../db/settings';
 import { debugLog, errorLog, infoLog } from '../logger';
 import { compressToolResult } from '../agent/compression';
+import { buildExploreState, shouldContinueExplore, buildExploreNudge, buildExploreCompletionNudge } from '../agent/explore-monitor';
 
 
 let activeAbort: AbortController | null = null;
