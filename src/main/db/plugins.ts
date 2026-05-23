@@ -35,13 +35,14 @@ export interface InstalledPluginRow {
   system_prompt: string;
   source: string | null;
   installed_at: number;
+  extra_data: string | null;
 }
 
-export function installPlugin(name: string, description: string | null, systemPrompt: string, source: string | null) {
+export function installPlugin(name: string, description: string | null, systemPrompt: string, source: string | null, extraData?: string) {
   const db = getDb();
   db.prepare(
-    'INSERT OR REPLACE INTO installed_plugins (name, description, system_prompt, source, installed_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(name, description, systemPrompt, source, Date.now());
+    'INSERT OR REPLACE INTO installed_plugins (name, description, system_prompt, source, installed_at, extra_data) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(name, description, systemPrompt, source, Date.now(), extraData || null);
 }
 
 export function uninstallPlugin(name: string) {
@@ -51,7 +52,7 @@ export function uninstallPlugin(name: string) {
 
 export function listPlugins(): InstalledPluginRow[] {
   const db = getDb();
-  return db.prepare('SELECT name, description, system_prompt, source, installed_at FROM installed_plugins').all() as InstalledPluginRow[];
+  return db.prepare('SELECT name, description, system_prompt, source, installed_at, extra_data FROM installed_plugins').all() as InstalledPluginRow[];
 }
 
 export function getPlugin(name: string): InstalledPluginRow | null {

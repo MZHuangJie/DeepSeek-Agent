@@ -65,6 +65,11 @@ export function setupPluginHandlers() {
         frontmatter.description || meta.name,
         content,
         meta.source,
+        JSON.stringify({
+          version: frontmatter.version,
+          commands: frontmatter.commands,
+          hooks: frontmatter.onInstall || frontmatter.onUninstall ? { onInstall: frontmatter.onInstall, onUninstall: frontmatter.onUninstall } : undefined,
+        }),
       );
       return { success: true };
     } catch (err: any) {
@@ -80,7 +85,10 @@ export function setupPluginHandlers() {
   });
 
   ipcMain.handle('plugin:list-installed', async () => {
-    return listPlugins();
+    return listPlugins().map(p => ({
+      ...p,
+      extra: p.extra_data ? JSON.parse(p.extra_data) : null,
+    }));
   });
 
   ipcMain.handle('plugin:get-errors', async () => {

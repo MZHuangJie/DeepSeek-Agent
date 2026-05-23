@@ -13,6 +13,9 @@ export interface InstalledPlugin {
   system_prompt: string;
   source: string | null;
   installed_at: number;
+  version?: string;
+  commands?: Array<{ name: string; description: string; handler: 'prompt' | 'tool' }>;
+  hooks?: { onInstall?: string; onUninstall?: string };
 }
 
 export interface MarketplaceEntry {
