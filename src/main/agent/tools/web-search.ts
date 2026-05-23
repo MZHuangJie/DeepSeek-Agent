@@ -1,7 +1,7 @@
 // 网络搜索 — web_search 工具
 // 参数: query, maxResults
 // DuckDuckGo → Bing 自动降级
-import { webSearch } from '../services/webSearch';
+import { webSearch } from '../../services/webSearch';
 import type { ToolDef } from './index';
 
 export function createWebSearchTool(): ToolDef {

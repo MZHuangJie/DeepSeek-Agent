@@ -1,7 +1,7 @@
 // 图片识别 — describe_image 工具
 // 参数: path(图片路径), prompt(可选)
 // 调用Vision模型描述图片内容
-import { describeImage, VisionModelConfig } from '../services/vision';
+import { describeImage, VisionModelConfig } from '../../services/vision';
 import type { ToolDef } from './index';
 
 export function createDescribeImageTool(): ToolDef {

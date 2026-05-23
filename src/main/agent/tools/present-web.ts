@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { shell } from 'electron';
-import { presentWebPreview } from '../services/webPreview';
+import { presentWebPreview } from '../../services/webPreview';
 import type { ToolDef } from './index';
 
 export function createPresentWebTool(): ToolDef {

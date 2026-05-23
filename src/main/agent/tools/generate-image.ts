@@ -3,7 +3,7 @@
 // 调用生图模型，base64存项目目录
 import fs from 'fs';
 import path from 'path';
-import { generateImage, ImageModelConfig } from '../services/imageGen';
+import { generateImage, ImageModelConfig } from '../../services/imageGen';
 import type { ToolDef } from './index';
 
 export function createGenerateImageTool(): ToolDef {

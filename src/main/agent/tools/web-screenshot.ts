@@ -3,7 +3,7 @@
 // Electron窗口截图存到.deepseek-agent-images/
 import fs from 'fs';
 import path from 'path';
-import { webScreenshot } from '../services/browser';
+import { webScreenshot } from '../../services/browser';
 import type { ToolDef } from './index';
 
 export function createWebScreenshotTool(): ToolDef {

@@ -1,7 +1,7 @@
 // 网页内容抓取 — web_fetch 工具
 // 参数: url
 // Electron隐藏窗口抓取文本内容
-import { webFetch } from '../services/browser';
+import { webFetch } from '../../services/browser';
 import type { ToolDef } from './index';
 
 export function createWebFetchTool(): ToolDef {
