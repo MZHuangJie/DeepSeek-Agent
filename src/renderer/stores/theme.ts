@@ -18,7 +18,7 @@ export interface ThemeColors {
 
 const PRESET_COLORS: Record<Exclude<ThemePreset, 'custom'>, ThemeColors> = {
   dark: { bgPrimary: '#1e1e2e', bgSecondary: '#252536', bgTertiary: '#2d2d44', textPrimary: '#e0e0e0', textSecondary: '#8888a0', accent: '#7c3aed', border: '#3a3a50', chatUser: 'rgba(124,58,237,0.1)', chatAi: '#2d2d44' },
-  light: { bgPrimary: '#ffffff', bgSecondary: '#f5f5f5', bgTertiary: '#ebebeb', textPrimary: '#1e1e1e', textSecondary: '#666666', accent: '#7c3aed', border: '#d4d4d4', chatUser: 'rgba(124,58,237,0.08)', chatAi: '#f0f0f0' },
+  light: { bgPrimary: '#ffffff', bgSecondary: '#f5f5f5', bgTertiary: '#ebebeb', textPrimary: '#1e1e1e', textSecondary: '#666666', accent: '#7c3aed', border: '#d4d4d4', chatUser: '#ede9fe', chatAi: '#f3f4f6' },
   'dark-hc': { bgPrimary: '#000000', bgSecondary: '#0d0d0d', bgTertiary: '#1a1a1a', textPrimary: '#ffffff', textSecondary: '#aaaaaa', accent: '#a78bfa', border: '#444444', chatUser: 'rgba(167,139,250,0.12)', chatAi: '#1a1a1a' },
   'light-warm': { bgPrimary: '#fefdf9', bgSecondary: '#f5f0e8', bgTertiary: '#ede4d3', textPrimary: '#3d3522', textSecondary: '#8b7e65', accent: '#7c3aed', border: '#d4c9b0', chatUser: 'rgba(124,58,237,0.08)', chatAi: '#f5f0e8' },
 };

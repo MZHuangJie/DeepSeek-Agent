@@ -100,7 +100,7 @@ function ImageCard({ url, alt }: { url: string; alt: string }) {
   return (
     <div key={url} style={{ margin: '8px 0' }}>
       <img
-        src={url}
+        src={src}
         alt={alt}
         style={{
           maxWidth: '100%',
