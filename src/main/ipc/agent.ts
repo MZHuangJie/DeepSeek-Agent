@@ -545,27 +545,6 @@ export function setupAgentHandlers() {
     }
 
     // 收集本次对话中修改过的文件
-    const modifiedFiles = new Set<string>();
-    for (const m of messages) {
-      if (m.role === 'assistant' && m.tool_calls) {
-        for (const tc of m.tool_calls) {
-          if (tc.function?.name === 'write_file' || tc.function?.name === 'edit_file') {
-            try {
-              const args = JSON.parse(tc.function.arguments || '{}');
-              if (args.path) modifiedFiles.add(args.path);
-            } catch {}
-          }
-        }
-      }
-    }
-    if (modifiedFiles.size > 0) {
-      const fileList = Array.from(modifiedFiles).map(f => `- \`${f}\``).join('\n');
-      win.webContents.send('agent:stream-chunk', {
-        type: 'content',
-        text: `\n---\n**修改过的文件 (${modifiedFiles.size})**：\n${fileList}\n`,
-      });
-    }
-
     activeAbort = null;
     activeSubAgentManager = null;
     win.webContents.send('agent:stream-chunk', { type: 'done' });
