@@ -206,6 +206,7 @@ export default function App() {
               flex: openTabs.length > 0 ? '0 0 auto' : 1,
               flexShrink: 0, overflow: 'hidden',
               display: 'flex', flexDirection: 'column',
+              background: 'var(--bg-primary)', color: 'var(--text-primary)',
               borderLeft: openTabs.length > 0 ? '1px solid var(--border)' : 'none',
             }}>
               {activeSessionId ? (
