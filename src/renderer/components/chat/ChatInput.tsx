@@ -253,8 +253,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                   padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 4,
                   fontSize: 12, fontWeight: 500, borderRadius: 4,
                 }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                className={styles.hoverSubtle}
               >
                 <span>{activeModel?.name || 'Agent'}</span>
                 <span style={{ fontSize: 8, opacity: 0.6 }}>▼</span>
@@ -291,8 +290,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                   padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 4,
                   fontSize: 12, fontWeight: 500, borderRadius: 4,
                 }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                className={styles.hoverSubtle}
               >
                 <img src={activeMode.icon} alt="" style={{ width: 14, height: 14 }} />
                 <span>{activeMode.label}</span>

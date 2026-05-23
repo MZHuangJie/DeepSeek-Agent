@@ -114,8 +114,7 @@ function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: (
         padding: '4px 12px', fontSize: 12, color: 'var(--text-primary)',
         cursor: 'pointer', whiteSpace: 'nowrap',
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      className={styles.statusDropdown}
     >
       {children}
     </div>

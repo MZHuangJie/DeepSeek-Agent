@@ -421,6 +421,67 @@
 }
 
 /* ── 图片查看器 ── */
+/* ── 通用 hover ── */
+.hoverBg:hover { background: var(--bg-tertiary); }
+.hoverSubtle:hover { background: rgba(255,255,255,0.05); }
+.hoverOpacity:hover { opacity: 1; }
+
+/* ── Terminal ── */
+.termTab {
+  padding: 4px 12px; cursor: pointer; font-size: 12px; color: var(--text-secondary);
+  display: flex; align-items: center; gap: 6px; border: 1px solid var(--border);
+  border-radius: 4px 4px 0 0; border-bottom: none; transition: all 0.15s;
+}
+.termTab:hover { background: rgba(255,255,255,0.06); border-color: var(--text-secondary); }
+.termTabActive { background: var(--terminal-bg); color: var(--accent); }
+.termClose { cursor: pointer; opacity: 0.4; }
+.termClose:hover { opacity: 1; background: var(--bg-tertiary); }
+.termListItem { padding: 6px 10px; cursor: pointer; font-size: 11px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.termListItem:hover { background: var(--bg-tertiary); }
+
+/* ── SessionList ── */
+.sessionItem {
+  padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; transition: background 0.1s;
+}
+.sessionItem:hover { background: var(--bg-tertiary); }
+.sessionDelete {
+  opacity: 0.6; cursor: pointer; font-size: 14px; color: var(--text-secondary);
+  padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
+}
+.sessionDelete:hover { opacity: 1; background: rgba(239,68,68,0.15); color: #ef4444; }
+
+/* ── 文件树操作按钮 ── */
+.folderBtn {
+  flex: 1; border: none; background: var(--accent); color: #fff; padding: 6px 12px;
+  border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity 0.2s;
+}
+.folderBtn:hover { opacity: 0.9; }
+
+/* ── StatusBar 下拉 ── */
+.statusDropdown {
+  padding: 4px 12px; font-size: 12px; color: var(--text-primary);
+  cursor: pointer; white-space: nowrap; transition: background 0.1s;
+}
+.statusDropdown:hover { background: var(--bg-tertiary); }
+
+/* ── FileTree ── */
+.treeItem {
+  display: flex; align-items: center; gap: 4px; padding: 2px 8px;
+  cursor: pointer; font-size: 12px; white-space: nowrap;
+}
+.treeItem:hover { background: var(--bg-tertiary); }
+.recentItem {
+  padding: 6px 10px; cursor: pointer; font-size: 11px; color: var(--text-primary);
+  background: transparent; display: flex; flex-direction: column; gap: 2px;
+  border-radius: 4px; margin: 2px 8px; border-left: 3px solid transparent;
+  transition: background 0.1s;
+}
+.recentItem:hover { background: var(--bg-tertiary); }
+.recentItemActive { background: var(--bg-tertiary); border-left-color: var(--accent); }
+
 .imageViewer {
   height: 100%;
   display: flex;

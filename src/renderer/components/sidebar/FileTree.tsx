@@ -4,6 +4,7 @@ import { useFilesStore, FileNode } from '../../stores/files';
 import { useBrowserStore } from '../../stores/browser';
 import { useRefsStore } from '../../stores/refs';
 import { getFileIconInfo } from '../../utils/icons';
+import styles from '../../styles/components.module.css';
 
 function FileIcon({ name }: { name: string }) {
   const info = getFileIconInfo(name);
@@ -89,9 +90,7 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
       <div
         onClick={handleClick}
         onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, node); }}
-        style={itemStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        className={styles.treeItem}
       >
         <span style={{ display: 'flex', alignItems: 'center', width: 16, height: 16, flexShrink: 0, justifyContent: 'center' }}>
           {node.isDirectory ? (
@@ -359,17 +358,13 @@ export default function FileTree() {
                 const isActive = p === currentWorkspace;
                 return (
                   <div key={p} style={{ position: 'relative' }}>
-                    <div onClick={() => openWorkspace(p)} style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '11px', color: 'var(--text-primary)', background: isActive ? 'var(--bg-tertiary)' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px', borderRadius: '4px', margin: '2px 8px', borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent', transition: 'background 0.1s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? 'var(--bg-tertiary)' : 'transparent'; }}
+                    <div onClick={() => openWorkspace(p)} className={`${styles.recentItem} ${isActive ? styles.recentItemActive : ''}`}
                     title={p}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14 }} /> {name}</div>
                     <div style={{ fontSize: '9px', color: 'var(--text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p}</div>
                   </div>
-                  <span onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: 0.4, fontSize: 12, color: 'var(--text-secondary)', padding: '2px 4px', borderRadius: 3 }}
-                    onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.background = 'transparent'; }}
+                  <span onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }} className={styles.chipClose}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}
                     title="从列表中移除">✕</span>
                 </div>
                 );
@@ -383,11 +378,5 @@ export default function FileTree() {
 }
 
 function ContextMenuItem({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
-  return (
-    <div onClick={onClick} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: danger ? '#ef4444' : 'var(--text-primary)', transition: 'background 0.1s' }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
-      {label}
-    </div>
-  );
+  return <div onClick={onClick} className={styles.menuItem} style={{ color: danger ? '#ef4444' : undefined }}>{label}</div>;
 }
