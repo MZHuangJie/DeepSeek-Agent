@@ -342,7 +342,7 @@ export function setupAgentHandlers() {
             }
           }
         }
-        const isExploreMode = readFileCount > 0 && !hasSubstantialOutput && !hasProductiveToolCall;
+        const isExploreMode = (readFileCount > 0 || listCount > 0) && !hasSubstantialOutput && !hasProductiveToolCall;
 
         if (isExploreMode) {
           // 使用 glob 扫描实际的项目文件
