@@ -19,15 +19,20 @@ function buildToolPreview(name: string, argsJson: string): string {
   try {
     const a = JSON.parse(argsJson || '{}');
     if (name === 'write_file') {
-      const content = (a.content || '').slice(0, 2000);
-      return '写入文件: ' + (a.path || '?') + '\n' + content + (a.content && a.content.length > 2000 ? '\n...(已截断)' : '');
+      const content = (a.content || '').slice(0, 3000);
+      return '文件: ' + (a.path || '?') + '\n\n' + content.split('\n').map((l: string) => '+ ' + l).join('\n') + (a.content && a.content.length > 3000 ? '\n+ ...(已截断)' : '');
     }
     if (name === 'edit_file') {
-      const oldStr = (a.old_string || '').slice(0, 500);
-      const newStr = (a.new_string || '').slice(0, 500);
-      return '编辑文件: ' + (a.path || '?') + '\n\n--- 旧内容 ---\n' + oldStr + '\n\n+++ 新内容 +++\n' + newStr;
+      const oldStr = (a.old_string || '').slice(0, 1500);
+      const newStr = (a.new_string || '').slice(0, 1500);
+      let diff = '文件: ' + (a.path || '?') + '\n\n';
+      diff += oldStr.split('\n').map((l: string) => '- ' + l).join('\n') + '\n';
+      diff += newStr.split('\n').map((l: string) => '+ ' + l).join('\n');
+      if (a.old_string && a.old_string.length > 1500) diff += '\n- ...(已截断)';
+      if (a.new_string && a.new_string.length > 1500) diff += '\n+ ...(已截断)';
+      return diff;
     }
-    if (name === 'bash') return '执行命令: ' + (a.command || '?').slice(0, 500);
+    if (name === 'bash') return '$ ' + (a.command || '?');
   } catch {}
   return argsJson || '';
 }

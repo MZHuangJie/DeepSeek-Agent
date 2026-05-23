@@ -4,7 +4,18 @@ import type { ToolDef } from './index';
 
 function execAsync(command: string, cwd: string, timeout: number): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    exec(command, { cwd, timeout, maxBuffer: 1024 * 1024, shell: process.platform === 'win32' ? 'powershell.exe' : '/bin/sh' }, (err, stdout, stderr) => {
+    // Windows PowerShell 默认输出 GBK，强制设为 UTF-8
+    const finalCommand = process.platform === 'win32'
+      ? `[Console]::OutputEncoding=[Text.Encoding]::UTF8; ${command}`
+      : command;
+
+    exec(finalCommand, {
+      cwd,
+      timeout,
+      maxBuffer: 1024 * 1024,
+      encoding: 'utf-8',
+      shell: process.platform === 'win32' ? 'powershell.exe' : '/bin/sh',
+    }, (err, stdout, stderr) => {
       if (err && !stdout && !stderr) reject(err);
       else resolve({ stdout: stdout || '', stderr: stderr || '' });
     });

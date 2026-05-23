@@ -98,8 +98,8 @@ async function httpRequestWithRetry(
 
 export async function webSearch(query: string, maxResults = 8): Promise<SearchResult[]> {
   const engines: Array<{ name: string; fn: () => Promise<SearchResult[]> }> = [
-    { name: 'DuckDuckGo', fn: () => searchDDG(query, maxResults) },
     { name: 'Bing', fn: () => searchBing(query, maxResults) },
+    { name: 'DuckDuckGo', fn: () => searchDDG(query, maxResults) },
     { name: 'Google', fn: () => searchGoogle(query, maxResults) },
   ];
 
@@ -199,24 +199,52 @@ function parseDDGHTML(html: string, maxResults: number): SearchResult[] {
 
 async function searchBing(query: string, maxResults: number): Promise<SearchResult[]> {
   const encoded = encodeURIComponent(query);
-  const html = await httpRequestWithRetry('www.bing.com', `/search?q=${encoded}&count=${maxResults}`, { timeout: 10000 });
+  // 优先用 cn.bing.com（国内可直连），失败再试 www.bing.com
+  let html: string;
+  try {
+    html = await httpRequestWithRetry('cn.bing.com', `/search?q=${encoded}&count=${maxResults}`, { timeout: 10000 });
+  } catch {
+    html = await httpRequestWithRetry('www.bing.com', `/search?q=${encoded}&count=${maxResults}`, { timeout: 10000 });
+  }
 
   const results: SearchResult[] = [];
-  const blockRe = /<li class="b_algo">([\s\S]*?)<\/li>/gi;
+
+  // cn.bing.com 结构:
+  // <li class="b_algo" ...>
+  //   <h2><a href="url">标题</a></h2>
+  //   <p>摘要</p> 或 <div class="b_caption"><p>摘要</p></div>
+  //   <a class="tilk" href="url">  (显示URL)
+  // </li>
+
+  // 先定位 ol#b_results
+  const olMatch = html.match(/<ol[^>]*id="b_results"[^>]*>([\s\S]*?)<\/ol>/i);
+  const searchArea = olMatch ? olMatch[1] : html;
+
+  const blockRe = /<li class="b_algo"[\s\S]*?<\/li>/gi;
   let m: RegExpExecArray | null;
 
-  while ((m = blockRe.exec(html)) !== null) {
-    const block = m[1];
-    const urlM = block.match(/<a[^>]*href="(https?:\/\/[^"]*)"/i);
-    const titleM = block.match(/<a[^>]*>([^<]+)<\/a>/i);
-    const snippetM = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  while ((m = blockRe.exec(searchArea)) !== null) {
+    const block = m[0];
 
-    if (urlM && titleM) {
-      results.push({
-        url: urlM[1].replace(/&amp;/g, '&'),
-        title: titleM[1].replace(/<[^>]*>/g, '').trim(),
-        snippet: snippetM ? snippetM[1].replace(/<[^>]*>/g, '').trim() : '',
-      });
+    // 标题: <h2><a href="url">标题</a></h2>
+    const titleMatch = block.match(/<h2[^>]*>\s*<a[^>]*href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>\s*<\/h2>/i);
+
+    if (titleMatch) {
+      const url = titleMatch[1].replace(/&amp;/g, '&');
+      const title = titleMatch[2].replace(/<[^>]*>/g, '').trim();
+
+      // 摘要: <p class="b_lineclamp..."> 或 <div class="b_caption"> 中的 <p>
+      let snippet = '';
+      const snippetM = block.match(/<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>/i)
+                    || block.match(/<div[^>]*class="[^"]*b_caption[^"]*"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i)
+                    || block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+      if (snippetM) {
+        snippet = snippetM[1].replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      }
+
+      if (title && url) {
+        results.push({ url, title, snippet });
+      }
     }
 
     if (results.length >= maxResults) break;
