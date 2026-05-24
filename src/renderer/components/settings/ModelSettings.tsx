@@ -291,10 +291,6 @@ function ModelSection({
 }) {
   const [collapsed, setCollapsed] = useState(!enabled);
 
-  useEffect(() => {
-    if (enabled) setCollapsed(false);
-  }, [enabled]);
-
   return (
     <div className={styles.section}>
       <div className={styles.sectionHeader} onClick={() => setCollapsed(!collapsed)}>
