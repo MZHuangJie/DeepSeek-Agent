@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAgentStore } from './agent';
 
 export interface ModelConfig {
   id: string;
@@ -164,6 +165,13 @@ export const useModelStore = create<ModelState>((set, get) => ({
 
   setActiveModel: async (id) => {
     set({ activeModelId: id });
+    const model = get().models.find(m => m.id === id);
+    if (model?.contextWindow) {
+      const stats = useAgentStore.getState().tokenStats;
+      if (stats) {
+        useAgentStore.getState().setTokenStats({ ...stats, contextMax: model.contextWindow });
+      }
+    }
     await window.api.settings.set('activeModel', id);
   },
 
