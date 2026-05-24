@@ -22,6 +22,7 @@ export default function ChatPanel() {
   const agentStore = useAgentStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
@@ -53,7 +54,9 @@ export default function ChatPanel() {
   const messages = session?.messages ?? [];
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isAtBottomRef.current) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -168,6 +171,7 @@ export default function ChatPanel() {
     pendingThinkingRef.current = '';
     totalContentRef.current = '';
     totalThinkingRef.current = '';
+    isAtBottomRef.current = true;
     addMessage({ id: `msg-${Date.now()}`, role: 'user', content: displayContent, timestamp: Date.now() });
     const assistantId = `msg-${Date.now() + 1}`;
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });
@@ -203,7 +207,9 @@ export default function ChatPanel() {
         onScroll={() => {
           const el = scrollRef.current;
           if (el) {
-            setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 100);
+            const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+            isAtBottomRef.current = distFromBottom < 50;
+            setShowScrollDown(distFromBottom > 100);
           }
         }}
       >
