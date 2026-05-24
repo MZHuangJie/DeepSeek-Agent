@@ -5,7 +5,9 @@ import type { Provider, ParseState, StreamCallbacks } from './providers/types';
 import { createParseState, selectProvider } from './providers';
 import { log } from '../logger';
 
-const httpsAgent = new https.Agent({ keepAlive: false, maxSockets: 1 });
+const httpsAgent = new https.Agent({ keepAlive: false });
+// keepAlive: false — 每次请求独立建连，避免中转站/代理的粘滞连接问题
+// maxSockets 使用 Node.js 默认值 (Infinity)，不做限制，避免并行子代理时排队阻塞
 
 function isRetryableError(err: unknown): boolean {
   if (err instanceof Error) {
@@ -130,14 +132,15 @@ export async function streamChat(
       };
 
       const flushToolCalls = () => {
-        if (hasFlushed) return;
-        hasFlushed = true;
+        let added = false;
         for (let i = 0; i <= state.lastToolCallIndex; i++) {
           const tc = state.toolCallsAccum.get(i);
-          if (tc && tc.name) {
+          if (tc && tc.name && !result.toolCalls.find(t => t.id === tc.id)) {
             result.toolCalls.push({ id: tc.id || `call_${i}`, name: tc.name, arguments: tc.arguments || '{}' });
+            added = true;
           }
         }
+        if (added) hasFlushed = true;
       };
 
       const req = https.request(options, (res) => {
@@ -192,7 +195,7 @@ export async function streamChat(
         res.on('end', () => {
           clearTimers();
           effectiveProvider.finalize(state);
-          if (!hasFlushed) flushToolCalls();
+          flushToolCalls(); // finalize 可能从文本中解析出新工具，始终尝试 flush
           result.content = state.content;
           result.thinking = state.thinking;
           result.finishReason = state.finishReason;

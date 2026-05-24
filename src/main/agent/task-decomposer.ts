@@ -133,11 +133,12 @@ export class TaskDecomposer {
 
       const taskId = `explore-${dir}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+      const absDir = path.resolve(projectDir, dir);
       tasks.push({
         id: taskId,
         type: 'explore' as SubAgentType,
-        description: this.buildExploreDescription(dir, files, userQuery),
-        targetPath: dir,
+        description: this.buildExploreDescription(absDir, files, userQuery),
+        targetPath: absDir,
         projectDir,
       });
     }
@@ -149,7 +150,7 @@ export class TaskDecomposer {
         id: taskId,
         type: 'explore' as SubAgentType,
         description: `探索整个项目的代码结构和功能。用户查询：${userQuery}`,
-        targetPath: '.',
+        targetPath: path.resolve(projectDir, '.'),
         projectDir,
       });
     }
@@ -218,7 +219,7 @@ export class TaskDecomposer {
         id: taskId,
         type: 'analyze' as SubAgentType,
         description: `分析以下文件：\n${batch.map((f) => `- ${f}`).join('\n')}\n\n分析目标：${analysisGoal}`,
-        targetPath: path.dirname(batch[0]),
+        targetPath: path.resolve(projectDir, path.dirname(batch[0])),
         projectDir,
       });
     }
@@ -254,7 +255,7 @@ export class TaskDecomposer {
         id: taskId,
         type: 'review' as SubAgentType,
         description: `审查以下 ${ext} 文件：\n${files.map((f) => `- ${f}`).join('\n')}\n\n审查重点：${reviewFocus}`,
-        targetPath: path.dirname(files[0]),
+        targetPath: path.resolve(projectDir, path.dirname(files[0])),
         projectDir,
       });
     }

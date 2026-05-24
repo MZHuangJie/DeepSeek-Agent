@@ -60,8 +60,13 @@ function CopyButton({ text }: { text: string }) {
 function isImageUrl(url: string): boolean {
   const lower = url.toLowerCase();
   if (/\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/.test(lower)) return true;
-  if (lower.includes('dalle') || lower.includes('blob.core.windows.net') || lower.includes('openai') || lower.includes('cdn.openai')) return true;
   if (lower.startsWith('data:image/')) return true;
+  // 仅匹配已知生图 CDN 的域名，避免把普通链接误判成图片
+  if (
+    lower.includes('oaidalleapiprodscus.blob.core.windows.net') ||
+    lower.includes('cdn.openai.com') ||
+    lower.includes('files.oaiusercontent.com')
+  ) return true;
   return false;
 }
 

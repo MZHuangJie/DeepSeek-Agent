@@ -1,7 +1,10 @@
 import { streamChat, ModelConfig } from './client';
-import type { StreamCallbacks } from './providers/types';
+import type { Provider, StreamCallbacks } from './providers/types';
+import { selectProvider } from './providers';
+import type { ToolContext } from './tools/index';
 import { getAllTools, getToolSchemas } from './tools';
 import { BrowserWindow } from 'electron';
+import { errorLog, log } from '../logger';
 
 export type SubAgentType = 'explore' | 'analyze' | 'implement' | 'review';
 
@@ -50,13 +53,16 @@ export class SubAgentManager {
         targetPath: task.targetPath,
       });
 
+      const mustUseTools = `【重要】你必须使用工具来实际执行任务。不要只用文字描述，必须调用工具（list_files、read_file 等）去真正读取和操作文件。\n\n${task.description}`;
       const subMessages = [
-        { role: 'system', content: this.buildSubAgentPrompt(task.type) },
-        { role: 'user', content: task.description },
+        { role: 'system', content: this.buildSubAgentPrompt(task.type, task.projectDir) },
+        { role: 'user', content: mustUseTools },
       ];
 
       const tools = getAllTools(task.projectDir);
       const toolSchemas = getToolSchemas(tools);
+
+      const provider = selectProvider(modelConfig.model, modelConfig.baseUrl);
 
       const result = await this.runSubAgentLoop(
         task,
@@ -66,7 +72,9 @@ export class SubAgentManager {
         apiKey,
         modelConfig,
         contextMax,
-        abortController.signal
+        abortController.signal,
+        provider,
+        task.projectDir,
       );
 
       this.win.webContents.send('agent:stream-chunk', {
@@ -129,9 +137,12 @@ export class SubAgentManager {
     this.activeSubAgents.clear();
   }
 
-  private buildSubAgentPrompt(type: SubAgentType): string {
+  private buildSubAgentPrompt(type: SubAgentType, projectDir?: string): string {
+    const dirHint = projectDir
+      ? `\n## 工作目录\n项目根目录: \`${projectDir}\`\n所有工具调用中的路径参数必须使用绝对路径（基于上述项目根目录拼接）。`
+      : '';
     const basePrompt = `你是一个专门的子代理，负责处理特定的任务。你的工作是高效、彻底地完成分配的任务，然后给出清晰的总结。
-
+${dirHint}
 ## 工作原则
 1. 专注于分配的任务范围，不要偏离
 2. 使用工具高效地收集信息
@@ -268,9 +279,11 @@ export class SubAgentManager {
     apiKey: string,
     modelConfig: ModelConfig,
     contextMax: number,
-    signal: AbortSignal
+    signal: AbortSignal,
+    provider: Provider,
+    projectDir: string,
   ): Promise<SubAgentResult> {
-    const maxTurns = 40; // 子代理的轮次限制（留出空间让模型自己总结）
+    const maxTurns = 40;
     let totalPrompt = 0;
     let totalCompletion = 0;
     let totalTokens = 0;
@@ -306,7 +319,8 @@ export class SubAgentManager {
           toolSchemas,
           modelConfig,
           callbacks,
-          signal
+          signal,
+          provider,
         );
       } catch (err: any) {
         if (signal.aborted) break;
@@ -362,6 +376,29 @@ export class SubAgentManager {
       }
 
       if (result.toolCalls.length === 0) {
+        // 第一轮模型就拒绝使用工具 — 强制推动
+        if (turn === 0 && (!result.content || result.content.length < 50)) {
+          messages.push({
+            role: 'user',
+            content: '你必须实际使用工具！请立即调用 list_files 查看目录，然后用 read_file 读取文件内容。不要只回复文字。',
+          });
+          continue;
+        }
+
+        // 检测 content 中是否包含未识别的伪工具调用格式（如 ::list_files::、<tool_call> 等）
+        const pseudoCallPattern = /::\w+::|<tool_call>|<function_call|<invoke/i;
+        if (turn < 2 && result.content && pseudoCallPattern.test(result.content)) {
+          log('warn', 'sub-agent', '检测到未解析的伪工具调用格式，尝试重新引导', {
+            taskId: task.id,
+            preview: result.content.slice(0, 300),
+          });
+          messages.push({
+            role: 'user',
+            content: '你的工具调用格式不正确！你必须使用标准的 OpenAI function call 格式调用工具。直接发起函数调用即可，不要用 ::name::、<tool_call> 等自定义格式包裹。请立即重试。',
+          });
+          continue;
+        }
+
         // 子代理完成任务
         if (result.content || result.thinking) {
           messages.push({
@@ -420,8 +457,16 @@ export class SubAgentManager {
         } else {
           try {
             const args = JSON.parse(tc.arguments || '{}');
-            toolResult = await tool.execute(args);
+            const toolCtx: ToolContext = {
+              apiKey,
+              modelConfig,
+              contextMax,
+              subAgentManager: undefined as any, // 子代理不能再派子代理
+              projectDir,
+            };
+            toolResult = await tool.execute(args, toolCtx);
           } catch (err: any) {
+            errorLog('sub-agent', 'tool-exec-error', { taskId: task.id, tool: tc.name, error: err.message });
             toolResult = err.message;
           }
         }
@@ -474,10 +519,11 @@ export class SubAgentManager {
         const summaryResult = await streamChat(
           apiKey,
           messages,
-          [], // 关键：禁用工具，强制模型输出文本
+          [],
           modelConfig,
           summaryCallbacks,
-          signal
+          signal,
+          provider,
         );
 
         if (summaryResult.usage) {

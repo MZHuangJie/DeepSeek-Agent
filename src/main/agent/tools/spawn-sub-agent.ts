@@ -1,8 +1,13 @@
 // 子代理生成 — spawn_sub_agent 工具
 // 参数: task_type, description, target_path
 // 支持并行子代理，独立上下文窗口
+import path from 'path';
 import type { SubAgentTask } from '../sub-agent';
 import type { ToolDef, ToolContext } from './index';
+
+function resolvedPath(baseDir: string, p: string): string {
+  return path.resolve(baseDir, p);
+}
 
 export function createSpawnSubAgentTool(projectDir: string): ToolDef {
   return {
@@ -32,7 +37,7 @@ export function createSpawnSubAgentTool(projectDir: string): ToolDef {
       if (args.parallel_tasks && Array.isArray(args.parallel_tasks)) {
         const tasks = (args.parallel_tasks as any[]).map((t, idx) => ({
           id: `manual-${t.task_type}-${Date.now()}-${idx}`,
-          type: t.task_type as any, description: t.description, targetPath: t.target_path, projectDir,
+          type: t.task_type as any, description: t.description, targetPath: resolvedPath(projectDir, t.target_path as string), projectDir,
         }));
         const results = await subAgentManager.spawnMultipleSubAgents(tasks, apiKey, modelConfig, contextMax);
         return results.map((r: any, idx: number) => `${r.success ? '✓' : '✗'} ${tasks[idx].targetPath}: ${r.filesProcessed.length} 文件, ${r.tokenUsage.total} tokens\n${r.summary}`).join('\n\n---\n\n');
@@ -41,7 +46,7 @@ export function createSpawnSubAgentTool(projectDir: string): ToolDef {
       const task: SubAgentTask = {
         id: `manual-${args.task_type}-${Date.now()}`,
         type: args.task_type as any, description: args.description as string,
-        targetPath: args.target_path as string, projectDir,
+        targetPath: resolvedPath(projectDir, args.target_path as string), projectDir,
       };
       const result = await subAgentManager.spawnSubAgent(task, apiKey, modelConfig, contextMax);
       if (!result.success) return `子代理执行失败: ${result.error}`;
