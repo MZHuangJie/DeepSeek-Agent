@@ -1,6 +1,5 @@
 import path from 'path';
 import { app } from 'electron';
-import fs from 'fs';
 
 interface Stmt {
   run(...args: any[]): void;
@@ -46,7 +45,6 @@ class MemDb implements DbLike {
           const sessions = getMap('sessions');
           const existing = sessions.get(args[0]);
           if (existing && args.length > 5) {
-            // ON CONFLICT UPDATE: preserve created_at
             sessions.set(args[0], { ...row, created_at: existing.created_at });
           } else {
             sessions.set(args[0], row);
@@ -70,7 +68,7 @@ class MemDb implements DbLike {
           table.delete(args[0]);
         } else if (sql.includes('INTO installed_plugins')) {
           const table = getMap('installed_plugins');
-          table.set(args[0], { name: args[0], description: args[1], system_prompt: args[2], source: args[3], installed_at: args[4] });
+          table.set(args[0], { name: args[0], description: args[1], system_prompt: args[2], source: args[3], installed_at: args[4], extra_data: args[5] || null });
           self.tables.set('installed_plugins', table);
         } else if (sql.includes('DELETE FROM installed_plugins')) {
           const table = getMap('installed_plugins');
@@ -135,6 +133,7 @@ export function getDb(): DbLike {
     db = new Database(dbPath);
     (db as any).pragma('journal_mode = WAL');
     initSchema();
+    runMigrations(db!);
     return db!;
   } catch {
     db = new MemDb();
@@ -178,4 +177,12 @@ function initSchema() {
       timestamp INTEGER NOT NULL
     );
   `);
+}
+
+function runMigrations(database: DbLike) {
+  try {
+    database.exec(`ALTER TABLE installed_plugins ADD COLUMN extra_data TEXT`);
+  } catch {
+    // 列已存在，忽略
+  }
 }
