@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useModelStore, ModelConfig, ImageModelConfig, VisionModelConfig, PROVIDERS, ProviderKey } from '../../stores/model';
 import styles from './ModelSettings.module.css';
 
@@ -19,9 +19,21 @@ export default function ModelSettings({ onClose }: Props) {
   }, []);
 
   useEffect(() => { setImageConfig(imageModel); }, [imageModel]);
+  useEffect(() => { setVisionConfig(visionModel); }, [visionModel]);
   useEffect(() => { setList(models); }, [models]);
 
   const active = getActiveModel();
+  const activeProvider = PROVIDERS[active.provider];
+
+  const grouped = useMemo(() => {
+    const map = new Map<ProviderKey, ModelConfig[]>();
+    for (const m of list) {
+      const group = map.get(m.provider) || [];
+      group.push(m);
+      map.set(m.provider, group);
+    }
+    return map;
+  }, [list]);
 
   const handleSave = async () => {
     await saveModels(list);
@@ -68,22 +80,37 @@ export default function ModelSettings({ onClose }: Props) {
         </div>
 
         <div className={styles.modelList}>
-          {list.map(m => (
-            <div key={m.id} className={`${styles.modelRow} ${m.id === active.id ? styles.modelRowActive : styles.modelRowInactive}`}>
-              <input
-                type="radio"
-                checked={m.id === active.id}
-                onChange={() => setActiveModel(m.id)}
-                className={styles.radio}
-              />
-              <div className={styles.modelInfo}>
-                <div className={styles.modelName}>{m.name} {m.apiKey ? '🔑' : ''}</div>
-                <div className={styles.modelMeta}>
-                  {m.provider} / {m.model} {m.apiKey ? '（独立Key）' : ''}
-                </div>
+          {[...grouped.entries()].map(([provider, groupModels]) => (
+            <div key={provider} className={styles.providerGroup}>
+              <div className={styles.providerHeader}>
+                <span className={styles.providerLabel}>{PROVIDERS[provider].label}</span>
+                {PROVIDERS[provider].multimodal && (
+                  <span className={styles.multimodalBadge}>多模态</span>
+                )}
               </div>
-              <button onClick={() => setEditing({ ...m })} className={styles.actionBtn}>编辑</button>
-              <button onClick={() => removeModel(m.id)} className={styles.deleteBtn}>删除</button>
+              {groupModels.map(m => (
+                <div
+                  key={m.id}
+                  className={`${styles.modelRow} ${m.id === active.id ? styles.modelRowActive : styles.modelRowInactive}`}
+                >
+                  <input
+                    type="radio"
+                    checked={m.id === active.id}
+                    onChange={() => setActiveModel(m.id)}
+                    className={styles.radio}
+                  />
+                  <div className={styles.modelInfo}>
+                    <div className={styles.modelName}>
+                      {m.name} {m.apiKey ? '🔑' : ''}
+                    </div>
+                    <div className={styles.modelMeta}>
+                      {m.model} {m.apiKey ? '（独立Key）' : ''}
+                    </div>
+                  </div>
+                  <button onClick={() => setEditing({ ...m })} className={styles.actionBtn}>编辑</button>
+                  <button onClick={() => removeModel(m.id)} className={styles.deleteBtn}>删除</button>
+                </div>
+              ))}
             </div>
           ))}
 
@@ -103,7 +130,13 @@ export default function ModelSettings({ onClose }: Props) {
           apiKey={imageConfig.apiKey}
           onApiKeyChange={v => setImageConfig(c => ({ ...c, apiKey: v }))}
           checkboxLabel="启用生图功能"
-        />
+        >
+          {activeProvider.multimodal && (
+            <div className={styles.hintText}>
+              当前对话模型（{activeProvider.label}）已支持多模态，可直接在对话中生成图片。
+            </div>
+          )}
+        </ModelSection>
 
         <ModelSection
           title="视觉模型配置"
@@ -116,7 +149,26 @@ export default function ModelSettings({ onClose }: Props) {
           apiKey={visionConfig.apiKey}
           onApiKeyChange={v => setVisionConfig(c => ({ ...c, apiKey: v }))}
           checkboxLabel="启用视觉功能（describe_image 工具）"
-        />
+        >
+          {activeProvider.multimodal && (
+            <div className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                id="vision-use-active"
+                checked={visionConfig.useActiveModel}
+                onChange={e => setVisionConfig(c => ({ ...c, useActiveModel: e.target.checked }))}
+              />
+              <label htmlFor="vision-use-active" className={styles.checkboxLabel}>
+                使用当前对话模型（{active.name}）进行视觉识别
+              </label>
+            </div>
+          )}
+          {!visionConfig.useActiveModel && visionConfig.enabled && (
+            <div className={styles.hintText}>
+              使用独立视觉模型。若当前对话模型支持多模态，可勾选上方选项避免额外配置。
+            </div>
+          )}
+        </ModelSection>
 
         <div className={styles.footer}>
           <button onClick={onClose} className={styles.cancelBtn}>取消</button>
@@ -148,7 +200,7 @@ export default function ModelSettings({ onClose }: Props) {
                 className={styles.select}
               >
                 {(Object.keys(PROVIDERS) as ProviderKey[]).map(k => (
-                  <option key={k} value={k}>{PROVIDERS[k].label}</option>
+                  <option key={k} value={k}>{PROVIDERS[k].label}{PROVIDERS[k].multimodal ? ' (多模态)' : ''}</option>
                 ))}
               </select>
             </FieldRow>
@@ -223,6 +275,7 @@ function ModelSection({
   model, onModelChange,
   apiKey, onApiKeyChange,
   checkboxLabel,
+  children,
 }: {
   title: string;
   enabled: boolean;
@@ -234,31 +287,47 @@ function ModelSection({
   apiKey: string;
   onApiKeyChange: (v: string) => void;
   checkboxLabel: string;
+  children?: React.ReactNode;
 }) {
+  const [collapsed, setCollapsed] = useState(!enabled);
+
+  useEffect(() => {
+    if (enabled) setCollapsed(false);
+  }, [enabled]);
+
   return (
     <div className={styles.section}>
-      <div className={styles.sectionTitle}>{title}</div>
-      <div className={styles.checkboxRow}>
-        <input
-          type="checkbox"
-          id={`section-${title}`}
-          checked={enabled}
-          onChange={e => onEnableChange(e.target.checked)}
-        />
-        <label htmlFor={`section-${title}`} className={styles.checkboxLabel}>{checkboxLabel}</label>
+      <div className={styles.sectionHeader} onClick={() => setCollapsed(!collapsed)}>
+        <span className={styles.chevron}>{collapsed ? '▶' : '▼'}</span>
+        <span className={styles.sectionTitle}>{title}</span>
+        {enabled && <span className={styles.enabledBadge}>已启用</span>}
       </div>
-      {enabled && (
-        <>
-          <FieldRow label="Base URL">
-            <input value={baseUrl} onChange={e => onBaseUrlChange(e.target.value)} className={styles.input} placeholder="https://api.openai.com" />
-          </FieldRow>
-          <FieldRow label="模型 ID">
-            <input value={model} onChange={e => onModelChange(e.target.value)} className={styles.input} placeholder="gpt-4o" />
-          </FieldRow>
-          <FieldRow label="API Key">
-            <input type="password" value={apiKey} onChange={e => onApiKeyChange(e.target.value)} className={styles.input} placeholder="sk-..." />
-          </FieldRow>
-        </>
+      {!collapsed && (
+        <div className={styles.sectionBody}>
+          <div className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              id={`section-${title}`}
+              checked={enabled}
+              onChange={e => onEnableChange(e.target.checked)}
+            />
+            <label htmlFor={`section-${title}`} className={styles.checkboxLabel}>{checkboxLabel}</label>
+          </div>
+          {children}
+          {enabled && (
+            <>
+              <FieldRow label="Base URL">
+                <input value={baseUrl} onChange={e => onBaseUrlChange(e.target.value)} className={styles.input} placeholder="https://api.openai.com" />
+              </FieldRow>
+              <FieldRow label="模型 ID">
+                <input value={model} onChange={e => onModelChange(e.target.value)} className={styles.input} placeholder="gpt-4o" />
+              </FieldRow>
+              <FieldRow label="API Key">
+                <input type="password" value={apiKey} onChange={e => onApiKeyChange(e.target.value)} className={styles.input} placeholder="sk-..." />
+              </FieldRow>
+            </>
+          )}
+        </div>
       )}
     </div>
   );

@@ -522,9 +522,9 @@ export function setupAgentHandlers() {
               } : undefined,
               visionModelConfig: visionModelConfig?.enabled ? {
                 enabled: true,
-                baseUrl: visionModelConfig.baseUrl,
-                model: visionModelConfig.model,
-                apiKey: visionModelConfig.apiKey,
+                baseUrl: visionModelConfig.useActiveModel ? (modelConfig.baseUrl) : visionModelConfig.baseUrl,
+                model: visionModelConfig.useActiveModel ? (modelConfig.model) : visionModelConfig.model,
+                apiKey: visionModelConfig.useActiveModel ? (payload.apiKey) : visionModelConfig.apiKey,
               } : undefined,
             };
             toolResult = await tool.execute(args, toolContext);

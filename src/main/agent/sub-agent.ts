@@ -5,6 +5,7 @@ import type { ToolContext } from './tools/index';
 import { getAllTools, getToolSchemas } from './tools';
 import { BrowserWindow } from 'electron';
 import { errorLog, log } from '../logger';
+import { getSetting } from '../db/settings';
 
 export type SubAgentType = 'explore' | 'analyze' | 'implement' | 'review';
 
@@ -457,12 +458,28 @@ ${dirHint}
         } else {
           try {
             const args = JSON.parse(tc.arguments || '{}');
+            const imageModelRaw = getSetting('imageModel');
+            const imageModelCfg = imageModelRaw ? JSON.parse(imageModelRaw) : null;
+            const visionModelRaw = getSetting('visionModel');
+            const visionModelCfg = visionModelRaw ? JSON.parse(visionModelRaw) : null;
+
             const toolCtx: ToolContext = {
               apiKey,
               modelConfig,
               contextMax,
               subAgentManager: undefined as any, // 子代理不能再派子代理
               projectDir,
+              imageModelConfig: imageModelCfg?.enabled ? {
+                baseUrl: imageModelCfg.baseUrl,
+                model: imageModelCfg.model,
+                apiKey: imageModelCfg.apiKey,
+              } : undefined,
+              visionModelConfig: visionModelCfg?.enabled ? {
+                enabled: true,
+                baseUrl: visionModelCfg.useActiveModel ? modelConfig.baseUrl : visionModelCfg.baseUrl,
+                model: visionModelCfg.useActiveModel ? modelConfig.model : visionModelCfg.model,
+                apiKey: visionModelCfg.useActiveModel ? apiKey : visionModelCfg.apiKey,
+              } : undefined,
             };
             toolResult = await tool.execute(args, toolCtx);
           } catch (err: any) {

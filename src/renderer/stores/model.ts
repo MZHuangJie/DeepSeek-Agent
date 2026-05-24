@@ -17,17 +17,18 @@ interface ProviderPreset {
   baseUrl: string;
   defaultModel: string;
   contextWindow: number;
+  multimodal: boolean;
 }
 
 export const PROVIDERS: Record<ProviderKey, ProviderPreset> = {
-  openai:     { label: 'OpenAI',             baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000 },
-  gemini:     { label: 'Google Gemini',      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.5-flash', contextWindow: 1048576 },
-  anthropic:  { label: 'Anthropic Claude',   baseUrl: 'https://api.anthropic.com/v1',                     defaultModel: 'claude-sonnet-4-20250514', contextWindow: 200000 },
-  deepseek:   { label: 'DeepSeek',           baseUrl: 'https://api.deepseek.com',                        defaultModel: 'deepseek-chat',            contextWindow: 64000 },
-  qwen:       { label: '通义千问',            baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus',          contextWindow: 131072 },
-  zhipu:      { label: '智谱 GLM',           baseUrl: 'https://open.bigmodel.cn/api/paas/v4',            defaultModel: 'glm-4-plus',               contextWindow: 128000 },
-  moonshot:   { label: 'Moonshot',           baseUrl: 'https://api.moonshot.cn',                          defaultModel: 'moonshot-v1-8k',            contextWindow: 8000 },
-  custom:     { label: '自定义',              baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000 },
+  openai:     { label: 'OpenAI',             baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000,  multimodal: true },
+  gemini:     { label: 'Google Gemini',      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.5-flash', contextWindow: 1048576, multimodal: true },
+  anthropic:  { label: 'Anthropic Claude',   baseUrl: 'https://api.anthropic.com/v1',                     defaultModel: 'claude-sonnet-4-20250514', contextWindow: 200000,  multimodal: true },
+  deepseek:   { label: 'DeepSeek',           baseUrl: 'https://api.deepseek.com',                        defaultModel: 'deepseek-chat',            contextWindow: 64000,   multimodal: false },
+  qwen:       { label: '通义千问',            baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus',          contextWindow: 131072,  multimodal: true },
+  zhipu:      { label: '智谱 GLM',           baseUrl: 'https://open.bigmodel.cn/api/paas/v4',            defaultModel: 'glm-4-plus',               contextWindow: 128000,  multimodal: true },
+  moonshot:   { label: 'Moonshot',           baseUrl: 'https://api.moonshot.cn',                          defaultModel: 'moonshot-v1-8k',            contextWindow: 8000,    multimodal: false },
+  custom:     { label: '自定义',              baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000,  multimodal: true },
 };
 
 export interface ImageModelConfig {
@@ -108,6 +109,7 @@ export interface VisionModelConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+  useActiveModel: boolean;
 }
 
 const DEFAULT_IMAGE_MODEL: ImageModelConfig = {
@@ -122,6 +124,7 @@ const DEFAULT_VISION_MODEL: VisionModelConfig = {
   baseUrl: 'https://api.openai.com',
   model: 'gpt-4o',
   apiKey: '',
+  useActiveModel: true,
 };
 
 export const useModelStore = create<ModelState>((set, get) => ({

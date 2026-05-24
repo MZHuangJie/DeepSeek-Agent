@@ -8,6 +8,7 @@ export interface VisionModelConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+  useActiveModel?: boolean;
 }
 
 export async function describeImage(
