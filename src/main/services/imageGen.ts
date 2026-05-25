@@ -61,7 +61,8 @@ export async function generateImage(
   args: GenerateImageArgs,
   signal?: AbortSignal
 ): Promise<GenerateImageResult> {
-  const url = new URL('/v1/images/generations', config.baseUrl);
+  const apiPath = config.baseUrl.endsWith('/v1') ? '/images/generations' : '/v1/images/generations';
+  const url = new URL(apiPath, config.baseUrl);
   const isHttps = url.protocol === 'https:';
 
   const body = JSON.stringify({

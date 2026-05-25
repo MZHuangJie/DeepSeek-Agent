@@ -46,7 +46,8 @@ export async function describeImage(
     max_tokens: 1024,
   });
 
-  const url = new URL('/v1/chat/completions', config.baseUrl);
+  const apiPath = config.baseUrl.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions';
+  const url = new URL(apiPath, config.baseUrl);
   const isHttps = url.protocol === 'https:';
 
   return new Promise((resolve, reject) => {
