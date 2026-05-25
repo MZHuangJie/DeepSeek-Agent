@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useChatStore } from '../../stores/chat';
-import { useModelStore } from '../../stores/model';
+import { useModelStore, PROVIDERS } from '../../stores/model';
 import { useAgentStore } from '../../stores/agent';
 import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
@@ -184,7 +184,9 @@ export default function ChatPanel() {
     const modelConfig = getActiveModel();
     const mode = useModeStore.getState().mode;
     const effectiveApiKey = modelConfig.apiKey || apiKey;
-    const newMessage = hasImages
+
+    const providerSupportsVision = PROVIDERS[modelConfig.provider]?.multimodal ?? false;
+    const newMessage = (hasImages && providerSupportsVision)
       ? [{ type: 'text', text: content || displayContent }, ...images!.map(im => ({ type: 'image_url', image_url: { url: im.dataUrl } }))]
       : (content || displayContent);
 
