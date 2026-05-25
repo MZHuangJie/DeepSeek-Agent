@@ -70,13 +70,7 @@ export default function QuickOpen({ onClose }: Props) {
   const results = useMemo(() => {
     if (!query.trim()) return allFiles.slice(0, 20).map(f => ({ file: f, score: 0 }));
     const scored = allFiles
-      .map(f => {
-        // 优先匹配文件名，再匹配完整路径
-        const nameScore = fuzzyScore(query, f.name);
-        const pathScore = fuzzyScore(query, f.path);
-        const score = Math.max(nameScore, pathScore);
-        return { file: f, score };
-      })
+      .map(f => ({ file: f, score: fuzzyScore(query, f.name) }))
       .filter(r => r.score >= 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 20);
@@ -173,7 +167,7 @@ export default function QuickOpen({ onClose }: Props) {
                   <span style={{ flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <span style={{ fontWeight: 500 }}>{highlightMatch(r.file.name, query)}</span>
                     <span style={{ color: 'var(--text-secondary)', marginLeft: 10, fontSize: 11 }}>
-                      {highlightMatch(r.file.path, query)}
+                      {r.file.path}
                     </span>
                   </span>
                 </div>
