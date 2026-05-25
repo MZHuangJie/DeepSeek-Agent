@@ -174,6 +174,8 @@ export default function ChatPanel() {
     totalThinkingRef.current = '';
     isAtBottomRef.current = true;
 
+    const modelConfig = getActiveModel();
+    const providerSupportsVision = PROVIDERS[modelConfig.provider]?.multimodal ?? false;
     const imageMarkdown = hasImages ? '\n' + images!.map(im => `![image](${im.path})`).join('\n') : '';
     const storedContent = displayContent + imageMarkdown;
     addMessage({ id: `msg-${Date.now()}`, role: 'user', content: storedContent, timestamp: Date.now() });
@@ -181,14 +183,12 @@ export default function ChatPanel() {
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });
     setStreaming(true);
 
-    const modelConfig = getActiveModel();
     const mode = useModeStore.getState().mode;
     const effectiveApiKey = modelConfig.apiKey || apiKey;
-
-    const providerSupportsVision = PROVIDERS[modelConfig.provider]?.multimodal ?? false;
+    const textContent = (content || displayContent) + (providerSupportsVision ? '' : imageMarkdown);
     const newMessage = (hasImages && providerSupportsVision)
       ? [{ type: 'text', text: content || displayContent }, ...images!.map(im => ({ type: 'image_url', image_url: { url: im.dataUrl } }))]
-      : (content || displayContent);
+      : textContent;
 
     try {
       await window.api.agent.send({
