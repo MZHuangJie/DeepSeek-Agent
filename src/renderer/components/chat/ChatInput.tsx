@@ -200,7 +200,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   };
 
   return (
-    <div className={styles.container} onPaste={handlePaste}>
+    <div className={styles.container} onClick={() => textareaRef.current?.focus()}>
       {/* Command palette */}
       {showCommandPalette && filteredCommands.length > 0 && (
         <Dropdown maxHeight={260}>
@@ -281,6 +281,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={disabled ? 'AI 正在回复...' : 'Ask DeepSeek Agent... (/ commands · @ files)'}
           disabled={disabled}
           spellCheck={false}
