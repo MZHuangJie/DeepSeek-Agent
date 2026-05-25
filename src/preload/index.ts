@@ -26,6 +26,7 @@ const api = {
     write: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content),
     readBinary: (filePath: string) => ipcRenderer.invoke('files:readBinary', filePath),
     showInExplorer: (filePath: string) => ipcRenderer.invoke('files:show-in-explorer', filePath),
+    saveClipboardImage: (base64: string, mimeType: string) => ipcRenderer.invoke('files:save-clipboard-image', base64, mimeType),
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),

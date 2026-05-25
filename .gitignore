@@ -13,6 +13,7 @@ SECURITY_AUDIT.md
 src/renderer/public/vs/
 logs/
 public/vs/
+.mycli/
 .mycli-images/
 .superpowers/
 release/

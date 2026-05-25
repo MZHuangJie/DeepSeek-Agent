@@ -22,10 +22,10 @@ export function buildCachePrefix(systemPrompt: string, projectContext: string): 
 
 export function buildMessages(
   prefix: CachePrefix,
-  history: Array<{ role: string; content: string }>,
-  newMessage: string
+  history: Array<{ role: string; content: string | any[] }>,
+  newMessage: string | any[]
 ) {
-  const messages: Array<{ role: string; content: string }> = [
+  const messages: Array<{ role: string; content: string | any[] }> = [
     { role: 'system', content: prefix.systemPrompt },
   ];
   if (prefix.projectContext) {

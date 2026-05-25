@@ -6,7 +6,7 @@ import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
 import MessageBubble from './MessageBubble';
-import ChatInput from './ChatInput';
+import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
 import ChoiceDialog from './ChoiceDialog';
 import { Command } from '../../commands';
@@ -118,12 +118,13 @@ export default function ChatPanel() {
     setStreaming(false);
   }, []);
 
-  const handleSend = useCallback(async (content: string, command?: Command) => {
+  const handleSend = useCallback(async (content: string, command?: Command, images?: PastedImage[]) => {
     if (!activeSessionId) return;
     if (!apiKey) { setShowKeyInput(true); return; }
     setErrorMsg('');
 
     const displayContent = command ? `/${command.name} ${content}` : content;
+    const hasImages = images && images.length > 0;
 
     function truncateToolResult(result: string): string {
       if (typeof result !== 'string') return result;
@@ -172,21 +173,27 @@ export default function ChatPanel() {
     totalContentRef.current = '';
     totalThinkingRef.current = '';
     isAtBottomRef.current = true;
-    addMessage({ id: `msg-${Date.now()}`, role: 'user', content: displayContent, timestamp: Date.now() });
+
+    const imageMarkdown = hasImages ? '\n' + images!.map(im => `![image](${im.path})`).join('\n') : '';
+    const storedContent = displayContent + imageMarkdown;
+    addMessage({ id: `msg-${Date.now()}`, role: 'user', content: storedContent, timestamp: Date.now() });
     const assistantId = `msg-${Date.now() + 1}`;
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });
     setStreaming(true);
 
     const modelConfig = getActiveModel();
     const mode = useModeStore.getState().mode;
-    // 优先使用模型专属 API Key，否则用全局 Key
     const effectiveApiKey = modelConfig.apiKey || apiKey;
+    const newMessage = hasImages
+      ? [{ type: 'text', text: content || displayContent }, ...images!.map(im => ({ type: 'image_url', image_url: { url: im.dataUrl } }))]
+      : (content || displayContent);
+
     try {
       await window.api.agent.send({
         messages: history,
         apiKey: effectiveApiKey,
         projectDir,
-        newMessage: content || displayContent,
+        newMessage,
         model: modelConfig.model,
         baseUrl: modelConfig.baseUrl,
         contextMax: modelConfig.contextWindow || 64000,

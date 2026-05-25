@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { streamChat } from '../agent/client';
 import { buildCachePrefix, buildMessages } from '../agent/cache';
+import type { ContentPart } from '../agent/types';
 import { getAllTools, getToolSchemas, ToolDef } from '../agent/tools';
 import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
@@ -43,7 +44,7 @@ export function setupAgentHandlers() {
     messages: Array<{ role: string; content: string; reasoning_content?: string; tool_calls?: any[] }>;
     apiKey: string;
     projectDir: string;
-    newMessage: string;
+    newMessage: string | ContentPart[];
     model?: string;
     baseUrl?: string;
     contextMax?: number;

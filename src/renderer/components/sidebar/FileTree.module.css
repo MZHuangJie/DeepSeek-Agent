@@ -142,6 +142,20 @@
 }
 
 /* TreeNode */
+.treeItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  border-radius: 4px;
+  margin: 1px 4px;
+  transition: background 0.1s;
+}
+.treeItem:hover { background: var(--bg-tertiary); }
+
 .nodeRow {
   display: flex;
   align-items: center;

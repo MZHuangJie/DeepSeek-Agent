@@ -12,8 +12,15 @@ import Dropdown, { DropdownItem, useDropdownNav } from './Dropdown';
 import shared from '../../styles/components.module.css';
 import styles from './ChatInput.module.css';
 
+export interface PastedImage {
+  id: string;
+  dataUrl: string;
+  path: string;
+  mimeType: string;
+}
+
 interface Props {
-  onSend: (message: string, command?: Command) => void;
+  onSend: (message: string, command?: Command, images?: PastedImage[]) => void;
   disabled: boolean;
   isStreaming: boolean;
   onStop: () => void;
@@ -29,6 +36,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);
   const [showModeSelect, setShowModeSelect] = useState(false);
+  const [images, setImages] = useState<PastedImage[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { openTabs } = useFilesStore();
   const showMention = value.includes('@') && openTabs.length > 0;
@@ -82,6 +90,40 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
   const hasDropdownOpen = showCommandPalette || showMention || showModelSelect || showModeSelect;
 
+  const removeImage = useCallback((id: string) => {
+    setImages(prev => prev.filter(img => img.id !== id));
+  }, []);
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (!blob) continue;
+        const id = `img-${Date.now()}-${i}`;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const dataUrl = reader.result as string;
+          const base64 = dataUrl.split(',')[1];
+          const mimeType = item.type;
+          try {
+            const filePath = await window.api.files.saveClipboardImage(base64, mimeType);
+            setImages(prev => [...prev, { id, dataUrl, path: filePath, mimeType }]);
+          } catch {
+            // 保存失败时仍用 dataUrl 显示缩略图
+            setImages(prev => [...prev, { id, dataUrl, path: '', mimeType }]);
+          }
+        };
+        reader.readAsDataURL(blob);
+      }
+    }
+  }, []);
+
+  const clearImages = useCallback(() => setImages([]), []);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (hasDropdownOpen && (e.key === 'Enter' || e.key === 'Escape')) {
       return;
@@ -106,9 +148,10 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
         const prefix = refs.refFiles.map(p => `@${p} `).join('');
         const suffix = refs.textRefs.length > 0 ? '\n\n---\n引用消息：\n' + refs.textRefs.join('\n---\n') : '';
-        onSend(prefix + (msg || trimmed) + suffix, cmd || undefined);
+        onSend(prefix + (msg || trimmed) + suffix, cmd || undefined, images.length > 0 ? images : undefined);
         setValue('');
         refs.clearRefs();
+        clearImages();
         setAtMaxHeight(false);
         if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
       }
@@ -117,7 +160,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       if (isStreaming) { onStop(); return; }
       setShowModelSelect(false); setShowModeSelect(false);
     }
-  }, [value, onSend, isStreaming, onStop, hasDropdownOpen]);
+  }, [value, onSend, isStreaming, onStop, hasDropdownOpen, images, clearImages]);
 
   const selectCommand = (cmd: Command) => {
     setValue('/' + cmd.name + ' ');
@@ -147,16 +190,17 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       const cmd = matchCommand(trimmed, pluginCommands);
       const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
       const prefix = refs.refFiles.map(p => `@${p} `).join('');
-      onSend(prefix + (msg || trimmed), cmd || undefined);
+      onSend(prefix + (msg || trimmed), cmd || undefined, images.length > 0 ? images : undefined);
       setValue('');
       refs.clearRefs();
+      clearImages();
       setAtMaxHeight(false);
       if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
     }
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} onPaste={handlePaste}>
       {/* Command palette */}
       {showCommandPalette && filteredCommands.length > 0 && (
         <Dropdown maxHeight={260}>
@@ -215,6 +259,18 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pasted image thumbnails */}
+      {images.length > 0 && (
+        <div className={styles.imageStrip}>
+          {images.map(img => (
+            <div key={img.id} className={styles.imageChip}>
+              <img src={img.dataUrl} alt="" className={styles.imageThumb} />
+              <span className={styles.imageRemove} onClick={() => removeImage(img.id)} title="移除图片">✕</span>
+            </div>
+          ))}
         </div>
       )}
 
