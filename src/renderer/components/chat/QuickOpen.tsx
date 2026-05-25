@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useFilesStore, FileNode } from '../../stores/files';
 import { getFileIconInfo } from '../../utils/icons';
-import styles from '../../styles/components.module.css';
 
 interface Props {
   onClose: () => void;
@@ -48,7 +47,7 @@ function highlightMatch(text: string, query: string): React.ReactNode[] {
   while (ti < t.length) {
     if (qi < q.length && t[ti] === q[qi]) {
       if (current) { parts.push(current); current = ''; }
-      parts.push(<mark key={ti} style={{ background: 'var(--accent)', color: '#fff', borderRadius: 2, padding: '0 1px' }}>{text[ti]}</mark>);
+      parts.push(<mark key={ti} style={{ background: '#3b82f6', color: '#fff', borderRadius: 2, padding: '0 1px' }}>{text[ti]}</mark>);
       qi++;
     } else {
       current += text[ti];
@@ -63,6 +62,7 @@ export default function QuickOpen({ onClose }: Props) {
   const { tree, openFile } = useFilesStore();
   const [query, setQuery] = useState('');
   const [focusIdx, setFocusIdx] = useState(0);
+  const [hoverIdx, setHoverIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const allFiles = useMemo(() => flattenTree(tree), [tree]);
@@ -110,8 +110,8 @@ export default function QuickOpen({ onClose }: Props) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 10000,
-      display: 'flex', justifyContent: 'center', paddingTop: '15vh',
-      background: 'rgba(0,0,0,0.3)',
+      display: 'flex', justifyContent: 'center', paddingTop: 32,
+      background: 'rgba(0,0,0,0.15)',
     }} onClick={onClose}>
       <div style={{
         width: 520, maxHeight: 360,
@@ -152,11 +152,15 @@ export default function QuickOpen({ onClose }: Props) {
                 <div
                   key={r.file.path}
                   onClick={() => handleSelect(i)}
-                  className={styles.dropdownItem}
+                  onMouseEnter={() => setHoverIdx(i)}
+                  onMouseLeave={() => setHoverIdx(-1)}
                   style={{
-                    background: i === focusIdx ? 'var(--bg-tertiary)' : undefined,
+                    background: i === focusIdx ? 'rgba(59,130,246,0.15)'
+                      : i === hoverIdx ? 'rgba(59,130,246,0.06)' : undefined,
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '6px 14px', cursor: 'pointer',
+                    borderBottom: '1px solid var(--border)',
+                    fontSize: 12, transition: 'background 0.1s',
                   }}
                 >
                   <span style={{
