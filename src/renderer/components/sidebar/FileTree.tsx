@@ -23,37 +23,37 @@ interface ContextMenuState {
   node: FileNode | null;
 }
 
-function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void }) {
+function TreeNode({ node, depth = 0, onContextMenu, onRefresh, renamingPath, setRenamingPath, selectedPath, onSelect }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void; renamingPath: string | null; setRenamingPath: (p: string | null) => void; selectedPath: string | null; onSelect: (path: string) => void }) {
   const { openFile } = useFilesStore();
   const [expanded, setExpanded] = useState(false);
-  const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isRenaming = renamingPath === node.path;
+  const isSelected = selectedPath === node.path;
 
   const handleClick = useCallback(() => {
+    onSelect(node.path);
     if (node.isDirectory) {
       setExpanded(!expanded);
     } else {
       openFile(node.path, node.name);
     }
-  }, [node, expanded, openFile]);
+  }, [node, expanded, openFile, onSelect]);
 
-  const startRename = () => {
-    setRenameValue(node.name);
-    setRenaming(true);
-    setTimeout(() => inputRef.current?.select(), 50);
-  };
+  useEffect(() => {
+    if (isRenaming) {
+      setRenameValue(node.name);
+      setTimeout(() => inputRef.current?.select(), 50);
+    }
+  }, [isRenaming]);
 
   const commitRename = async () => {
-    setRenaming(false);
+    setRenamingPath(null);
     if (!renameValue.trim() || renameValue === node.name) return;
     try {
       const dir = node.path.substring(0, node.path.lastIndexOf('\\'));
       const newPath = dir + '\\' + renameValue;
-      if (!node.isDirectory) {
-        await window.api.files.createFile(newPath);
-      }
-      await window.api.files.delete(node.path);
+      await window.api.files.rename(node.path, newPath);
       onRefresh();
     } catch (err: any) {
       alert(err.message || '重命名失败');
@@ -64,9 +64,11 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
     <div>
       <div
         onClick={handleClick}
+        onDoubleClick={(e) => { e.preventDefault(); if (node.isDirectory) return; setRenamingPath(node.path); }}
         onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, node); }}
-        className={shared.treeItem}
-        style={{ paddingLeft: 8 + depth * 12 }}
+        className={styles.treeItem}
+        data-path={node.path}
+        style={{ paddingLeft: 8 + depth * 12, background: isSelected ? 'var(--bg-tertiary)' : undefined }}
       >
         <span className={styles.nodeIcon}>
           {node.isDirectory ? (
@@ -76,13 +78,13 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
             <FileIcon name={node.name} />
           )}
         </span>
-        {renaming ? (
+        {isRenaming ? (
           <input
             ref={inputRef}
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onBlur={commitRename}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingPath(null); }}
             onClick={(e) => e.stopPropagation()}
             className={styles.renameInput}
           />
@@ -91,7 +93,9 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh }: { node: FileNod
         )}
       </div>
       {expanded && node.children?.map(child => (
-        <TreeNode key={child.path} node={child} depth={depth + 1} onContextMenu={onContextMenu} onRefresh={onRefresh} />
+        <TreeNode key={child.path} node={child} depth={depth + 1} onContextMenu={onContextMenu} onRefresh={onRefresh}
+          renamingPath={renamingPath} setRenamingPath={setRenamingPath}
+          selectedPath={selectedPath} onSelect={onSelect} />
       ))}
     </div>
   );
@@ -145,6 +149,8 @@ export default function FileTree() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const contextMenuRef = useRef<FileNode | null>(null);
   const [creating, setCreating] = useState<{ parentPath: string; isDirectory: boolean } | null>(null);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const treeAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadWorkspace(); }, []);
@@ -163,6 +169,18 @@ export default function FileTree() {
     window.addEventListener('click', handler);
     return () => window.removeEventListener('click', handler);
   }, []);
+
+  // F2 重命名快捷键
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F2' && selectedPath && !renamingPath) {
+        e.preventDefault();
+        setRenamingPath(selectedPath);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedPath, renamingPath]);
 
   const handleRefresh = () => setRefreshKey(k => k + 1);
 
@@ -256,7 +274,11 @@ export default function FileTree() {
               {tree.length === 0 ? (
                 <div className={styles.emptyHint}>工作区无可见文件</div>
               ) : (
-                tree.map(node => <TreeNode key={node.path} node={node} onContextMenu={handleContextMenu} onRefresh={handleRefresh} />)
+                tree.map(node => (
+                  <TreeNode key={node.path} node={node} onContextMenu={handleContextMenu} onRefresh={handleRefresh}
+                    renamingPath={renamingPath} setRenamingPath={setRenamingPath}
+                    selectedPath={selectedPath} onSelect={setSelectedPath} />
+                ))
               )}
               {creating && (
                 <InlineCreate parentPath={creating.parentPath} isDirectory={creating.isDirectory} onDone={onCreated} onCancel={() => setCreating(null)} />
@@ -273,10 +295,7 @@ export default function FileTree() {
                       <ContextMenuItem label="重命名" onClick={() => {
                         const node = contextMenuRef.current;
                         setContextMenu(null);
-                        if (node) {
-                          const el = document.querySelector(`[data-path="${node.path.replace(/\\/g, '\\\\')}"]`);
-                          if (el) el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-                        }
+                        if (node) setRenamingPath(node.path);
                       }} />
                       <ContextMenuItem label="删除" onClick={handleDelete} />
                       <div className={styles.contextDivider} />

@@ -168,6 +168,19 @@ export function setupFileHandlers() {
     return { success: true };
   });
 
+  ipcMain.handle('files:rename', async (_event, oldPath: string, newPath: string) => {
+    const safeOld = safeResolve(currentWorkspace, oldPath);
+    const safeNew = safeResolve(currentWorkspace, newPath);
+    if (!fs.existsSync(safeOld)) {
+      throw new Error(`路径不存在: ${oldPath}`);
+    }
+    if (fs.existsSync(safeNew)) {
+      throw new Error(`目标已存在: ${newPath}`);
+    }
+    fs.renameSync(safeOld, safeNew);
+    return { success: true };
+  });
+
   ipcMain.handle('files:delete', async (_event, targetPath: string) => {
     const safePath = safeResolve(currentWorkspace, targetPath);
     if (!fs.existsSync(safePath)) {

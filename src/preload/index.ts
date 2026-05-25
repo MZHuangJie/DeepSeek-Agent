@@ -22,6 +22,7 @@ const api = {
     createFile: (filePath: string) => ipcRenderer.invoke('files:create-file', filePath),
     createDirectory: (dirPath: string) => ipcRenderer.invoke('files:create-directory', dirPath),
     delete: (targetPath: string) => ipcRenderer.invoke('files:delete', targetPath),
+    rename: (oldPath: string, newPath: string) => ipcRenderer.invoke('files:rename', oldPath, newPath),
     write: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content),
     readBinary: (filePath: string) => ipcRenderer.invoke('files:readBinary', filePath),
     showInExplorer: (filePath: string) => ipcRenderer.invoke('files:show-in-explorer', filePath),
