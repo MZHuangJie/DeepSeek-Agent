@@ -16,6 +16,7 @@ import TerminalList from './components/terminal/TerminalList';
 import StatusBar from './components/statusbar/StatusBar';
 import ModelSettings from './components/settings/ModelSettings';
 import ThemeSettings from './components/settings/ThemeSettings';
+import QuickOpen from './components/chat/QuickOpen';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
 import { useChatStore } from './stores/chat';
@@ -42,6 +43,10 @@ export default function App() {
         const state = useFilesStore.getState();
         if (state.activeTab) state.saveFile(state.activeTab);
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        setShowQuickOpen(true);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -49,6 +54,7 @@ export default function App() {
 
   const [showModelSettings, setShowModelSettings] = React.useState(false);
   const [showThemeSettings, setShowThemeSettings] = React.useState(false);
+  const [showQuickOpen, setShowQuickOpen] = React.useState(false);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
 
@@ -266,6 +272,7 @@ export default function App() {
       {/* Status Bar */}
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
       {showThemeSettings && <ThemeSettings onClose={() => setShowThemeSettings(false)} />}
+      {showQuickOpen && <QuickOpen onClose={() => setShowQuickOpen(false)} />}
       <StatusBar language={activeFile ? getLanguage(activeFile.name) : ''} />
     </div>
   );
