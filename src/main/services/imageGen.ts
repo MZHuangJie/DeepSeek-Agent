@@ -61,8 +61,11 @@ export async function generateImage(
   args: GenerateImageArgs,
   signal?: AbortSignal
 ): Promise<GenerateImageResult> {
-  const apiPath = config.baseUrl.endsWith('/v1') ? '/images/generations' : '/v1/images/generations';
-  const url = new URL(apiPath, config.baseUrl);
+  // 修复：使用字符串拼接替代 new URL(path, base) 避免路径段被替换
+  // 旧代码 new URL('/images/generations', 'https://api.openai.com/v1') 会将 /v1 当作文件替换为 /images/generations
+  const base = config.baseUrl.replace(/\/+$/, '');
+  const path = base.endsWith('/v1') ? '/images/generations' : '/v1/images/generations';
+  const url = new URL(base + path);
   const isHttps = url.protocol === 'https:';
 
   const body = JSON.stringify({
