@@ -17,6 +17,24 @@
   margin-bottom: 8px;
 }
 
+.breakdown {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+.breakdownRow {
+  font-size: 10px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-secondary);
+}
+
+.breakdownRow + .breakdownRow {
+  margin-top: 4px;
+}
+
 .row {
   font-size: 11px;
   display: flex;

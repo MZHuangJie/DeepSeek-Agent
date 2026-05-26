@@ -167,8 +167,11 @@ export const useModelStore = create<ModelState>((set, get) => ({
     set({ activeModelId: id });
     const model = get().models.find(m => m.id === id);
     if (model?.contextWindow) {
+      const main = useAgentStore.getState().mainTokenStats;
       const stats = useAgentStore.getState().tokenStats;
-      if (stats) {
+      if (main) {
+        useAgentStore.getState().setMainTokenStats({ ...main, contextMax: model.contextWindow });
+      } else if (stats) {
         useAgentStore.getState().setTokenStats({ ...stats, contextMax: model.contextWindow });
       }
     }

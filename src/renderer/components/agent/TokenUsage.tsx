@@ -11,6 +11,7 @@ function fmt(n: number): string {
 export default function TokenUsage() {
   const { tokenStats } = useAgentStore();
   const s = tokenStats ?? { total: 0, prompt: 0, completion: 0, toolTokens: 0, contextWindow: 0, contextMax: 100000, cost: 0 };
+  const hasSubAgents = (s.subAgentTotal ?? 0) > 0;
 
   const promptPct = s.total > 0 ? (s.prompt / s.total * 100).toFixed(1) : '0.0';
   const completionPct = s.total > 0 ? (s.completion / s.total * 100).toFixed(1) : '0.0';
@@ -21,6 +22,19 @@ export default function TokenUsage() {
     <div className={styles.container}>
       <div className={styles.header}>Token 用量</div>
       <div className={styles.total}>{fmt(s.total)}</div>
+
+      {hasSubAgents && (
+        <div className={styles.breakdown}>
+          <div className={styles.breakdownRow}>
+            <span>主 Agent</span>
+            <span>{fmt(s.mainTotal ?? 0)}</span>
+          </div>
+          <div className={styles.breakdownRow}>
+            <span>子代理</span>
+            <span>{fmt(s.subAgentTotal ?? 0)}</span>
+          </div>
+        </div>
+      )}
 
       <div className={styles.row}>
         <span className={styles.rowLabel}>提示词 Tokens</span>

@@ -94,7 +94,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       const lastTc = useAgentStore.getState().toolCalls[useAgentStore.getState().toolCalls.length - 1];
       if (lastTc) useAgentStore.getState().updateToolCall(lastTc.id, { result: chunk.result, status: chunk.status });
     } else if (chunk.type === 'usage') {
-      useAgentStore.getState().setTokenStats({
+      useAgentStore.getState().setMainTokenStats({
         total: chunk.total, prompt: chunk.prompt, completion: chunk.completion,
         toolTokens: chunk.toolTokens ?? 0, contextWindow: chunk.currentPrompt || chunk.prompt || 0,
         contextMax: chunk.contextMax || 100000, cost: parseFloat((chunk.total * 0.000002).toFixed(3)),
