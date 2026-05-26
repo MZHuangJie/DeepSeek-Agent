@@ -5,7 +5,7 @@ import SessionList from './components/sidebar/SessionList';
 import ModifyPanel from './components/agent/ModifyPanel';
 import ActivityBar, { PanelView } from './components/sidebar/ActivityBar';
 import BrowserView from './components/chat/BrowserView';
-import ChatPanel from './components/chat/ChatPanel';
+import ChatWorkspace from './components/chat/ChatWorkspace';
 import AgentPanel from './components/agent/AgentPanel';
 import EditorTabs from './components/editor/EditorTabs';
 import CodeEditor from './components/editor/CodeEditor';
@@ -27,7 +27,7 @@ import ResizeHandle from './components/layout/ResizeHandle';
 export default function App() {
   const { activeTab, openTabs, updateTabContent, saveFile } = useFilesStore();
   const { activeTermId, createTerminal } = useTerminalStore();
-  const { activeSessionId, loadSessions } = useChatStore();
+  const { loadSessions } = useChatStore();
   const {
     sidebarWidth, agentPanelWidth, terminalHeight, chatPanelWidth,
     bottomExpanded, bottomClosed, setBottomClosed, setBottomExpanded,
@@ -216,13 +216,7 @@ export default function App() {
               background: 'var(--bg-primary)', color: 'var(--text-primary)',
               borderLeft: openTabs.length > 0 ? '1px solid var(--border)' : 'none',
             }}>
-              {activeSessionId ? (
-                <ChatPanel />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
-                  新建会话开始对话
-                </div>
-              )}
+              <ChatWorkspace />
             </div>
           </div>
           {/* Bottom Panel */}

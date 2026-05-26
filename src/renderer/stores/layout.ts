@@ -5,6 +5,7 @@ type NumberOrFn = number | ((prev: number) => number);
 interface LayoutState {
   sidebarWidth: number;
   agentPanelWidth: number;
+  agentProcessPanelWidth: number;
   terminalHeight: number;
   chatPanelWidth: number;
   bottomPanel: 'terminal' | 'problems' | 'output' | 'debug';
@@ -12,6 +13,7 @@ interface LayoutState {
   bottomClosed: boolean;
   setSidebarWidth: (w: NumberOrFn) => void;
   setAgentPanelWidth: (w: NumberOrFn) => void;
+  setAgentProcessPanelWidth: (w: NumberOrFn) => void;
   setTerminalHeight: (h: NumberOrFn) => void;
   setChatPanelWidth: (w: NumberOrFn) => void;
   setBottomPanel: (p: 'terminal' | 'problems' | 'output' | 'debug') => void;
@@ -27,6 +29,7 @@ function resolve<T>(val: T | ((prev: T) => T), prev: T): T {
 export const useLayoutStore = create<LayoutState>((set) => ({
   sidebarWidth: 240,
   agentPanelWidth: 320,
+  agentProcessPanelWidth: 300,
   terminalHeight: 180,
   chatPanelWidth: 380,
   bottomPanel: 'terminal',
@@ -34,6 +37,7 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   bottomClosed: true,
   setSidebarWidth: (w) => set(s => ({ sidebarWidth: resolve(w, s.sidebarWidth) })),
   setAgentPanelWidth: (w) => set(s => ({ agentPanelWidth: resolve(w, s.agentPanelWidth) })),
+  setAgentProcessPanelWidth: (w) => set(s => ({ agentProcessPanelWidth: resolve(w, s.agentProcessPanelWidth) })),
   setTerminalHeight: (h) => set(s => ({ terminalHeight: resolve(h, s.terminalHeight) })),
   setChatPanelWidth: (w) => set(s => ({ chatPanelWidth: resolve(w, s.chatPanelWidth) })),
   setBottomPanel: (p) => set({ bottomPanel: p }),

@@ -4,12 +4,11 @@ import CurrentStep from './CurrentStep';
 import ToolTimeline from './ToolTimeline';
 import ExploreProgress from './ExploreProgress';
 import TokenUsage from './TokenUsage';
-import SubAgentList from './SubAgentList';
 import styles from './AgentPanel.module.css';
 
 export default function AgentPanel() {
-  const { currentStep, toolCalls, subAgents } = useAgentStore();
-  const hasData = currentStep || toolCalls.length > 0 || subAgents.length > 0;
+  const { currentStep, toolCalls } = useAgentStore();
+  const hasData = currentStep || toolCalls.length > 0;
 
   return (
     <div className={styles.panel}>
@@ -28,7 +27,6 @@ export default function AgentPanel() {
         {hasData && (
           <>
             <CurrentStep />
-            <SubAgentList />
             <ToolTimeline />
             <ExploreProgress />
           </>

@@ -228,6 +228,7 @@ export default function ChatPanel() {
       <div
         ref={scrollRef}
         className={styles.scrollArea}
+        data-chat-scroll="true"
         onScroll={() => {
           const el = scrollRef.current;
           if (el) {

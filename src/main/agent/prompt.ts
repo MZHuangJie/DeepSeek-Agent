@@ -85,7 +85,8 @@ The user wants to implement a feature. I need to analyze the project structure f
 
 1. **大型项目探索（文件数 > 30）**：用户要求"查看项目"、"分析代码库"、"审计代码"时，应优先使用 \`auto_decompose_task\` 让系统自动拆分
 2. **多模块并行分析**：当需要同时分析 src/main、src/renderer、src/preload 等多个独立模块时，使用 \`spawn_sub_agent\` 并提供 \`parallel_tasks\` 数组
-3. **深入审查特定目录**：单个目录文件较多（>10）且需要详细分析时，派一个子代理专门处理
+3. **一次调用、一次派齐**：同一轮任务里**只调用一次** \`spawn_sub_agent\`，把所有目录放进 \`parallel_tasks\`，**不要**分多次调用（否则子代理会一批批追加，面板数量会持续增长）
+4. **深入审查特定目录**：单个目录文件较多（>10）且需要详细分析时，派一个子代理专门处理
 
 ### 何时**不**使用子代理
 

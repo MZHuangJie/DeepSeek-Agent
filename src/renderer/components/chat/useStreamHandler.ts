@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat';
 import { useAgentStore } from '../../stores/agent';
+import { buildToolActivity, computeSubAgentProgress, formatSubAgentActivityLine, isUsefulSubAgentSnippet } from './subAgentUi';
 
 interface StreamHandlerDeps {
   currentStepRef: React.MutableRefObject<number>;
@@ -123,27 +124,67 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       if (prev) useAgentStore.getState().setExploreProgress({ ...prev, warning: chunk.warning });
     } else if (chunk.type === 'sub-agent-start') {
       useAgentStore.getState().addSubAgent({
-        id: chunk.taskId, type: chunk.subAgentType, targetPath: chunk.targetPath || '',
-        status: 'running', filesProcessed: 0, tokenUsage: { prompt: 0, completion: 0, total: 0 },
-        findings: [], startTime: Date.now(),
+        id: chunk.taskId,
+        type: chunk.subAgentType,
+        description: chunk.description || '',
+        targetPath: chunk.targetPath || '',
+        waveIndex: chunk.waveIndex,
+        status: 'running',
+        filesProcessed: 0,
+        progress: 5,
+        activityText: '正在启动子代理...',
+        tokenUsage: { prompt: 0, completion: 0, total: 0 },
+        findings: [],
+        startTime: Date.now(),
       });
+    } else if (chunk.type === 'sub-agent-chunk') {
+      const sa = useAgentStore.getState().subAgents.find(s => s.id === chunk.taskId);
+      if (!sa || sa.status === 'completed' || sa.status === 'failed') return;
+      if (chunk.chunkType === 'content' && chunk.text) {
+        if (!isUsefulSubAgentSnippet(chunk.text)) return;
+        const snippet = chunk.text.replace(/\s+/g, ' ').trim().slice(0, 72);
+        const nextProgress = Math.min(95, computeSubAgentProgress(sa) + 1);
+        useAgentStore.getState().updateSubAgent(chunk.taskId, {
+          activityText: snippet + (chunk.text.trim().length > 72 ? '…' : ''),
+          progress: nextProgress,
+        });
+      }
     } else if (chunk.type === 'sub-agent-tool-call') {
       const sa = useAgentStore.getState().subAgents.find(s => s.id === chunk.taskId);
-      if (sa && chunk.name === 'read_file') {
-        useAgentStore.getState().updateSubAgent(chunk.taskId, { filesProcessed: sa.filesProcessed + 1 });
-      }
+      if (!sa) return;
+      const activity = buildToolActivity(chunk.name, chunk.args);
+      const filesProcessed = chunk.name === 'read_file' ? sa.filesProcessed + 1 : sa.filesProcessed;
+      useAgentStore.getState().updateSubAgent(chunk.taskId, {
+        filesProcessed,
+        currentTool: chunk.name,
+        activityText: activity.activityText,
+        currentFile: activity.currentFile ?? sa.currentFile,
+        progress: Math.min(95, filesProcessed * 8 + Math.floor((sa.tokenUsage?.total || 0) / 1000) + 10),
+      });
     } else if (chunk.type === 'sub-agent-usage') {
+      const sa = useAgentStore.getState().subAgents.find(s => s.id === chunk.taskId);
       useAgentStore.getState().updateSubAgent(chunk.taskId, {
         tokenUsage: { prompt: chunk.prompt, completion: chunk.completion, total: chunk.total },
+        progress: sa ? Math.min(95, computeSubAgentProgress({ ...sa, tokenUsage: { prompt: chunk.prompt, completion: chunk.completion, total: chunk.total } })) : undefined,
       });
     } else if (chunk.type === 'sub-agent-complete') {
       useAgentStore.getState().updateSubAgent(chunk.taskId, {
         status: chunk.success ? 'completed' : 'failed', summary: chunk.summary,
         filesProcessed: chunk.filesProcessed ?? 0,
-        tokenUsage: chunk.tokenUsage ?? { prompt: 0, completion: 0, total: 0 }, endTime: Date.now(),
+        tokenUsage: chunk.tokenUsage ?? { prompt: 0, completion: 0, total: 0 },
+        progress: 100,
+        activityText: chunk.success ? '任务已完成' : (chunk.error || '任务失败'),
+        error: chunk.error,
+        endTime: Date.now(),
       });
     } else if (chunk.type === 'sub-agent-error') {
-      useAgentStore.getState().updateSubAgent(chunk.taskId, { status: 'failed', error: chunk.error, endTime: Date.now() });
+      useAgentStore.getState().updateSubAgent(chunk.taskId, {
+        status: 'failed',
+        error: chunk.error,
+        activityText: chunk.error || '任务失败',
+        progress: 100,
+        endTime: Date.now(),
+      });
     } else if (chunk.type === 'error') {
       setStreaming(false);
       setErrorMsg(chunk.message);

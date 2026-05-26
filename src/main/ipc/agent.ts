@@ -472,6 +472,13 @@ export function setupAgentHandlers() {
           tool_call_id: tc.id,
           content: truncatedResult,
         });
+
+        if (tc.name === 'spawn_sub_agent' || tc.name === 'auto_decompose_task') {
+          messages.push({
+            role: 'user',
+            content: '子代理工具调用已结束。请阅读上方 tool 返回中的成功/失败详情，现在立刻向用户输出完整汇总（必须说明失败原因与后续计划），不要再调用 spawn_sub_agent 或 auto_decompose_task。',
+          });
+        }
       }
       // 工具执行完毕，静默继续下一轮（不再往聊天里刷提示）
     }

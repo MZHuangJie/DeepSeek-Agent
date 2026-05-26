@@ -2,7 +2,7 @@ import { streamChat, ModelConfig } from './client';
 import type { Provider, StreamCallbacks } from './providers/types';
 import { selectProvider } from './providers';
 import type { ToolContext } from './tools/index';
-import { getAllTools, getToolSchemas } from './tools';
+import { getSubAgentTools, getToolSchemas } from './tools';
 import { BrowserWindow } from 'electron';
 import { errorLog, log } from '../logger';
 import { getSetting } from '../db/settings';
@@ -16,6 +16,7 @@ export interface SubAgentTask {
   description: string;
   targetPath: string;
   projectDir: string;
+  waveIndex?: number;
 }
 
 export interface SubAgentResult {
@@ -32,19 +33,59 @@ export interface SubAgentResult {
   error?: string;
 }
 
+export function formatSubAgentResultsForTool(
+  items: Array<{ targetPath: string }>,
+  results: SubAgentResult[],
+): string {
+  const body = results.map((r, idx) => {
+    const path = items[idx]?.targetPath ?? r.taskId;
+    const lines = [
+      `${r.success ? '✓ 成功' : '✗ 失败'} ${path}`,
+      `处理文件: ${r.filesProcessed.length}，Token: ${r.tokenUsage.total}`,
+    ];
+    if (r.error) lines.push(`失败原因: ${r.error}`);
+    if (r.summary?.trim()) lines.push('', r.summary.trim());
+    else if (!r.success) lines.push('', '(子代理未产生有效输出)');
+    return lines.join('\n');
+  }).join('\n\n---\n\n');
+
+  const failed = results.filter(r => !r.success).length;
+  if (failed > 0) {
+    return `${body}\n\n【系统提示】${failed}/${results.length} 个子代理失败。你必须根据以上结果立即向用户说明失败原因、已成功部分与后续计划，不要停止回复，也不要再次调用 spawn_sub_agent。`;
+  }
+  return `${body}\n\n【系统提示】子代理已全部完成。请汇总以上发现并向用户给出完整结论。`;
+}
+
 export class SubAgentManager {
   private activeSubAgents = new Map<string, AbortController>();
+  private spawnWave = 0;
 
   constructor(private win: BrowserWindow) {}
+
+  /** 每次主 Agent 调用 spawn 工具时递增，用于 UI 区分批次 */
+  beginSpawnWave(): number {
+    this.spawnWave += 1;
+    this.win.webContents.send('agent:stream-chunk', {
+      type: 'sub-agent-wave-start',
+      waveIndex: this.spawnWave,
+    });
+    return this.spawnWave;
+  }
 
   async spawnSubAgent(
     task: SubAgentTask,
     apiKey: string,
     modelConfig: ModelConfig,
-    contextMax: number = 100000
+    contextMax: number = 100000,
+    parentSignal?: AbortSignal,
   ): Promise<SubAgentResult> {
     const abortController = new AbortController();
     this.activeSubAgents.set(task.id, abortController);
+
+    if (parentSignal) {
+      if (parentSignal.aborted) abortController.abort();
+      else parentSignal.addEventListener('abort', () => abortController.abort(), { once: true });
+    }
 
     try {
       this.win.webContents.send('agent:stream-chunk', {
@@ -53,6 +94,7 @@ export class SubAgentManager {
         subAgentType: task.type,
         description: task.description,
         targetPath: task.targetPath,
+        waveIndex: task.waveIndex ?? this.spawnWave,
       });
 
       const mustUseTools = `【重要】你必须使用工具来实际执行任务。不要只用文字描述，必须调用工具（list_files、read_file 等）去真正读取和操作文件。\n\n${task.description}`;
@@ -61,7 +103,7 @@ export class SubAgentManager {
         { role: 'user', content: mustUseTools },
       ];
 
-      const tools = getAllTools(task.projectDir);
+      const tools = getSubAgentTools(task.projectDir);
       const toolSchemas = getToolSchemas(tools);
 
       const provider = selectProvider(modelConfig.model, modelConfig.baseUrl);
@@ -84,6 +126,7 @@ export class SubAgentManager {
         taskId: task.id,
         success: result.success,
         summary: result.summary,
+        error: result.error,
         filesProcessed: result.filesProcessed.length,
         tokenUsage: result.tokenUsage,
       });
@@ -116,12 +159,36 @@ export class SubAgentManager {
     tasks: SubAgentTask[],
     apiKey: string,
     modelConfig: ModelConfig,
-    contextMax: number = 100000
+    contextMax: number = 100000,
+    parentSignal?: AbortSignal,
   ): Promise<SubAgentResult[]> {
-    const promises = tasks.map((task) =>
-      this.spawnSubAgent(task, apiKey, modelConfig, contextMax)
+    if (tasks.length === 0) return [];
+
+    const waveIndex = this.beginSpawnWave();
+    const tasksWithWave = tasks.map(t => ({ ...t, waveIndex }));
+
+    const results: SubAgentResult[] = new Array(tasksWithWave.length);
+    let cursor = 0;
+    const concurrency = 2;
+
+    const runNext = async (): Promise<void> => {
+      const index = cursor++;
+      if (index >= tasksWithWave.length) return;
+      if (index > 0) await new Promise(r => setTimeout(r, 400));
+      results[index] = await this.spawnSubAgent(
+        tasksWithWave[index],
+        apiKey,
+        modelConfig,
+        contextMax,
+        parentSignal,
+      );
+      await runNext();
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, tasks.length) }, () => runNext()),
     );
-    return Promise.all(promises);
+    return results;
   }
 
   cancelSubAgent(taskId: string): void {
@@ -304,6 +371,21 @@ ${dirHint}
     };
   }
 
+  /** DeepSeek 思考模式要求把 reasoning_content 原样带回后续请求 */
+  private pushAssistantMessage(
+    messages: any[],
+    result: { content?: string; thinking?: string },
+    toolCalls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>,
+  ) {
+    const msg: Record<string, unknown> = {
+      role: 'assistant',
+      content: result.content || '',
+    };
+    if (result.thinking) msg.reasoning_content = result.thinking;
+    if (toolCalls?.length) msg.tool_calls = toolCalls;
+    messages.push(msg);
+  }
+
   private async runSubAgentLoop(
     task: SubAgentTask,
     messages: any[],
@@ -357,6 +439,8 @@ ${dirHint}
         );
       } catch (err: any) {
         if (signal.aborted) break;
+        const errMsg = err?.message || String(err);
+        errorLog('sub-agent', 'stream-error', { taskId: task.id, error: errMsg });
         // 失败时返回当前已累积的部分结果，而不是丢弃所有状态
         return this.buildResult(
           task,
@@ -366,7 +450,7 @@ ${dirHint}
           totalPrompt,
           totalCompletion,
           totalTokens,
-          err?.message || String(err)
+          errMsg
         );
       }
 
@@ -434,10 +518,7 @@ ${dirHint}
 
         // 子代理完成任务
         if (result.content || result.thinking) {
-          messages.push({
-            role: 'assistant',
-            content: result.content || result.thinking || '',
-          });
+          this.pushAssistantMessage(messages, result);
         }
         break;
       }
@@ -445,10 +526,7 @@ ${dirHint}
       // 撞 max_tokens 截断时，工具调用可能不完整，停下来交给后置总结流程
       if (result.finishReason === 'length') {
         if (result.content || result.thinking) {
-          messages.push({
-            role: 'assistant',
-            content: result.content || result.thinking || '',
-          });
+          this.pushAssistantMessage(messages, result);
         }
         break;
       }
@@ -476,11 +554,7 @@ ${dirHint}
         type: 'function' as const,
         function: { name: tc.name, arguments: tc.arguments },
       }));
-      messages.push({
-        role: 'assistant',
-        content: result.content || '',
-        tool_calls: assistantToolCalls,
-      });
+      this.pushAssistantMessage(messages, result, assistantToolCalls);
 
       for (const tc of result.toolCalls) {
         const tool = tools.find((t) => t.name === tc.name);
@@ -575,11 +649,8 @@ ${dirHint}
         }
 
         const finalText = summaryResult.content || summaryResult.thinking || '';
-        if (finalText) {
-          messages.push({
-            role: 'assistant',
-            content: finalText,
-          });
+        if (finalText || summaryResult.thinking) {
+          this.pushAssistantMessage(messages, summaryResult);
         }
       } catch {
         // 总结请求失败时，沿用已有状态返回

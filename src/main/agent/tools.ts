@@ -19,6 +19,16 @@ import { createPresentChoicesTool } from './tools/present-choices';
 import { createGenerateImageTool } from './tools/generate-image';
 import { createDescribeImageTool } from './tools/describe-image';
 
+const SUB_AGENT_EXCLUDED_TOOLS = new Set([
+  'spawn_sub_agent',
+  'auto_decompose_task',
+  'bash',
+  'generate_image',
+  'browse_url',
+  'present_web',
+  'present_choices',
+]);
+
 export function getAllTools(projectDir: string): ToolDef[] {
   return [
     createReadFileTool(projectDir),
@@ -39,6 +49,11 @@ export function getAllTools(projectDir: string): ToolDef[] {
     createGenerateImageTool(),
     createDescribeImageTool(),
   ];
+}
+
+/** 子代理仅保留读/搜/改文件能力，避免嵌套派生与高风险工具 */
+export function getSubAgentTools(projectDir: string): ToolDef[] {
+  return getAllTools(projectDir).filter(t => !SUB_AGENT_EXCLUDED_TOOLS.has(t.name));
 }
 
 export function getToolSchemas(tools: ToolDef[]) {

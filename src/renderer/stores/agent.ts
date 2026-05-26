@@ -22,9 +22,14 @@ export interface TokenStats {
 export interface SubAgentStatus {
   id: string;
   type: 'explore' | 'analyze' | 'implement' | 'review';
+  description?: string;
   targetPath: string;
   status: 'spawning' | 'running' | 'completed' | 'failed';
   filesProcessed: number;
+  progress?: number;
+  activityText?: string;
+  currentFile?: string;
+  currentTool?: string;
   tokenUsage: {
     prompt: number;
     completion: number;
@@ -35,6 +40,7 @@ export interface SubAgentStatus {
   error?: string;
   startTime: number;
   endTime?: number;
+  waveIndex?: number;
 }
 
 interface AgentState {
