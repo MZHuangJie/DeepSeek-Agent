@@ -1,27 +1,37 @@
 .bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   height: 36px;
   padding: 0 8px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   overflow: hidden;
+  min-width: 0;
 }
 
-.tabs {
+.tabsScroll {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex: 1;
+  height: 100%;
+  width: 100%;
   min-width: 0;
   overflow-x: auto;
-  scrollbar-width: none;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
-.tabs::-webkit-scrollbar {
-  display: none;
+.tabsScroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tabsScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabsScroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
 }
 
 .tab {

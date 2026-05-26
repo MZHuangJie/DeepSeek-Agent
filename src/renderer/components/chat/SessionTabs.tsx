@@ -1,24 +1,42 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/chat';
 import styles from './SessionTabs.module.css';
 
+function displaySessionTitle(title: string): string {
+  const cleaned = title
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '[图片]')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || '新建会话';
+}
+
 export default function SessionTabs() {
   const { sessions, activeSessionId, createSession, switchSession, deleteSession } = useChatStore();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !activeSessionId) return;
+    const activeTab = root.querySelector(`[data-session-id="${activeSessionId}"]`);
+    activeTab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeSessionId, sessions.length]);
 
   return (
     <div className={styles.bar}>
-      <div className={styles.tabs}>
+      <div ref={scrollRef} className={styles.tabsScroll}>
         {sessions.map(session => {
           const active = session.id === activeSessionId;
+          const title = displaySessionTitle(session.title);
           return (
             <button
               key={session.id}
               type="button"
+              data-session-id={session.id}
               className={`${styles.tab} ${active ? styles.tabActive : ''}`}
               onClick={() => switchSession(session.id)}
-              title={session.title}
+              title={title}
             >
-              <span className={styles.tabTitle}>{session.title}</span>
+              <span className={styles.tabTitle}>{title}</span>
               {sessions.length > 1 && (
                 <span
                   className={styles.closeBtn}
@@ -41,10 +59,10 @@ export default function SessionTabs() {
             <span className={styles.tabTitle}>新建会话</span>
           </button>
         )}
+        <button type="button" className={styles.newBtn} onClick={createSession} title="新建会话">
+          <img src="/assets/13.png" alt="new" className={styles.newBtnIcon} />
+        </button>
       </div>
-      <button type="button" className={styles.newBtn} onClick={createSession} title="新建会话">
-        <img src="/assets/13.png" alt="new" className={styles.newBtnIcon} />
-      </button>
     </div>
   );
 }
