@@ -138,7 +138,10 @@ export default function ChatPanel() {
 
     const history: any[] = [];
     for (const m of messages) {
-      const entry: any = { role: m.role, content: m.content };
+      const entry: any = {
+        role: m.role,
+        content: m.role === 'user' && m.contentParts?.length ? m.contentParts : m.content,
+      };
       if (m.role === 'assistant' && m.thinkingContent) {
         entry.reasoning_content = m.thinkingContent;
       }
@@ -177,18 +180,29 @@ export default function ChatPanel() {
     const modelConfig = getActiveModel();
     const providerSupportsVision = PROVIDERS[modelConfig.provider]?.multimodal ?? false;
     const imageMarkdown = hasImages ? '\n' + images!.map(im => `![image](${im.path})`).join('\n') : '';
-    const storedContent = displayContent + imageMarkdown;
-    addMessage({ id: `msg-${Date.now()}`, role: 'user', content: storedContent, timestamp: Date.now() });
+    const storedContent = (displayContent || (hasImages ? '（图片）' : '')) + imageMarkdown;
+    const contentParts = (hasImages && providerSupportsVision)
+      ? [
+          { type: 'text' as const, text: content || displayContent || '请描述这张图片' },
+          ...images!.map(im => ({ type: 'image_url' as const, image_url: { url: im.dataUrl } })),
+        ]
+      : undefined;
+    addMessage({
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: storedContent,
+      contentParts,
+      timestamp: Date.now(),
+    });
     const assistantId = `msg-${Date.now() + 1}`;
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });
     setStreaming(true);
 
     const mode = useModeStore.getState().mode;
     const effectiveApiKey = modelConfig.apiKey || apiKey;
-    const textContent = (content || displayContent) + (providerSupportsVision ? '' : imageMarkdown);
-    const newMessage = (hasImages && providerSupportsVision)
-      ? [{ type: 'text', text: content || displayContent }, ...images!.map(im => ({ type: 'image_url', image_url: { url: im.dataUrl } }))]
-      : textContent;
+    const userText = content || displayContent || (hasImages ? '请描述这张图片' : '');
+    const textContent = userText + (providerSupportsVision ? '' : imageMarkdown);
+    const newMessage = contentParts ?? textContent;
 
     try {
       await window.api.agent.send({
@@ -201,6 +215,7 @@ export default function ChatPanel() {
         contextMax: modelConfig.contextWindow || 64000,
         commandPrompt: command?.systemPrompt,
         mode,
+        providerMultimodal: providerSupportsVision,
       });
     } catch (err: any) {
       setStreaming(false);

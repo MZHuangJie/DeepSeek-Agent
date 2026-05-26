@@ -6,6 +6,7 @@ import { getAllTools, getToolSchemas } from './tools';
 import { BrowserWindow } from 'electron';
 import { errorLog, log } from '../logger';
 import { getSetting } from '../db/settings';
+import { buildVisionToolContext } from './vision-config';
 
 export type SubAgentType = 'explore' | 'analyze' | 'implement' | 'review';
 
@@ -491,8 +492,6 @@ ${dirHint}
             const args = JSON.parse(tc.arguments || '{}');
             const imageModelRaw = getSetting('imageModel');
             const imageModelCfg = imageModelRaw ? JSON.parse(imageModelRaw) : null;
-            const visionModelRaw = getSetting('visionModel');
-            const visionModelCfg = visionModelRaw ? JSON.parse(visionModelRaw) : null;
 
             const toolCtx: ToolContext = {
               apiKey,
@@ -505,15 +504,7 @@ ${dirHint}
                 model: imageModelCfg.model,
                 apiKey: imageModelCfg.apiKey,
               } : undefined,
-              visionModelConfig: visionModelCfg?.enabled ? (() => {
-                const useDedicated = !visionModelCfg.useActiveModel || !!visionModelCfg.apiKey;
-                return {
-                  enabled: true,
-                  baseUrl: useDedicated ? visionModelCfg.baseUrl : modelConfig.baseUrl,
-                  model: useDedicated ? visionModelCfg.model : modelConfig.model,
-                  apiKey: useDedicated ? visionModelCfg.apiKey : apiKey,
-                };
-              })() : undefined,
+              visionModelConfig: buildVisionToolContext(modelConfig, apiKey, false),
             };
             toolResult = await tool.execute(args, toolCtx);
           } catch (err: any) {

@@ -172,6 +172,10 @@ export const useModelStore = create<ModelState>((set, get) => ({
         useAgentStore.getState().setTokenStats({ ...stats, contextMax: model.contextWindow });
       }
     }
+    const { visionModel } = get();
+    if (model && !PROVIDERS[model.provider]?.multimodal && visionModel.useActiveModel) {
+      set({ visionModel: { ...visionModel, useActiveModel: false } });
+    }
     await window.api.settings.set('activeModel', id);
   },
 
@@ -197,7 +201,12 @@ export const useModelStore = create<ModelState>((set, get) => ({
       const saved = await window.api.settings.get('visionModel');
       if (saved) {
         const parsed = JSON.parse(saved);
-        set({ visionModel: { ...DEFAULT_VISION_MODEL, ...parsed } });
+        let config = { ...DEFAULT_VISION_MODEL, ...parsed };
+        const active = get().getActiveModel();
+        if (!PROVIDERS[active.provider]?.multimodal) {
+          config = { ...config, useActiveModel: false };
+        }
+        set({ visionModel: config });
       }
     } catch {
       // use default

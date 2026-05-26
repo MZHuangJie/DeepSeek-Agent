@@ -143,12 +143,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         setValue('');
         return;
       }
-      if (trimmed) {
+      if (trimmed || images.length > 0) {
         const cmd = matchCommand(trimmed, pluginCommands);
         const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
         const prefix = refs.refFiles.map(p => `@${p} `).join('');
         const suffix = refs.textRefs.length > 0 ? '\n\n---\n引用消息：\n' + refs.textRefs.join('\n---\n') : '';
-        onSend(prefix + (msg || trimmed) + suffix, cmd || undefined, images.length > 0 ? images : undefined);
+        onSend(prefix + (msg || trimmed || (images.length > 0 ? '请描述这张图片' : '')) + suffix, cmd || undefined, images.length > 0 ? images : undefined);
         setValue('');
         refs.clearRefs();
         clearImages();
@@ -186,11 +186,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       setValue('');
       return;
     }
-    if (trimmed) {
+    if (trimmed || images.length > 0) {
       const cmd = matchCommand(trimmed, pluginCommands);
       const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
       const prefix = refs.refFiles.map(p => `@${p} `).join('');
-      onSend(prefix + (msg || trimmed), cmd || undefined, images.length > 0 ? images : undefined);
+      const suffix = refs.textRefs.length > 0 ? '\n\n---\n引用消息：\n' + refs.textRefs.join('\n---\n') : '';
+      onSend(prefix + (msg || trimmed || (images.length > 0 ? '请描述这张图片' : '')) + suffix, cmd || undefined, images.length > 0 ? images : undefined);
       setValue('');
       refs.clearRefs();
       clearImages();
@@ -362,8 +363,8 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
             ) : (
               <button
                 onClick={handleSend}
-                disabled={disabled || !value.trim()}
-                className={disabled || !value.trim() ? styles.sendBtnDisabled : styles.sendBtn}
+                disabled={disabled || (!value.trim() && images.length === 0)}
+                className={disabled || (!value.trim() && images.length === 0) ? styles.sendBtnDisabled : styles.sendBtn}
               >
                 <img src="/assets/9.png" alt="send" className={styles.sendIcon} />
               </button>

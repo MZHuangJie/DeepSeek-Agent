@@ -4,6 +4,8 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** 多模态用户消息：用于重建 API 历史时保留 image_url */
+  contentParts?: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }>;
   thinkingContent?: string;
   toolCalls?: ToolCall[];
   timestamp: number;

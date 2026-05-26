@@ -12,6 +12,8 @@ import { compressToolResult } from '../agent/compression';
 import { buildExploreState, detectExploreMode, shouldContinueExplore, buildExploreNudge, buildExploreCompletionNudge } from '../agent/explore-monitor';
 import { AppError } from '../agent/errors';
 import { pluginManager } from '../plugin/manager';
+import { resolveVisionConfig, buildVisionToolContext } from '../agent/vision-config';
+import { enrichMessageWithVisionDescriptions } from '../agent/image-preprocess';
 
 
 let activeAbort: AbortController | null = null;
@@ -51,6 +53,7 @@ export function setupAgentHandlers() {
     contextMax?: number;
     commandPrompt?: string;
     mode?: AgentMode;
+    providerMultimodal?: boolean;
   }) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window');
@@ -58,7 +61,7 @@ export function setupAgentHandlers() {
     const abortController = new AbortController();
     activeAbort = abortController;
 
-    infoLog('agent', 'send-start', { model: payload.model, mode: payload.mode, provider: (payload as any).provider, msgCount: payload.messages.length, newMsgLen: payload.newMessage.length });
+    infoLog('agent', 'send-start', { model: payload.model, mode: payload.mode, provider: (payload as any).provider, msgCount: payload.messages.length, newMsgLen: typeof payload.newMessage === 'string' ? payload.newMessage.length : payload.newMessage.length });
 
     try {
       const tools = getAllTools(payload.projectDir);
@@ -74,15 +77,34 @@ export function setupAgentHandlers() {
       : pluginPrompts ? `${baseSystemPrompt}\n\n${pluginPrompts}` : baseSystemPrompt;
 
     const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
-    let messages: any[] = buildMessages(prefix, payload.messages, payload.newMessage);
-
-    const builtTotalChars = messages.reduce((sum: number, m: any) => sum + (m.content?.length ?? 0), 0);
-    infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length, ctxLen: prefix.projectContext.length });
 
     const modelConfig = {
       model: payload.model || 'deepseek-chat',
       baseUrl: payload.baseUrl ?? 'https://api.deepseek.com',
     };
+
+    const visionConfig = resolveVisionConfig(modelConfig, payload.apiKey, {
+      providerMultimodal: payload.providerMultimodal,
+    });
+
+    let processedNewMessage: string | ContentPart[] = payload.newMessage;
+    const isMultimodalMessage = Array.isArray(payload.newMessage);
+    if (!payload.providerMultimodal && !isMultimodalMessage && visionConfig) {
+      if (abortController.signal.aborted) {
+        activeAbort = null;
+        activeSubAgentManager = null;
+        return { success: false, error: '已取消' };
+      }
+      processedNewMessage = await enrichMessageWithVisionDescriptions(
+        payload.newMessage,
+        visionConfig,
+        abortController.signal,
+      );
+    }
+
+    let messages: any[] = buildMessages(prefix, payload.messages, processedNewMessage);
+
+    infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length, ctxLen: prefix.projectContext.length });
     const enableTools = true;
     const toolSchemas = enableTools ? getToolSchemas(tools) : [];
 
@@ -409,8 +431,6 @@ export function setupAgentHandlers() {
 
             const imageModelRaw = getSetting('imageModel');
             const imageModelConfig = imageModelRaw ? JSON.parse(imageModelRaw) : null;
-            const visionModelRaw = getSetting('visionModel');
-            const visionModelConfig = visionModelRaw ? JSON.parse(visionModelRaw) : null;
             if (abortController.signal.aborted) break;
 
             const toolContext = {
@@ -429,15 +449,7 @@ export function setupAgentHandlers() {
                 model: imageModelConfig.model,
                 apiKey: imageModelConfig.apiKey,
               } : undefined,
-              visionModelConfig: visionModelConfig?.enabled ? (() => {
-                const useDedicated = !visionModelConfig.useActiveModel || !!visionModelConfig.apiKey;
-                return {
-                  enabled: true,
-                  baseUrl: useDedicated ? visionModelConfig.baseUrl : modelConfig.baseUrl,
-                  model: useDedicated ? visionModelConfig.model : modelConfig.model,
-                  apiKey: useDedicated ? visionModelConfig.apiKey : payload.apiKey,
-                };
-              })() : undefined,
+              visionModelConfig: buildVisionToolContext(modelConfig, payload.apiKey, payload.providerMultimodal),
             };
             toolResult = await tool.execute(args, toolContext);
           } catch (err: any) {
