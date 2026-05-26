@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import styles from '../../styles/components.module.css';
 import barStyles from './ActivityBar.module.css';
 
-export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify';
+export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify' | 'git';
 
 export type SystemMenuAction = 'theme' | 'terminal' | 'model' | 'about';
 
@@ -12,9 +12,10 @@ interface Props {
   onSystemAction: (action: SystemMenuAction) => void;
 }
 
-const ITEMS: Array<{ id: PanelView; label: string; icon: string }> = [
+const ITEMS: Array<{ id: PanelView; label: string; icon?: string; glyph?: string }> = [
   { id: 'files', label: '文件', icon: '/assets/file.png' },
   { id: 'sessions', label: '会话', icon: '/assets/session.png' },
+  { id: 'git', label: 'Git', glyph: '⎇' },
   { id: 'browser', label: '浏览器', icon: '/assets/web.png' },
   { id: 'agent', label: 'AGENT', icon: '/assets/usaged.png' },
   { id: 'modify', label: '文件修改', icon: '/assets/modify.png' },
@@ -27,12 +28,16 @@ const SYSTEM_MENU: Array<{ id: SystemMenuAction; label: string }> = [
   { id: 'about', label: '关于 DeepSeek-Agent' },
 ];
 
-function BarBtn({ icon, title, onClick, active }: { icon: string; title: string; onClick: () => void; active?: boolean }) {
+function BarBtn({ icon, glyph, title, onClick, active }: { icon?: string; glyph?: string; title: string; onClick: () => void; active?: boolean }) {
   return (
     <div onClick={onClick} title={title} className={styles.barBtn}
       style={{ background: active ? 'var(--accent)' : 'transparent', opacity: active ? 1 : 0.5 }}
     >
-      <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
+      {glyph ? (
+        <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 700 }}>{glyph}</span>
+      ) : (
+        <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
+      )}
       {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 2, height: 20, background: '#fff', borderRadius: 1 }} />}
     </div>
   );
@@ -78,6 +83,7 @@ export default function ActivityBar({ openView, onToggle, onSystemAction }: Prop
         <BarBtn
           key={item.id}
           icon={item.icon}
+          glyph={item.glyph}
           title={item.label}
           active={openView === item.id}
           onClick={() => onToggle(item.id)}

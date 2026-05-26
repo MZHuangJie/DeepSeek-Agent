@@ -3,6 +3,7 @@ import styles from './styles/components.module.css';
 import Sidebar from './components/sidebar/Sidebar';
 import SessionList from './components/sidebar/SessionList';
 import ModifyPanel from './components/agent/ModifyPanel';
+import GitPanel from './components/sidebar/GitPanel';
 import ActivityBar, { PanelView, SystemMenuAction } from './components/sidebar/ActivityBar';
 import BrowserView from './components/chat/BrowserView';
 import ChatWorkspace from './components/chat/ChatWorkspace';
@@ -183,6 +184,7 @@ export default function App() {
             {!isBrowserVisible && openView === 'files' && <Sidebar />}
             {!isBrowserVisible && openView === 'sessions' && <SessionList />}
             {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
+            {!isBrowserVisible && openView === 'git' && <GitPanel />}
             {isBrowserVisible && <BrowserView initialUrl={browserUrl} />}
           </div>
         </div>

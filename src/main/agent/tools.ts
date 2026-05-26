@@ -18,6 +18,13 @@ import { createPresentWebTool } from './tools/present-web';
 import { createPresentChoicesTool } from './tools/present-choices';
 import { createGenerateImageTool } from './tools/generate-image';
 import { createDescribeImageTool } from './tools/describe-image';
+import {
+  createGitAddTool,
+  createGitCommitTool,
+  createGitDiffTool,
+  createGitLogTool,
+  createGitStatusTool,
+} from './tools/git';
 
 const SUB_AGENT_EXCLUDED_TOOLS = new Set([
   'spawn_sub_agent',
@@ -27,6 +34,8 @@ const SUB_AGENT_EXCLUDED_TOOLS = new Set([
   'browse_url',
   'present_web',
   'present_choices',
+  'git_add',
+  'git_commit',
 ]);
 
 export function getAllTools(projectDir: string): ToolDef[] {
@@ -48,6 +57,11 @@ export function getAllTools(projectDir: string): ToolDef[] {
     createPresentChoicesTool(),
     createGenerateImageTool(),
     createDescribeImageTool(),
+    createGitStatusTool(projectDir),
+    createGitDiffTool(projectDir),
+    createGitAddTool(projectDir),
+    createGitCommitTool(projectDir),
+    createGitLogTool(projectDir),
   ];
 }
 

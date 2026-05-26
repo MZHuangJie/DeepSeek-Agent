@@ -6,6 +6,7 @@ import { setupSettingsHandlers } from './settings';
 import { setupWindowHandlers } from './window';
 import { setupPluginHandlers } from './plugin';
 import { setupBrowserHandlers } from './browser';
+import { setupGitHandlers } from './git';
 
 export function registerAllHandlers() {
   setupWindowHandlers();
@@ -15,4 +16,5 @@ export function registerAllHandlers() {
   setupSettingsHandlers();
   setupPluginHandlers();
   setupBrowserHandlers();
+  setupGitHandlers();
 }

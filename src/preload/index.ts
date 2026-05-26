@@ -155,6 +155,15 @@ const api = {
       return () => { ipcRenderer.removeListener('browser:load-url', handler); };
     },
   },
+  git: {
+    status: () => ipcRenderer.invoke('git:status'),
+    diff: (payload?: { path?: string; staged?: boolean }) => ipcRenderer.invoke('git:diff', payload),
+    stage: (paths: string[]) => ipcRenderer.invoke('git:stage', paths),
+    unstage: (paths: string[]) => ipcRenderer.invoke('git:unstage', paths),
+    discard: (paths: string[]) => ipcRenderer.invoke('git:discard', paths),
+    commit: (message: string) => ipcRenderer.invoke('git:commit', message),
+    log: (limit?: number) => ipcRenderer.invoke('git:log', limit),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

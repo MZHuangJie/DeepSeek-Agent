@@ -1,0 +1,202 @@
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+}
+
+.header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.headerTitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 4px;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.iconBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.meta {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.branch {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+}
+
+.sectionTitle {
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.fileRow:hover {
+  background: var(--bg-tertiary);
+}
+
+.fileRowActive {
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.statusTag {
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.filePath {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.rowActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.rowBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.rowBtn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.diff {
+  margin: 0;
+  padding: 8px 12px 8px 28px;
+  font-size: 10px;
+  font-family: Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  max-height: 180px;
+  overflow: auto;
+}
+
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.commitInput {
+  width: 100%;
+  min-height: 56px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 8px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.commitBtn {
+  align-self: flex-end;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.commitBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.error {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #f87171;
+  border-bottom: 1px solid var(--border);
+}
+
+.logRow {
+  padding: 5px 12px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.logHash {
+  color: var(--accent);
+  margin-right: 6px;
+  font-family: Consolas, monospace;
+}

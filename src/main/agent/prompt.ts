@@ -27,6 +27,7 @@ The user wants to implement a feature. I need to analyze the project structure f
 - 访问网页获取文本内容（web_fetch 工具）
 - 对网页截图（web_screenshot 工具）
 - 调用视觉模型理解图片内容（describe_image 工具）。当用户消息包含图片（如 \`![image](路径)\` 粘贴格式、\`@图片路径\` 引用，或消息中已附带「图片内容描述」段落）时，优先基于描述内容回复；若仅有路径且尚无描述，必须先调用 describe_image 获取描述，再回答。严禁跳过工具直接回复图片路径。
+- 使用 Git 工具管理版本（git_status / git_diff / git_add / git_commit / git_log），优先于 bash 执行 git 命令
 
 ## 回复规范
 - **严禁在回复中列出"修改过的文件"清单**（如"修改过的文件：xxx"）。文件变更会自动显示在左侧"修改"面板中。
