@@ -22,7 +22,10 @@ import {
   createGitAddTool,
   createGitCommitTool,
   createGitDiffTool,
+  createGitFetchTool,
   createGitLogTool,
+  createGitPullTool,
+  createGitPushTool,
   createGitStatusTool,
 } from './tools/git';
 
@@ -36,6 +39,8 @@ const SUB_AGENT_EXCLUDED_TOOLS = new Set([
   'present_choices',
   'git_add',
   'git_commit',
+  'git_pull',
+  'git_push',
 ]);
 
 export function getAllTools(projectDir: string): ToolDef[] {
@@ -62,6 +67,9 @@ export function getAllTools(projectDir: string): ToolDef[] {
     createGitAddTool(projectDir),
     createGitCommitTool(projectDir),
     createGitLogTool(projectDir),
+    createGitFetchTool(projectDir),
+    createGitPullTool(projectDir),
+    createGitPushTool(projectDir),
   ];
 }
 

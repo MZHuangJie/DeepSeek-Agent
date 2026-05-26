@@ -1,8 +1,11 @@
 import {
   commitGit,
+  fetchGit,
   getGitDiff,
   getGitLog,
   getGitStatus,
+  pullGit,
+  pushGit,
   stageGitPaths,
   unstageGitPaths,
 } from '../../services/git';
@@ -13,9 +16,12 @@ function formatStatus(cwd: string) {
     if (!status.isRepo) return '当前目录不是 Git 仓库';
     const lines = [
       `分支: ${status.branch}${status.upstream ? ` (跟踪 ${status.upstream})` : ''}`,
+      status.detached ? '处于 detached HEAD 状态' : '',
+      !status.hasUpstream ? '尚未发布到远程' : '',
       status.ahead ? `领先 ${status.ahead} 个提交` : '',
       status.behind ? `落后 ${status.behind} 个提交` : '',
       status.clean ? '工作区干净' : '',
+      status.conflicts.length ? `\n合并冲突 (${status.conflicts.length}):\n${status.conflicts.map(f => `  ${f.status} ${f.path}`).join('\n')}` : '',
       status.staged.length ? `\n已暂存 (${status.staged.length}):\n${status.staged.map(f => `  ${f.status} ${f.path}`).join('\n')}` : '',
       status.unstaged.length ? `\n未暂存变更 (${status.unstaged.length}):\n${status.unstaged.map(f => `  ${f.status} ${f.path}`).join('\n')}` : '',
       status.untracked.length ? `\n未跟踪 (${status.untracked.length}):\n${status.untracked.map(f => `  ? ${f.path}`).join('\n')}` : '',
@@ -27,7 +33,7 @@ function formatStatus(cwd: string) {
 export function createGitStatusTool(projectDir: string): ToolDef {
   return {
     name: 'git_status',
-    description: '查看 Git 仓库状态（分支、暂存/未暂存/未跟踪文件）',
+    description: '查看 Git 仓库状态（分支、暂存/未暂存/未跟踪/冲突文件）',
     parameters: { type: 'object', properties: {} },
     execute: async () => formatStatus(projectDir),
   };
@@ -105,5 +111,34 @@ export function createGitLogTool(projectDir: string): ToolDef {
       if (entries.length === 0) return '(暂无提交记录)';
       return entries.map(e => `${e.hash} ${e.message}`).join('\n');
     },
+  };
+}
+
+export function createGitFetchTool(projectDir: string): ToolDef {
+  return {
+    name: 'git_fetch',
+    description: '从远程 fetch 最新引用',
+    parameters: { type: 'object', properties: {} },
+    execute: async () => fetchGit(projectDir),
+  };
+}
+
+export function createGitPullTool(projectDir: string): ToolDef {
+  return {
+    name: 'git_pull',
+    description: '从远程 pull 最新代码',
+    parameters: { type: 'object', properties: {} },
+    requiresConfirm: true,
+    execute: async () => pullGit(projectDir),
+  };
+}
+
+export function createGitPushTool(projectDir: string): ToolDef {
+  return {
+    name: 'git_push',
+    description: 'push 本地提交到远程',
+    parameters: { type: 'object', properties: {} },
+    requiresConfirm: true,
+    execute: async () => pushGit(projectDir),
   };
 }

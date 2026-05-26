@@ -6,7 +6,7 @@
 }
 
 .header {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -22,37 +22,152 @@
   letter-spacing: 0.5px;
 }
 
-.headerActions {
+.toolbar {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  align-items: center;
 }
 
-.iconBtn {
+.toolBtn {
   background: transparent;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
   padding: 4px 6px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1;
+  min-width: 26px;
 }
 
-.iconBtn:hover {
+.toolBtn:hover:not(:disabled) {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
-.meta {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+.toolBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.branch {
+.menuAnchor {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 168px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.menuItem {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: var(--bg-tertiary);
+}
+
+.menuItem + .menuItem {
+  border-top: 1px solid var(--border);
+}
+
+.branchRow {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.branchSelect {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.syncBadge {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.publishBtn {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
   color: var(--accent);
-  font-weight: 600;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.publishBtn:hover {
+  background: var(--bg-primary);
+}
+
+.commitBox {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.commitInput {
+  width: 100%;
+  min-height: 52px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 8px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.commitActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.commitBtn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.commitBtnSecondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.commitBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .body {
@@ -60,12 +175,32 @@
   overflow: auto;
 }
 
+.sectionHeader {
+  padding: 8px 10px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .sectionTitle {
-  padding: 8px 12px 4px;
   font-size: 10px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.4px;
+}
+
+.sectionAction {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sectionAction:hover {
+  text-decoration: underline;
 }
 
 .fileRow {
@@ -105,6 +240,11 @@
   display: flex;
   gap: 2px;
   flex-shrink: 0;
+  opacity: 0;
+}
+
+.fileRow:hover .rowActions {
+  opacity: 1;
 }
 
 .rowBtn {
@@ -132,45 +272,8 @@
   color: var(--text-secondary);
   background: var(--bg-primary);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  max-height: 180px;
+  max-height: 200px;
   overflow: auto;
-}
-
-.footer {
-  border-top: 1px solid var(--border);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.commitInput {
-  width: 100%;
-  min-height: 56px;
-  resize: vertical;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  padding: 8px;
-  font-size: 11px;
-  font-family: inherit;
-}
-
-.commitBtn {
-  align-self: flex-end;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.commitBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .empty {
@@ -188,15 +291,24 @@
   border-bottom: 1px solid var(--border);
 }
 
-.logRow {
-  padding: 5px 12px;
-  font-size: 10px;
-  color: var(--text-secondary);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+.info {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #86efac;
+  border-bottom: 1px solid var(--border);
 }
 
-.logHash {
-  color: var(--accent);
-  margin-right: 6px;
-  font-family: Consolas, monospace;
+.initBtn {
+  margin-top: 10px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.conflictRow .statusTag {
+  color: #ef4444;
 }
