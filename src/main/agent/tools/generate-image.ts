@@ -30,7 +30,7 @@ export function createGenerateImageTool(): ToolDef {
           fs.mkdirSync(dir, { recursive: true });
           const f = path.join(dir, `img-${Date.now()}-${i}.png`);
           fs.writeFileSync(f, Buffer.from(u.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
-          displayUrls.push(f);
+          displayUrls.push(f.replace(/\\/g, '/'));
         } else { displayUrls.push(u); }
       }
       return JSON.stringify({ urls: displayUrls, revisedPrompt: r.revisedPrompt, hint: '使用 ![描述](路径) 展示图片' });

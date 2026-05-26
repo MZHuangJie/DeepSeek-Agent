@@ -57,8 +57,27 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function isLocalImagePath(url: string): boolean {
+  const trimmed = url.trim();
+  if (/^[A-Za-z]:[\\/]/.test(trimmed)) return true;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
+  if (trimmed.startsWith('file://')) return true;
+  if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith('data:') && /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+function normalizeLocalImagePath(url: string): string {
+  if (url.startsWith('file://')) {
+    return decodeURIComponent(url.replace(/^file:\/\//i, '').replace(/^\/([A-Za-z]:)/, '$1'));
+  }
+  return url;
+}
+
 function isImageUrl(url: string): boolean {
   const lower = url.toLowerCase();
+  if (isLocalImagePath(url)) return true;
   if (/\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/.test(lower)) return true;
   if (lower.startsWith('data:image/')) return true;
   // 仅匹配已知生图 CDN 的域名，避免把普通链接误判成图片
@@ -71,32 +90,56 @@ function isImageUrl(url: string): boolean {
 }
 
 function ImageCard({ url, alt }: { url: string; alt: string }) {
-  const [loaded, setLoaded] = useState(true);
   const [resolved, setResolved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const localPath = normalizeLocalImagePath(url);
+  const isLocal = isLocalImagePath(localPath);
 
   useEffect(() => {
-    setLoaded(true);
-    if (/^[A-Za-z]:[\\/]/.test(url)) {
-      window.api.files.readBinary(url).then(setResolved).catch(() => setLoaded(false));
+    let cancelled = false;
+    setResolved(null);
+    setError(null);
+
+    if (isLocal) {
+      window.api.files.readBinary(localPath)
+        .then((dataUri) => {
+          if (!cancelled) setResolved(dataUri);
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setError(err instanceof Error ? err.message : '无法加载本地图片');
+          }
+        });
     } else {
       setResolved(url);
     }
-  }, [url]);
 
-  const src = resolved || url;
+    return () => { cancelled = true; };
+  }, [url, localPath, isLocal]);
 
-  if (!loaded) {
+  if (isLocal && !resolved && !error) {
     return (
       <div className={styles.imageWrap}>
-        <a href={url} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
-          {alt || '图片链接'}
-        </a>
-        <div style={{ marginTop: 4 }}>
-          <CopyButton text={url} />
-        </div>
+        <span className={styles.imageHint}>加载图片中...</span>
       </div>
     );
   }
+
+  if (error || (isLocal && !resolved)) {
+    return (
+      <div className={styles.imageWrap}>
+        <a href={localPath} target="_blank" rel="noopener noreferrer" className={styles.imageLink}>
+          {alt || localPath}
+        </a>
+        <div style={{ marginTop: 4 }}>
+          <CopyButton text={localPath} />
+        </div>
+        {error && <div className={styles.imageHint}>{error}</div>}
+      </div>
+    );
+  }
+
+  const src = resolved || url;
 
   return (
     <div className={styles.imageWrap}>
@@ -104,12 +147,20 @@ function ImageCard({ url, alt }: { url: string; alt: string }) {
         src={src}
         alt={alt}
         className={styles.image}
-        onClick={() => window.open(url, '_blank')}
-        onError={() => setLoaded(false)}
+        onClick={() => {
+          if (isLocal) {
+            window.api.files.showInExplorer(localPath);
+          } else {
+            window.open(url, '_blank');
+          }
+        }}
+        onError={() => setError('图片加载失败')}
       />
       <div className={styles.imageMeta}>
-        <CopyButton text={url} />
-        <span className={styles.imageHint}>点击图片可在新标签页打开</span>
+        <CopyButton text={isLocal ? localPath : url} />
+        <span className={styles.imageHint}>
+          {isLocal ? '点击图片可在资源管理器中定位' : '点击图片可在新标签页打开'}
+        </span>
       </div>
     </div>
   );

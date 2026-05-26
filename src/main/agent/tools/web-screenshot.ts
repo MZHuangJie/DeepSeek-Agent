@@ -19,7 +19,7 @@ export function createWebScreenshotTool(): ToolDef {
       fs.mkdirSync(imgDir, { recursive: true });
       const imgFile = path.join(imgDir, `screenshot-${Date.now()}.png`);
       fs.writeFileSync(imgFile, Buffer.from(base64.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
-      return JSON.stringify({ url, screenshot: imgFile, hint: '使用 markdown 图片语法展示：![网页截图](路径)' });
+      return JSON.stringify({ url, screenshot: imgFile.replace(/\\/g, '/'), hint: '使用 markdown 图片语法展示：![网页截图](路径)' });
     },
   };
 }
