@@ -344,6 +344,29 @@
   white-space: nowrap;
 }
 
+.resultPreview {
+  margin-top: 4px;
+  color: rgba(203, 213, 225, 0.88);
+  font-size: 12px;
+  font-family: Consolas, "Courier New", monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lineBadge {
+  margin-left: 6px;
+  color: #c4b5fd;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.searchingHint {
+  padding: 4px 12px 8px;
+  color: rgba(167, 139, 250, 0.88);
+  font-size: 12px;
+}
+
 .resultKind {
   flex-shrink: 0;
   padding: 4px 8px;

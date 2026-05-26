@@ -197,6 +197,7 @@ export default function App() {
                       <ImageViewer filePath={activeFile.path} />
                     ) : (
                       <CodeEditor
+                        filePath={activeFile.path}
                         content={activeFile.content || '// Select a file to view its contents'}
                         language={getLanguage(activeFile.name)}
                         onChange={(value) => value !== undefined && updateTabContent(activeFile.path, value)}

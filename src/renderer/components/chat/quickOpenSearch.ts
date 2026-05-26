@@ -150,3 +150,50 @@ export async function pushRecentSearch(term: string): Promise<string[]> {
   await saveRecentSearches(next);
   return next;
 }
+
+export interface ContentSearchMatch {
+  path: string;
+  name: string;
+  line: number;
+  preview: string;
+  score: number;
+}
+
+export type QuickOpenResultItem =
+  | { type: 'file'; node: FileNode; score: number }
+  | { type: 'content'; match: ContentSearchMatch; score: number };
+
+export function shouldSearchContent(filter: SearchFilter, query: string): boolean {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return false;
+  return filter === 'all' || filter === 'code' || filter === 'document';
+}
+
+export function getContentSearchFilter(filter: SearchFilter): 'all' | 'code' | 'document' {
+  if (filter === 'code') return 'code';
+  if (filter === 'document') return 'document';
+  return 'all';
+}
+
+export function mergeQuickOpenResults(
+  pathResults: Array<{ node: FileNode; score: number }>,
+  contentResults: ContentSearchMatch[],
+  limit = 50,
+): QuickOpenResultItem[] {
+  const contentPaths = new Set(contentResults.map(item => item.path));
+  const merged: QuickOpenResultItem[] = [
+    ...contentResults.map(match => ({ type: 'content' as const, match, score: match.score + 10 })),
+    ...pathResults
+      .filter(item => !contentPaths.has(item.node.path))
+      .map(item => ({ type: 'file' as const, node: item.node, score: item.score })),
+  ];
+
+  return merged
+    .sort((a, b) => b.score - a.score || getResultLabel(a).localeCompare(getResultLabel(b)))
+    .slice(0, limit);
+}
+
+export function getResultLabel(item: QuickOpenResultItem): string {
+  if (item.type === 'file') return item.node.path;
+  return `${item.match.path}:${item.match.line}`;
+}

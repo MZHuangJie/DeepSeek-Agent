@@ -10,15 +10,18 @@ try {
 }
 
 interface Props {
+  filePath: string;
   content: string;
   language: string;
   onChange?: (value: string | undefined) => void;
   readOnly?: boolean;
 }
 
-export default function CodeEditor({ content, language, onChange, readOnly = false }: Props) {
+export default function CodeEditor({ filePath, content, language, onChange, readOnly = false }: Props) {
   const storeRef = useRef(useEditorStore);
+  const editorRef = useRef<import('monaco-editor').editor.IStandaloneCodeEditor | null>(null);
   const [monacoError, setMonacoError] = useState<string | null>(null);
+  const goToTarget = useEditorStore(state => state.goToTarget);
 
   // 检测 Monaco 是否加载成功
   React.useEffect(() => {
@@ -32,6 +35,7 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
   }, []);
 
   const handleMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
     // Disable semantic errors in editor (Monaco doesn't have node_modules types)
     monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: true,
@@ -75,6 +79,16 @@ export default function CodeEditor({ content, language, onChange, readOnly = fal
     updateIndent();
     updateDiagnostics();
   };
+
+  React.useEffect(() => {
+    const target = goToTarget;
+    const editor = editorRef.current;
+    if (!target || !editor || target.path !== filePath) return;
+    editor.revealLineInCenter(target.line);
+    editor.setPosition({ lineNumber: target.line, column: target.column ?? 1 });
+    editor.focus();
+    storeRef.current.getState().clearGoToTarget();
+  }, [filePath, content, goToTarget]);
 
   if (monacoError) {
     return (

@@ -197,4 +197,9 @@ export function setupFileHandlers() {
     fs.writeFileSync(filePath, buffer);
     return filePath;
   });
+
+  ipcMain.handle('files:search-content', async (_event, query: string, filter: 'all' | 'code' | 'document') => {
+    const { searchWorkspaceContent } = await import('../services/contentSearch');
+    return searchWorkspaceContent(currentWorkspace, query, filter);
+  });
 }

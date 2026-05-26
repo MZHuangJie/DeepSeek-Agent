@@ -5,6 +5,8 @@ import {
   scoreNode,
   searchWorkspace,
   wildcardToRegex,
+  mergeQuickOpenResults,
+  shouldSearchContent,
 } from '../quickOpenSearch';
 import { FileNode } from '../../../stores/files';
 
@@ -51,5 +53,26 @@ describe('quickOpenSearch', () => {
 
   it('should score node by fuzzy name', () => {
     expect(scoreNode('readme', tree[0].children![1])).toBeGreaterThan(0);
+  });
+
+  it('should merge path and content results without duplicate files', () => {
+    const pathResults = searchWorkspace(tree, 'main', 'code');
+    const contentResults = [{
+      path: 'D:/proj/src/main.ts',
+      name: 'main.ts',
+      line: 12,
+      preview: 'function main() {}',
+      score: 120,
+    }];
+    const merged = mergeQuickOpenResults(pathResults, contentResults);
+    expect(merged[0].type).toBe('content');
+    expect(merged.some(item => item.type === 'file' && item.node.path === 'D:/proj/src/main.ts')).toBe(false);
+  });
+
+  it('should enable content search for code and all filters', () => {
+    expect(shouldSearchContent('code', 'abc')).toBe(true);
+    expect(shouldSearchContent('all', 'abc')).toBe(true);
+    expect(shouldSearchContent('folder', 'abc')).toBe(false);
+    expect(shouldSearchContent('code', 'a')).toBe(false);
   });
 });

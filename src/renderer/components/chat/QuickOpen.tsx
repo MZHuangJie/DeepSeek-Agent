@@ -10,8 +10,13 @@ import {
   loadRecentSearches,
   saveRecentSearches,
   pushRecentSearch,
-  fuzzyScore,
+  shouldSearchContent,
+  getContentSearchFilter,
+  mergeQuickOpenResults,
+  QuickOpenResultItem,
+  ContentSearchMatch,
 } from './quickOpenSearch';
+import { useEditorStore } from '../../stores/editor';
 import styles from './QuickOpen.module.css';
 
 interface Props {
@@ -142,18 +147,92 @@ function ResultRow({
   );
 }
 
+function ContentResultRow({
+  match,
+  query,
+  workspace,
+  focused,
+  onClick,
+}: {
+  match: ContentSearchMatch;
+  query: string;
+  workspace: string | null;
+  focused: boolean;
+  onClick: () => void;
+}) {
+  const ref = useFocusedItemRef(focused);
+  const icon = getFileIconInfo(match.name);
+
+  return (
+    <div
+      ref={ref}
+      className={`${styles.resultItem} ${focused ? styles.resultItemFocused : ''}`}
+      onClick={onClick}
+    >
+      <div className={styles.fileIcon} style={{ color: icon.color, background: `${icon.color}22` }}>
+        {icon.text}
+      </div>
+      <div className={styles.resultMain}>
+        <div className={styles.resultName}>
+          {highlightMatch(match.name, query)}
+          <span className={styles.lineBadge}>:{match.line}</span>
+        </div>
+        <div className={styles.resultPreview}>{highlightMatch(match.preview, query)}</div>
+        <div className={styles.resultPath}>{relativeWorkspacePath(match.path, workspace)}</div>
+      </div>
+      <span className={styles.resultKind}>内容</span>
+    </div>
+  );
+}
+
 export default function QuickOpen({ onClose }: Props) {
   const { tree, openFile, currentWorkspace } = useFilesStore();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<SearchFilter>('all');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [focusIdx, setFocusIdx] = useState(0);
+  const [contentResults, setContentResults] = useState<ContentSearchMatch[]>([]);
+  const [contentSearching, setContentSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchRequestRef = useRef(0);
 
-  const results = useMemo(
+  const pathResults = useMemo(
     () => searchWorkspace(tree, query, filter),
     [tree, query, filter],
   );
+
+  const results = useMemo(
+    () => mergeQuickOpenResults(pathResults, contentResults),
+    [pathResults, contentResults],
+  );
+
+  useEffect(() => {
+    if (!shouldSearchContent(filter, query)) {
+      setContentResults([]);
+      setContentSearching(false);
+      return;
+    }
+
+    const requestId = ++searchRequestRef.current;
+    setContentSearching(true);
+    const timer = window.setTimeout(() => {
+      void window.api.files.searchContent(query.trim(), getContentSearchFilter(filter))
+        .then((matches) => {
+          if (searchRequestRef.current !== requestId) return;
+          setContentResults(matches);
+        })
+        .catch(() => {
+          if (searchRequestRef.current !== requestId) return;
+          setContentResults([]);
+        })
+        .finally(() => {
+          if (searchRequestRef.current !== requestId) return;
+          setContentSearching(false);
+        });
+    }, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [query, filter]);
 
   useEffect(() => {
     loadRecentSearches().then(setRecentSearches);
@@ -180,19 +259,22 @@ export default function QuickOpen({ onClose }: Props) {
     setRecentSearches(next);
   }, []);
 
-  const handleSelect = useCallback(async (node: FileNode) => {
+  const handleSelect = useCallback(async (item: QuickOpenResultItem) => {
     if (query.trim()) await commitSearch(query);
-    if (node.isDirectory) {
-      await window.api.files.showInExplorer(node.path);
+    if (item.type === 'content') {
+      await openFile(item.match.path, item.match.name);
+      useEditorStore.getState().requestGoToLine(item.match.path, item.match.line);
+    } else if (item.node.isDirectory) {
+      await window.api.files.showInExplorer(item.node.path);
     } else {
-      await openFile(node.path, node.name);
+      await openFile(item.node.path, item.node.name);
     }
     onClose();
   }, [commitSearch, onClose, openFile, query]);
 
   const handleSelectIndex = useCallback((idx: number) => {
     const item = results[idx];
-    if (item) void handleSelect(item.node);
+    if (item) void handleSelect(item);
   }, [handleSelect, results]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -250,7 +332,9 @@ export default function QuickOpen({ onClose }: Props) {
               spellCheck={false}
               className={styles.input}
             />
-            <div className={styles.subtitle}>搜索当前工作区的文件和目录</div>
+            <div className={styles.subtitle}>
+              搜索当前工作区的文件、目录与代码内容
+            </div>
           </div>
           <div className={styles.shortcut}>
             <span className={styles.kbd}>Ctrl</span>
@@ -309,22 +393,38 @@ export default function QuickOpen({ onClose }: Props) {
               </div>
               <div className={styles.emptyTitle}>开始搜索文件</div>
               <div className={styles.emptyDesc}>
-                输入关键词搜索文件、文件夹或代码，支持模糊匹配
+                输入关键词搜索文件、文件夹或代码内容，支持模糊匹配与通配符
               </div>
             </div>
           ) : results.length === 0 ? (
-            <div className={styles.noResults}>未找到匹配项，试试调整关键词或切换筛选类型</div>
+            <div className={styles.noResults}>
+              {contentSearching ? '正在搜索代码内容...' : '未找到匹配项，试试调整关键词或切换筛选类型'}
+            </div>
           ) : (
             <div className={styles.results}>
+              {contentSearching && (
+                <div className={styles.searchingHint}>正在搜索代码内容...</div>
+              )}
               {results.map((item, index) => (
-                <ResultRow
-                  key={item.node.path}
-                  node={item.node}
-                  query={query}
-                  workspace={currentWorkspace}
-                  focused={index === focusIdx}
-                  onClick={() => void handleSelect(item.node)}
-                />
+                item.type === 'content' ? (
+                  <ContentResultRow
+                    key={`${item.match.path}:${item.match.line}`}
+                    match={item.match}
+                    query={query}
+                    workspace={currentWorkspace}
+                    focused={index === focusIdx}
+                    onClick={() => void handleSelect(item)}
+                  />
+                ) : (
+                  <ResultRow
+                    key={item.node.path}
+                    node={item.node}
+                    query={query}
+                    workspace={currentWorkspace}
+                    focused={index === focusIdx}
+                    onClick={() => void handleSelect(item)}
+                  />
+                )
               ))}
             </div>
           )}

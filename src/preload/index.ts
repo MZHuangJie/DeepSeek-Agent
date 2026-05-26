@@ -27,6 +27,14 @@ const api = {
     readBinary: (filePath: string) => ipcRenderer.invoke('files:readBinary', filePath),
     showInExplorer: (filePath: string) => ipcRenderer.invoke('files:show-in-explorer', filePath),
     saveClipboardImage: (base64: string, mimeType: string) => ipcRenderer.invoke('files:save-clipboard-image', base64, mimeType),
+    searchContent: (query: string, filter: 'all' | 'code' | 'document') =>
+      ipcRenderer.invoke('files:search-content', query, filter) as Promise<Array<{
+        path: string;
+        name: string;
+        line: number;
+        preview: string;
+        score: number;
+      }>>,
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),
