@@ -526,6 +526,14 @@
   border-bottom: 1px solid rgba(248, 113, 113, 0.15);
 }
 
+.busy {
+  padding: 7px 14px;
+  font-size: 11px;
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.12);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.18);
+}
+
 .info {
   padding: 8px 14px;
   font-size: 11px;

@@ -22,6 +22,32 @@ interface GitStatus {
 
 interface GitBranchInfo { name: string; current: boolean; remote: boolean; }
 
+const BUSY_LABELS: Record<string, string> = {
+  pull: '正在 Pull…',
+  push: '正在 Push…',
+  sync: '正在 Sync…',
+  fetch: '正在 Fetch…',
+  rebase: '正在 Rebase Pull…',
+  publish: '正在发布分支…',
+  commit: '正在提交…',
+  checkout: '正在切换分支…',
+  branch: '正在创建分支…',
+  init: '正在初始化仓库…',
+  'stage-all': '正在暂存全部文件…',
+  'unstage-all': '正在取消全部暂存…',
+  'discard-all': '正在还原更改…',
+  clean: '正在清理未跟踪文件…',
+  stash: '正在 Stash…',
+  'stash-pop': '正在 Pop Stash…',
+};
+
+const REMOTE_BUSY_OPS = new Set(['pull', 'push', 'sync', 'fetch', 'rebase', 'publish']);
+
+function getBusyText(label: string): string {
+  const text = BUSY_LABELS[label] || '处理中…';
+  return REMOTE_BUSY_OPS.has(label) ? `${text}（如需密码将弹出对话框）` : text;
+}
+
 function basename(p: string): string {
   return p.split(/[/\\]/).pop() || p;
 }
@@ -153,8 +179,8 @@ export default function GitPanel() {
         return;
       }
       if (res.output) setInfo(res.output);
-      if (res.hash) setInfo(`Committed ${res.hash}`);
-      if (res.result) setInfo(`Sync complete`);
+      if (res.hash) setInfo(`提交成功：${res.hash}`);
+      if (res.result) setInfo('同步完成');
       await refresh();
     } finally {
       setBusy('');
@@ -269,6 +295,10 @@ export default function GitPanel() {
           </div>
         </div>
       </div>
+
+      {(busy || loading) && (
+        <div className={styles.busy}>{busy ? getBusyText(busy) : '正在刷新状态…'}</div>
+      )}
 
       {error && <div className={styles.error}>{error}</div>}
       {info && <div className={styles.info}>{info}</div>}
