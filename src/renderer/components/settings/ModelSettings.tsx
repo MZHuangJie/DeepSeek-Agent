@@ -71,7 +71,7 @@ export default function ModelSettings({ onClose }: Props) {
   };
 
   return (
-    <div className={styles.overlay}>
+    <div className={styles.overlay} data-focus-guard>
       <div className={styles.panel}>
         <div className={styles.header}>
           <span className={styles.title}>模型设置</span>

@@ -391,6 +391,7 @@ export default function FileTree() {
               {pendingDelete && createPortal(
                 <div
                   className={styles.deleteOverlay}
+                  data-focus-guard
                   onClick={() => { setPendingDelete(null); focusChatInput(); }}
                 >
                   <div className={styles.deleteDialog} onClick={(e) => e.stopPropagation()}>

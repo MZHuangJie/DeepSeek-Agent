@@ -201,7 +201,16 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   };
 
   return (
-    <div className={styles.container} onClick={() => textareaRef.current?.focus()}>
+    <>
+    <div
+      className={styles.container}
+      onClick={(e) => {
+        if (showModelSettings || showPluginManager) return;
+        const target = e.target as HTMLElement;
+        if (target.closest('button, a, input, select, textarea, [role="button"]')) return;
+        textareaRef.current?.focus();
+      }}
+    >
       {/* Command palette */}
       {showCommandPalette && filteredCommands.length > 0 && (
         <Dropdown maxHeight={260}>
@@ -373,9 +382,11 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         </div>
       </div>
 
+    </div>
+
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
       {showPluginManager && <PluginManager onClose={() => setShowPluginManager(false)} />}
-    </div>
+    </>
   );
 }
 
