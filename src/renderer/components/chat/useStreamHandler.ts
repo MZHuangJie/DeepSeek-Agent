@@ -13,10 +13,11 @@ interface StreamHandlerDeps {
   flushRafBuffer: () => void;
   setStreaming: (v: boolean) => void;
   setErrorMsg: (msg: string) => void;
+  onDone?: () => void;
 }
 
 export function useStreamHandler(deps: StreamHandlerDeps) {
-  const { currentStepRef, totalContentRef, totalThinkingRef, pendingContentRef, pendingThinkingRef, flushRafBuffer, setStreaming, setErrorMsg } = deps;
+  const { currentStepRef, totalContentRef, totalThinkingRef, pendingContentRef, pendingThinkingRef, flushRafBuffer, setStreaming, setErrorMsg, onDone } = deps;
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
@@ -111,6 +112,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       if (activeSessionId) {
         void summarizeSessionTitleIfNeeded(activeSessionId);
       }
+      onDone?.();
     } else if (chunk.type === 'explore-progress') {
       const agentStore = useAgentStore.getState();
       agentStore.setCurrentStep({

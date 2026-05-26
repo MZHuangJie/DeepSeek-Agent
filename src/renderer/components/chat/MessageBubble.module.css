@@ -147,4 +147,51 @@
   width: 14px; height: 14px;
 }
 
+.debugWrap {
+  margin-top: 2px;
+}
+
+.debugHint {
+  font-size: 11px;
+  color: #f59e0b;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.debugHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.debugToggle,
+.debugCopy {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.debugToggle:hover,
+.debugCopy:hover {
+  color: var(--text-primary);
+}
+
+.debugPre {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  max-height: 240px;
+  overflow: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }

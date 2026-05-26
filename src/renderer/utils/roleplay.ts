@@ -351,10 +351,13 @@ function buildStatusOutputPrompt(fields: StatusFieldDef[]): string {
     '</status>',
     '',
     '规则：',
-    '- <reply> 与 <status> 各出现一次',
+    '- 【硬性要求】每一轮回复都必须同时包含 <reply> 和 <status>，包括开场与后续每一轮，无一例外',
+    '- 禁止只输出 <reply> 而省略 <status>；缺少任一标签视为无效回复',
+    '- <reply> 与 <status> 各出现一次，最后一行必须是 </status>',
     '- <status> 内必须是合法 JSON，字段名与上方完全一致',
     '- 根据当前情境更新各状态字段，数值字段用 number，列表字段用 string[]',
     '- 不要在 <reply> 内写 JSON 或状态信息',
+    '- 不要使用 markdown 代码块包裹 JSON',
   ].join('\n');
 }
 
@@ -368,6 +371,9 @@ export function formatBody(body?: BodyMeasurements): string {
 
 export const ROLEPLAY_OPENING_USER_MESSAGE =
   '[系统] 请现在发送你的开场白，开启本轮角色扮演。用户尚未输入任何内容，请主动开场，不要等待用户先说话。';
+
+export const ROLEPLAY_STATUS_RETRY_MESSAGE =
+  '[系统] 你上一条回复格式不完整：缺少有效的 <status>...</status> 状态块。请根据当前对话情境，重新输出完整的一轮回复。必须同时包含 <reply>...</reply> 与 <status>...</status>，JSON 字段名与设定完全一致，不要向用户提及此系统提醒。';
 
 export function buildCharacterPrompt(
   character: RoleplayCharacter,

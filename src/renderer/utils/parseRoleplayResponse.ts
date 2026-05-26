@@ -71,6 +71,13 @@ export function parseRoleplayResponse(raw: string): ParsedRoleplayResponse {
   return { reply, status, statusComplete };
 }
 
+/** 配置了状态字段时，判断是否需要因缺失/无效 status 而重试 */
+export function shouldRetryRoleplayStatus(raw: string, expectsStatus: boolean): boolean {
+  if (!expectsStatus || !raw?.trim()) return false;
+  const parsed = parseRoleplayResponse(raw);
+  return !(parsed.status && parsed.statusComplete);
+}
+
 /** 将已解析的助手消息还原为 XML 格式，供后续轮次上下文使用 */
 export function formatRoleplayMessageForHistory(
   reply: string,

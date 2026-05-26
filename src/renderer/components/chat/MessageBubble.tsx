@@ -3,7 +3,7 @@ import { Message } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
-import { parseRoleplayResponse } from '../../utils/parseRoleplayResponse';
+import { parseRoleplayResponse, formatRoleplayMessageForHistory } from '../../utils/parseRoleplayResponse';
 import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
 import RoleplayStatusPanel from '../roleplay/RoleplayStatusPanel';
 import ThinkingChain from './ThinkingChain';
@@ -341,6 +341,53 @@ function ActionBtn({ onClick, title, children }: { onClick: () => void; title: s
   return <button onClick={onClick} title={title} className={shared.actionBtn}>{children}</button>;
 }
 
+function AssistantRoleplayDebug({ message, hasStatusPanel, expectedStatus }: {
+  message: Message;
+  hasStatusPanel: boolean;
+  expectedStatus: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const rawBody = useMemo(() => {
+    if (message.rawContent) return message.rawContent;
+    if (message.roleplayMeta?.status) {
+      return formatRoleplayMessageForHistory(message.content, message.roleplayMeta.status);
+    }
+    return message.content;
+  }, [message.rawContent, message.content, message.roleplayMeta?.status]);
+
+  const handleCopyRaw = useCallback(() => {
+    void navigator.clipboard.writeText(rawBody);
+  }, [rawBody]);
+
+  const missingStatus = expectedStatus && !hasStatusPanel;
+
+  return (
+    <div className={styles.debugWrap}>
+      {missingStatus && (
+        <div className={styles.debugHint}>
+          未检测到状态面板，可能是模型未输出 &lt;status&gt; 或 JSON 格式无效
+        </div>
+      )}
+      <div className={styles.debugHeader}>
+        <button
+          type="button"
+          className={styles.debugToggle}
+          onClick={() => setExpanded(v => !v)}
+        >
+          {expanded ? '▼' : '▶'} 原始回复
+        </button>
+        <button type="button" className={styles.debugCopy} onClick={handleCopyRaw}>
+          复制
+        </button>
+      </div>
+      {expanded && (
+        <pre className={styles.debugPre}>{rawBody || '（空）'}</pre>
+      )}
+    </div>
+  );
+}
+
 const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user';
   const hasThinking = !isUser && !!message.thinkingContent;
@@ -396,6 +443,9 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
     return () => { cancelled = true; };
   }, [isUser, mode, activeCharacter?.portraitPath]);
 
+  const expectsStatusPanel = !isUser && mode === 'roleplay' && statusFieldDefs.length > 0;
+  const hasStatusPanel = !!roleplayStatus;
+
   return (
     <div
       onMouseEnter={() => setActionsVisible(true)}
@@ -424,6 +474,14 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
             status={roleplayStatus}
             fieldDefs={statusFieldDefs}
             portraitPath={activeCharacter?.portraitPath}
+          />
+        )}
+
+        {!isUser && mode === 'roleplay' && hasContent && (
+          <AssistantRoleplayDebug
+            message={message}
+            hasStatusPanel={hasStatusPanel}
+            expectedStatus={expectsStatusPanel}
           />
         )}
 

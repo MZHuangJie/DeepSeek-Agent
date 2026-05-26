@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRoleplayResponse, formatRoleplayMessageForHistory } from '../parseRoleplayResponse';
+import { parseRoleplayResponse, formatRoleplayMessageForHistory, shouldRetryRoleplayStatus } from '../parseRoleplayResponse';
 
 describe('parseRoleplayResponse', () => {
   it('parses reply and status json', () => {
@@ -50,6 +50,21 @@ describe('parseRoleplayResponse', () => {
     const parsed = parseRoleplayResponse('普通回复');
     expect(parsed.reply).toBe('普通回复');
     expect(parsed.statusComplete).toBe(false);
+  });
+});
+
+describe('shouldRetryRoleplayStatus', () => {
+  it('retries when status block is missing', () => {
+    expect(shouldRetryRoleplayStatus('<reply>只有正文</reply>', true)).toBe(true);
+  });
+
+  it('does not retry when status is complete', () => {
+    const raw = `<reply>你好</reply><status>{"情绪":"平静"}</status>`;
+    expect(shouldRetryRoleplayStatus(raw, true)).toBe(false);
+  });
+
+  it('does not retry when status fields are not configured', () => {
+    expect(shouldRetryRoleplayStatus('<reply>只有正文</reply>', false)).toBe(false);
   });
 });
 

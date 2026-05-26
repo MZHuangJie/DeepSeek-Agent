@@ -6,8 +6,8 @@ import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
-import { buildCharacterPrompt, getTemplateById, ROLEPLAY_OPENING_USER_MESSAGE } from '../../utils/roleplay';
-import { parseRoleplayResponse, formatRoleplayMessageForHistory } from '../../utils/parseRoleplayResponse';
+import { buildCharacterPrompt, getEffectiveStatusFields, getTemplateById, ROLEPLAY_OPENING_USER_MESSAGE, ROLEPLAY_STATUS_RETRY_MESSAGE } from '../../utils/roleplay';
+import { parseRoleplayResponse, formatRoleplayMessageForHistory, shouldRetryRoleplayStatus } from '../../utils/parseRoleplayResponse';
 import MessageBubble from './MessageBubble';
 import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -33,6 +33,7 @@ export default function ChatPanel() {
   const [confirmReq, setConfirmReq] = useState<{ confirmId: string; name: string; args?: string } | null>(null);
   const [choiceReq, setChoiceReq] = useState<{ choiceId: string; message: string; choices: Array<{ label: string; description?: string }> } | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set());
+  const statusRetryUsedRef = useRef(false);
   const currentStepRef = useRef(0);
   const totalContentRef = useRef('');
   const totalThinkingRef = useRef('');
@@ -53,11 +54,11 @@ export default function ChatPanel() {
           const raw = totalContentRef.current;
           const parsed = parseRoleplayResponse(raw);
           upd.content = parsed.reply || raw.replace(/<status>[\s\S]*$/i, '').replace(/<\/?reply>/gi, '').trim() || raw;
+          upd.rawContent = raw;
           if (parsed.status && parsed.statusComplete) {
             upd.roleplayMeta = { status: parsed.status, statusComplete: true };
-            upd.rawContent = undefined;
-          } else {
-            upd.rawContent = raw;
+          } else if (parsed.status) {
+            upd.roleplayMeta = { status: parsed.status, statusComplete: false };
           }
         } else {
           upd.content = totalContentRef.current;
@@ -95,48 +96,6 @@ export default function ChatPanel() {
       else setShowKeyInput(true);
       await loadWorkspace();
     })();
-  }, []);
-
-  const handleStreamChunk = useStreamHandler({
-    currentStepRef, totalContentRef, totalThinkingRef,
-    pendingContentRef, pendingThinkingRef, flushRafBuffer,
-    setStreaming: (v) => useChatStore.getState().setStreaming(v),
-    setErrorMsg,
-  });
-
-  useEffect(() => {
-    const unsubscribe = window.api.agent.onStreamChunk(handleStreamChunk);
-    return () => { unsubscribe(); };
-  }, [handleStreamChunk]);
-
-  useEffect(() => {
-    const unsubscribe = window.api.agent.onConfirmRequest((req) => {
-      if (autoApprovedRef.current.has(req.name)) {
-        window.api.agent.confirmResponse(req.confirmId, true);
-      } else {
-        setConfirmReq(req);
-      }
-    });
-    return () => { unsubscribe(); };
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = window.api.agent.onChoiceRequest((req) => {
-      setChoiceReq(req);
-    });
-    return () => { unsubscribe(); };
-  }, []);
-
-  const handleSaveKey = async () => {
-    if (!apiKey.trim()) return;
-    await window.api.settings.setApiKey(apiKey.trim());
-    setErrorMsg('');
-    setShowKeyInput(false);
-  };
-
-  const handleStop = useCallback(async () => {
-    await window.api.agent.cancel();
-    setStreaming(false);
   }, []);
 
   const buildHistory = useCallback((sourceMessages: typeof messages) => {
@@ -224,6 +183,93 @@ export default function ChatPanel() {
     });
   }, [apiKey, projectDir, getActiveModel]);
 
+  const sendRoleplayStatusRetry = useCallback(async () => {
+    if (!activeSessionId || !apiKey || statusRetryUsedRef.current) return;
+    if (useModeStore.getState().mode !== 'roleplay') return;
+
+    const chat = useChatStore.getState();
+    const target = chat.sessions.find(s => s.id === activeSessionId);
+    const last = target?.messages.at(-1);
+    if (!last || last.role !== 'assistant') return;
+
+    const activeCharacter = useRoleplayStore.getState().getActiveCharacter();
+    if (!activeCharacter) return;
+    const templates = useRoleplayStore.getState().templates;
+    const template = getTemplateById(templates, activeCharacter.templateId);
+    const expectsStatus = getEffectiveStatusFields(activeCharacter, template).length > 0;
+    const raw = last.rawContent || last.content;
+    if (!shouldRetryRoleplayStatus(raw, expectsStatus)) return;
+
+    statusRetryUsedRef.current = true;
+    resetStreamBuffers();
+    updateLastAssistant({
+      content: '',
+      rawContent: undefined,
+      roleplayMeta: undefined,
+      thinkingContent: undefined,
+      toolCalls: undefined,
+    });
+    setStreaming(true);
+
+    const priorMessages = target.messages.slice(0, -1);
+    const history = buildHistory(priorMessages);
+    const commandPrompt = buildCharacterPrompt(activeCharacter, template);
+
+    try {
+      await invokeAgent({
+        history,
+        newMessage: ROLEPLAY_STATUS_RETRY_MESSAGE,
+        commandPrompt,
+      });
+    } catch (err: unknown) {
+      setStreaming(false);
+      setErrorMsg(err instanceof Error ? err.message : '状态补全失败');
+    }
+  }, [activeSessionId, apiKey, resetStreamBuffers, updateLastAssistant, setStreaming, buildHistory, invokeAgent]);
+
+  const handleStreamChunk = useStreamHandler({
+    currentStepRef, totalContentRef, totalThinkingRef,
+    pendingContentRef, pendingThinkingRef, flushRafBuffer,
+    setStreaming: (v) => useChatStore.getState().setStreaming(v),
+    setErrorMsg,
+    onDone: () => { void sendRoleplayStatusRetry(); },
+  });
+
+  useEffect(() => {
+    const unsubscribe = window.api.agent.onStreamChunk(handleStreamChunk);
+    return () => { unsubscribe(); };
+  }, [handleStreamChunk]);
+
+  useEffect(() => {
+    const unsubscribe = window.api.agent.onConfirmRequest((req) => {
+      if (autoApprovedRef.current.has(req.name)) {
+        window.api.agent.confirmResponse(req.confirmId, true);
+      } else {
+        setConfirmReq(req);
+      }
+    });
+    return () => { unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = window.api.agent.onChoiceRequest((req) => {
+      setChoiceReq(req);
+    });
+    return () => { unsubscribe(); };
+  }, []);
+
+  const handleSaveKey = async () => {
+    if (!apiKey.trim()) return;
+    await window.api.settings.setApiKey(apiKey.trim());
+    setErrorMsg('');
+    setShowKeyInput(false);
+  };
+
+  const handleStop = useCallback(async () => {
+    await window.api.agent.cancel();
+    setStreaming(false);
+  }, []);
+
   const sendRoleplayOpening = useCallback(async (sessionId: string) => {
     if (!apiKey) return;
     const chat = useChatStore.getState();
@@ -241,6 +287,7 @@ export default function ChatPanel() {
     }
 
     chat.clearPendingOpening(sessionId);
+    statusRetryUsedRef.current = false;
     resetStreamBuffers();
     addMessage({ id: `msg-${Date.now()}`, role: 'assistant', content: '', timestamp: Date.now() });
     setStreaming(true);
@@ -273,6 +320,7 @@ export default function ChatPanel() {
     if (!activeSessionId) return;
     if (!apiKey) { setShowKeyInput(true); return; }
     setErrorMsg('');
+    statusRetryUsedRef.current = false;
 
     const displayContent = command ? `/${command.name} ${content}` : content;
     const hasImages = images && images.length > 0;
