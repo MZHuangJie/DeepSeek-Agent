@@ -15,6 +15,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
   background: var(--git-surface);
   color: #e8e8f0;
 }
@@ -317,7 +318,8 @@
 }
 
 .body {
-  flex: 1;
+  flex: 0 1 auto;
+  max-height: 42%;
   overflow: auto;
   padding-bottom: 8px;
 }
@@ -456,58 +458,15 @@
   font-weight: 700;
 }
 
-.diff {
-  margin: 0;
-  padding: 8px 14px 8px 32px;
-  font-size: 10px;
-  font-family: Consolas, monospace;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: var(--git-text-muted);
-  background: #0f0f18;
+.diffWrap {
   border-bottom: 1px solid var(--git-border);
-  max-height: 180px;
-  overflow: auto;
-}
-
-.reposSection {
-  border-top: 1px solid var(--git-border);
-  padding: 10px 0 12px;
   background: #0f0f18;
 }
 
-.reposLabel {
-  padding: 0 14px 8px;
+.diffPlaceholder {
+  padding: 8px 14px 8px 32px;
   font-size: 11px;
-  font-weight: 600;
   color: var(--git-text-muted);
-}
-
-.repoItem {
-  padding: 7px 14px;
-  font-size: 12px;
-  color: #c9c9dc;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.repoItem:hover {
-  background: rgba(124, 58, 237, 0.08);
-}
-
-.repoItemActive {
-  background: var(--git-accent-soft);
-  color: #fff;
-}
-
-.repoDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--git-accent);
-  flex-shrink: 0;
 }
 
 .empty {
@@ -534,12 +493,33 @@
   border-bottom: 1px solid rgba(124, 58, 237, 0.18);
 }
 
-.info {
-  padding: 8px 14px;
+.toast {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 8px;
   font-size: 11px;
-  color: #86efac;
-  background: rgba(74, 222, 128, 0.08);
-  border-bottom: 1px solid rgba(74, 222, 128, 0.12);
+  color: #e8e8f0;
+  background: rgba(24, 24, 38, 0.96);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: gitToastIn 0.18s ease;
+}
+
+@keyframes gitToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .initBtn {

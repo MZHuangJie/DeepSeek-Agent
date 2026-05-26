@@ -42,6 +42,16 @@ export interface GitLogEntry {
   message: string;
 }
 
+export interface GitGraphCommit {
+  hash: string;
+  shortHash: string;
+  parents: string[];
+  message: string;
+  author: string;
+  date: string;
+  refs: string[];
+}
+
 export interface GitSyncResult {
   pull: string;
   push: string;
@@ -245,6 +255,54 @@ export async function checkoutGitBranch(cwd: string, branch: string, create = fa
   await runGit(cwd, ['checkout', name]);
 }
 
+export interface GitFileDiffContent {
+  original: string;
+  modified: string;
+  originalLabel: string;
+  modifiedLabel: string;
+}
+
+async function readGitBlob(cwd: string, spec: string): Promise<string> {
+  try {
+    return await runGit(cwd, ['show', spec]);
+  } catch {
+    return '';
+  }
+}
+
+export async function getGitFileDiffContent(
+  cwd: string,
+  filePath: string,
+  staged = false,
+): Promise<GitFileDiffContent> {
+  const rel = normalizeRepoPath(cwd, filePath);
+  const fs = await import('fs');
+  const abs = path.resolve(cwd, rel);
+
+  if (staged) {
+    return {
+      original: await readGitBlob(cwd, `HEAD:${rel}`),
+      modified: await readGitBlob(cwd, `:${rel}`),
+      originalLabel: 'HEAD',
+      modifiedLabel: 'Staged',
+    };
+  }
+
+  const indexContent = await readGitBlob(cwd, `:${rel}`);
+  const original = indexContent || await readGitBlob(cwd, `HEAD:${rel}`);
+  let modified = '';
+  if (fs.existsSync(abs)) {
+    modified = fs.readFileSync(abs, 'utf-8');
+  }
+
+  return {
+    original,
+    modified,
+    originalLabel: indexContent ? 'Index' : 'HEAD',
+    modifiedLabel: 'Working Tree',
+  };
+}
+
 export async function getGitDiff(cwd: string, filePath?: string, staged = false): Promise<string> {
   if (filePath) {
     const rel = normalizeRepoPath(cwd, filePath);
@@ -353,6 +411,42 @@ export async function getGitLog(cwd: string, limit = 20): Promise<GitLogEntry[]>
     const sep = line.indexOf('|');
     if (sep < 0) return { hash: line, message: '' };
     return { hash: line.slice(0, sep), message: line.slice(sep + 1) };
+  });
+}
+
+function parseGitRefs(raw: string): string[] {
+  if (!raw.trim()) return [];
+  return raw
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map(part => part.replace(/^HEAD -> /, ''))
+    .filter(part => part !== 'HEAD');
+}
+
+export async function getGitGraph(cwd: string, limit = 50): Promise<GitGraphCommit[]> {
+  const n = Math.min(Math.max(limit, 1), 80);
+  const out = await runGit(cwd, [
+    'log',
+    '--all',
+    '--topo-order',
+    `--max-count=${n}`,
+    '--pretty=format:%H%x00%P%x00%s%x00%an%x00%cr%x00%D',
+  ]);
+  if (!out.trim()) return [];
+
+  return out.split('\n').filter(Boolean).map(line => {
+    const [hash = '', parentsRaw = '', message = '', author = '', date = '', refsRaw = ''] = line.split('\0');
+    const parents = parentsRaw.split(' ').filter(Boolean);
+    return {
+      hash,
+      shortHash: hash.slice(0, 7),
+      parents,
+      message,
+      author,
+      date,
+      refs: parseGitRefs(refsRaw),
+    };
   });
 }
 

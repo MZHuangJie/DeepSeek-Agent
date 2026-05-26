@@ -9,7 +9,9 @@ import {
   discardGitPaths,
   fetchGit,
   getGitDiff,
+  getGitFileDiffContent,
   getGitLog,
+  getGitGraph,
   getGitStatus,
   initGitRepo,
   listGitBranches,
@@ -63,6 +65,11 @@ export function setupGitHandlers() {
   ipcMain.handle('git:diff', async (_event, payload?: { path?: string; staged?: boolean }) => {
     const res = await wrap(() => getGitDiff(cwd(), payload?.path, payload?.staged));
     return res.success ? { success: true as const, diff: res.data } : res;
+  });
+
+  ipcMain.handle('git:diff-content', async (_event, payload: { path: string; staged?: boolean }) => {
+    const res = await wrap(() => getGitFileDiffContent(cwd(), payload.path, payload.staged));
+    return res.success ? { success: true as const, content: res.data } : res;
   });
 
   ipcMain.handle('git:stage', async (_event, paths: string[]) => {
@@ -138,6 +145,11 @@ export function setupGitHandlers() {
   ipcMain.handle('git:log', async (_event, limit?: number) => {
     const res = await wrap(() => getGitLog(cwd(), limit));
     return res.success ? { success: true as const, entries: res.data } : res;
+  });
+
+  ipcMain.handle('git:graph', async (_event, limit?: number) => {
+    const res = await wrap(() => getGitGraph(cwd(), limit));
+    return res.success ? { success: true as const, commits: res.data } : res;
   });
 
   ipcMain.handle('git:stash-list', async () => {

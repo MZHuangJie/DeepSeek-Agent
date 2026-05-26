@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import DiffView from '../editor/DiffView';
+import GitGraph from '../git/GitGraph';
 import { useFilesStore } from '../../stores/files';
 import { getFileIconInfo } from '../../utils/icons';
 import styles from './GitPanel.module.css';
@@ -43,6 +45,25 @@ const BUSY_LABELS: Record<string, string> = {
 
 const REMOTE_BUSY_OPS = new Set(['pull', 'push', 'sync', 'fetch', 'rebase', 'publish']);
 
+const SUCCESS_TOAST: Record<string, string> = {
+  pull: 'Pull 成功',
+  push: 'Push 成功',
+  sync: 'Sync 成功',
+  fetch: 'Fetch 成功',
+  rebase: 'Rebase Pull 成功',
+  publish: '分支已发布',
+  commit: '提交成功',
+  checkout: '已切换分支',
+  branch: '分支已创建',
+  init: '仓库已初始化',
+  'stage-all': '已全部暂存',
+  'unstage-all': '已全部取消暂存',
+  'discard-all': '已还原更改',
+  clean: '已清理未跟踪文件',
+  stash: '已 Stash',
+  'stash-pop': '已 Pop Stash',
+};
+
 function getBusyText(label: string): string {
   const text = BUSY_LABELS[label] || '处理中…';
   return REMOTE_BUSY_OPS.has(label) ? `${text}（如需密码将弹出对话框）` : text;
@@ -62,6 +83,18 @@ function displayStatus(status: string): { letter: string; color: string } {
   if (status === 'A') return { letter: 'A', color: '#4ade80' };
   if (status === 'D' || status.includes('U')) return { letter: 'D', color: '#f87171' };
   return { letter: 'M', color: '#fbbf24' };
+}
+
+function getLanguage(name: string): string {
+  if (name.endsWith('.ts') || name.endsWith('.tsx')) return 'typescript';
+  if (name.endsWith('.js') || name.endsWith('.jsx')) return 'javascript';
+  if (name.endsWith('.py')) return 'python';
+  if (name.endsWith('.json')) return 'json';
+  if (name.endsWith('.md')) return 'markdown';
+  if (name.endsWith('.css')) return 'css';
+  if (name.endsWith('.html')) return 'html';
+  if (name.endsWith('.yml') || name.endsWith('.yaml')) return 'yaml';
+  return 'text';
 }
 
 function CollapsibleSection({
@@ -99,25 +132,44 @@ function CollapsibleSection({
 }
 
 export default function GitPanel() {
-  const { currentWorkspace, recentWorkspaces, openFile, openWorkspace } = useFilesStore();
+  const { currentWorkspace, openFile } = useFilesStore();
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [branches, setBranches] = useState<GitBranchInfo[]>([]);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [selectedStaged, setSelectedStaged] = useState(false);
-  const [diff, setDiff] = useState('');
+  const [diffContent, setDiffContent] = useState<{
+    original: string;
+    modified: string;
+    originalLabel: string;
+    modifiedLabel: string;
+  } | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [syncMenuOpen, setSyncMenuOpen] = useState(false);
   const [showCreateBranch, setShowCreateBranch] = useState(false);
   const [newBranch, setNewBranch] = useState('');
   const [changesCollapsed, setChangesCollapsed] = useState(false);
   const [stagedCollapsed, setStagedCollapsed] = useState(false);
+  const [graphRefreshToken, setGraphRefreshToken] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const syncMenuRef = useRef<HTMLDivElement>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const showToast = useCallback((message: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = setTimeout(() => setToast(''), 2500);
+  }, []);
+
+  useEffect(() => () => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -134,6 +186,7 @@ export default function GitPanel() {
       if (res.status.isRepo) {
         const br = await window.api.git.branches();
         if (br.success) setBranches(br.branches);
+        setGraphRefreshToken(v => v + 1);
       } else {
         setBranches([]);
       }
@@ -159,17 +212,31 @@ export default function GitPanel() {
   }, [menuOpen, syncMenuOpen]);
 
   useEffect(() => {
-    if (!selectedPath) { setDiff(''); return; }
+    if (!selectedPath) {
+      setDiffContent(null);
+      setDiffError('');
+      setDiffLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDiffLoading(true);
+    setDiffError('');
     void (async () => {
-      const res = await window.api.git.diff({ path: selectedPath, staged: selectedStaged });
-      setDiff(res.success ? res.diff : res.error);
+      const res = await window.api.git.diffContent({ path: selectedPath, staged: selectedStaged });
+      if (cancelled) return;
+      setDiffLoading(false);
+      if (res.success) setDiffContent(res.content);
+      else {
+        setDiffContent(null);
+        setDiffError(res.error);
+      }
     })();
-  }, [selectedPath, selectedStaged]);
+    return () => { cancelled = true; };
+  }, [selectedPath, selectedStaged, status]);
 
   const run = async (label: string, fn: () => Promise<{ success: boolean; error?: string; output?: string; result?: { pull: string; push: string }; hash?: string }>) => {
     setBusy(label);
     setError('');
-    setInfo('');
     setSyncMenuOpen(false);
     setMenuOpen(false);
     try {
@@ -178,9 +245,7 @@ export default function GitPanel() {
         setError(res.error || '操作失败');
         return;
       }
-      if (res.output) setInfo(res.output);
-      if (res.hash) setInfo(`提交成功：${res.hash}`);
-      if (res.result) setInfo('同步完成');
+      showToast(SUCCESS_TOAST[label] || '操作成功');
       await refresh();
     } finally {
       setBusy('');
@@ -252,7 +317,26 @@ export default function GitPanel() {
             <span className={styles.statusLetter} style={{ color: st.color }}>{st.letter}</span>
           </div>
         </div>
-        {active && diff && <pre className={styles.diff}>{diff}</pre>}
+        {active && (
+          <div className={styles.diffWrap}>
+            {diffLoading && <div className={styles.diffPlaceholder}>加载 Diff…</div>}
+            {!diffLoading && diffError && <div className={styles.diffPlaceholder}>{diffError}</div>}
+            {!diffLoading && !diffError && diffContent && diffContent.original === diffContent.modified && (
+              <div className={styles.diffPlaceholder}>无差异</div>
+            )}
+            {!diffLoading && !diffError && diffContent && diffContent.original !== diffContent.modified && (
+              <DiffView
+                original={diffContent.original}
+                modified={diffContent.modified}
+                language={getLanguage(basename(file.path))}
+                originalLabel={diffContent.originalLabel}
+                modifiedLabel={diffContent.modifiedLabel}
+                height="220px"
+                inline
+              />
+            )}
+          </div>
+        )}
       </React.Fragment>
     );
   };
@@ -260,7 +344,6 @@ export default function GitPanel() {
   const changesCount = (status?.unstaged.length ?? 0) + (status?.untracked.length ?? 0);
   const disabled = !!busy || loading;
   const repoName = currentWorkspace?.split(/[/\\]/).pop() || 'workspace';
-  const allRepos = [currentWorkspace, ...recentWorkspaces.filter(p => p !== currentWorkspace)].filter(Boolean) as string[];
 
   if (!currentWorkspace) {
     return (
@@ -301,7 +384,6 @@ export default function GitPanel() {
       )}
 
       {error && <div className={styles.error}>{error}</div>}
-      {info && <div className={styles.info}>{info}</div>}
 
       {!status?.isRepo && (
         <div className={styles.empty}>
@@ -472,28 +554,17 @@ export default function GitPanel() {
             </CollapsibleSection>
           </div>
 
-          {allRepos.length > 0 && (
-            <div className={styles.reposSection}>
-              <div className={styles.reposLabel}>Repositories</div>
-              {allRepos.slice(0, 6).map(p => {
-                const name = p.split(/[/\\]/).pop() || p;
-                const active = p === currentWorkspace;
-                return (
-                  <div
-                    key={p}
-                    className={`${styles.repoItem} ${active ? styles.repoItemActive : ''}`}
-                    title={p}
-                    onClick={() => { if (!active) void openWorkspace(p); }}
-                  >
-                    {active && <span className={styles.repoDot} />}
-                    <span>{name}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <GitGraph
+            refreshToken={graphRefreshToken}
+            disabled={disabled}
+            onPull={() => void run('pull', () => window.api.git.pull())}
+            onPush={() => void run('push', () => window.api.git.push())}
+            onFetch={() => void run('fetch', () => window.api.git.fetch())}
+          />
         </>
       )}
+
+      {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   );
 }
