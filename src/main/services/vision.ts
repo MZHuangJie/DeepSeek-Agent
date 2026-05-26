@@ -35,6 +35,47 @@ function loadImagePayload(imagePath: string, prompt?: string): ImagePayload {
   return { mime, base64: buf.toString('base64'), userPrompt };
 }
 
+function buildChatCompletionsUrl(baseUrl: string): URL {
+  const base = baseUrl.replace(/\/+$/, '');
+  const path = base.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions';
+  return new URL(base + path);
+}
+
+/** 从 OpenAI 兼容响应中提取文本（支持 string / content 数组 / reasoning_content） */
+export function extractOpenAIMessageText(parsed: Record<string, unknown>): string {
+  const message = (parsed.choices as Array<{ message?: Record<string, unknown> }> | undefined)?.[0]?.message;
+  if (!message) return '';
+
+  const content = message.content;
+  if (typeof content === 'string') return content.trim();
+
+  if (Array.isArray(content)) {
+    const parts = content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string') {
+          return part.text;
+        }
+        return '';
+      })
+      .filter(Boolean);
+    if (parts.length > 0) return parts.join('\n').trim();
+  }
+
+  if (typeof message.reasoning_content === 'string') {
+    return message.reasoning_content.trim();
+  }
+
+  return '';
+}
+
+function parseOpenAIChatResponse(data: string): string {
+  const parsed = JSON.parse(data) as Record<string, unknown>;
+  const text = extractOpenAIMessageText(parsed);
+  if (text) return text;
+  throw new Error('视觉模型响应中未找到有效文本内容');
+}
+
 function isAnthropicVision(config: VisionModelConfig): boolean {
   return config.baseUrl.includes('anthropic.com') || config.model.toLowerCase().includes('claude');
 }
@@ -44,10 +85,7 @@ function httpJsonRequest(
   headers: Record<string, string>,
   body: string,
   signal?: AbortSignal,
-  parseText: (data: string) => string = (data) => {
-    const parsed = JSON.parse(data);
-    return parsed.choices?.[0]?.message?.content || '无法获取图片描述';
-  },
+  parseText: (data: string) => string = parseOpenAIChatResponse,
 ): Promise<string> {
   const isHttps = url.protocol === 'https:';
 
@@ -116,8 +154,7 @@ async function describeImageOpenAI(
     max_tokens: 1024,
   });
 
-  const apiPath = config.baseUrl.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions';
-  const url = new URL(apiPath, config.baseUrl);
+  const url = buildChatCompletionsUrl(config.baseUrl);
 
   return httpJsonRequest(url, {
     'Content-Type': 'application/json',
@@ -157,7 +194,9 @@ async function describeImageAnthropic(
   }, body, signal, (data) => {
     const parsed = JSON.parse(data);
     const block = parsed.content?.find((b: { type?: string }) => b.type === 'text');
-    return block?.text || '无法获取图片描述';
+    const text = typeof block?.text === 'string' ? block.text.trim() : '';
+    if (text) return text;
+    throw new Error('视觉模型响应中未找到有效文本内容');
   });
 }
 

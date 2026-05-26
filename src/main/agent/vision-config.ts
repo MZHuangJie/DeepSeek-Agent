@@ -5,6 +5,15 @@ export interface ResolvedVisionConfig extends VisionModelConfig {
   enabled: true;
 }
 
+function hostOf(baseUrl: string): string {
+  try {
+    const normalized = baseUrl.includes('://') ? baseUrl : `https://${baseUrl}`;
+    return new URL(normalized.replace(/\/+$/, '')).hostname;
+  } catch {
+    return '';
+  }
+}
+
 /** 解析视觉模型配置：非多模态主模型强制独立 Vision；API Key 回退到对话 Key */
 export function resolveVisionConfig(
   modelConfig: { model: string; baseUrl: string },
@@ -27,7 +36,13 @@ export function resolveVisionConfig(
   const useActiveModel = providerMultimodal && !!vision.useActiveModel;
   const useDedicated = !useActiveModel || !!vision.apiKey;
 
-  const resolvedApiKey = (useDedicated ? vision.apiKey : apiKey) || apiKey;
+  const visionHost = hostOf(useDedicated ? vision.baseUrl : modelConfig.baseUrl);
+  const chatHost = hostOf(modelConfig.baseUrl);
+  const needsDedicatedKey = useDedicated && visionHost && chatHost && visionHost !== chatHost;
+  const resolvedApiKey = needsDedicatedKey
+    ? (vision.apiKey?.trim() || '')
+    : ((useDedicated ? vision.apiKey : apiKey) || apiKey).trim();
+
   if (!resolvedApiKey) return undefined;
 
   return {
