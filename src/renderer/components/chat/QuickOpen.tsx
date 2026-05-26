@@ -161,6 +161,17 @@ export default function QuickOpen({ onClose }: Props) {
   }, []);
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [onClose]);
+
+  useEffect(() => {
     setFocusIdx(0);
   }, [results.length, query, filter]);
 
@@ -197,6 +208,8 @@ export default function QuickOpen({ onClose }: Props) {
         handleSelectIndex(focusIdx);
       }
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       onClose();
     } else if (e.key === 'Tab') {
       e.preventDefault();
@@ -318,8 +331,14 @@ export default function QuickOpen({ onClose }: Props) {
         </div>
 
         <div className={styles.footer}>
-          <span className={styles.footerIcon}>💡</span>
-          <span>提示：使用通配符 * 匹配任意字符，使用 ? 匹配单个字符</span>
+          <div className={styles.footerTip}>
+            <span className={styles.footerIcon}>💡</span>
+            <span>提示：使用通配符 * 匹配任意字符，使用 ? 匹配单个字符</span>
+          </div>
+          <div className={styles.footerShortcuts}>
+            <span className={styles.kbd}>Esc</span>
+            <span className={styles.footerShortcutLabel}>关闭</span>
+          </div>
         </div>
       </div>
     </div>

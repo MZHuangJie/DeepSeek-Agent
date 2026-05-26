@@ -365,10 +365,28 @@
   border-top: 1px solid rgba(139, 92, 246, 0.12);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 16px;
   color: rgba(148, 163, 184, 0.82);
   font-size: 12px;
+}
+
+.footerTip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.footerShortcuts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.footerShortcutLabel {
+  color: rgba(203, 213, 225, 0.72);
 }
 
 .footerIcon {
