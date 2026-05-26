@@ -36,9 +36,10 @@ export default function ModelSettings({ onClose }: Props) {
   }, [list]);
 
   const handleSave = async () => {
+    const savedVision = activeProvider.multimodal ? visionConfig : { ...visionConfig, useActiveModel: false };
     await saveModels(list);
     await saveImageModel(imageConfig);
-    await saveVisionModel(visionConfig);
+    await saveVisionModel(savedVision);
     onClose();
   };
 

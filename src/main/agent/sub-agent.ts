@@ -505,12 +505,15 @@ ${dirHint}
                 model: imageModelCfg.model,
                 apiKey: imageModelCfg.apiKey,
               } : undefined,
-              visionModelConfig: visionModelCfg?.enabled ? {
-                enabled: true,
-                baseUrl: visionModelCfg.useActiveModel ? modelConfig.baseUrl : visionModelCfg.baseUrl,
-                model: visionModelCfg.useActiveModel ? modelConfig.model : visionModelCfg.model,
-                apiKey: visionModelCfg.useActiveModel ? apiKey : visionModelCfg.apiKey,
-              } : undefined,
+              visionModelConfig: visionModelCfg?.enabled ? (() => {
+                const useDedicated = !visionModelCfg.useActiveModel || !!visionModelCfg.apiKey;
+                return {
+                  enabled: true,
+                  baseUrl: useDedicated ? visionModelCfg.baseUrl : modelConfig.baseUrl,
+                  model: useDedicated ? visionModelCfg.model : modelConfig.model,
+                  apiKey: useDedicated ? visionModelCfg.apiKey : apiKey,
+                };
+              })() : undefined,
             };
             toolResult = await tool.execute(args, toolCtx);
           } catch (err: any) {

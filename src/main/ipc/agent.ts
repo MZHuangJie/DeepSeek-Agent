@@ -521,12 +521,15 @@ export function setupAgentHandlers() {
                 model: imageModelConfig.model,
                 apiKey: imageModelConfig.apiKey,
               } : undefined,
-              visionModelConfig: visionModelConfig?.enabled ? {
-                enabled: true,
-                baseUrl: visionModelConfig.useActiveModel ? (modelConfig.baseUrl) : visionModelConfig.baseUrl,
-                model: visionModelConfig.useActiveModel ? (modelConfig.model) : visionModelConfig.model,
-                apiKey: visionModelConfig.useActiveModel ? (payload.apiKey) : visionModelConfig.apiKey,
-              } : undefined,
+              visionModelConfig: visionModelConfig?.enabled ? (() => {
+                const useDedicated = !visionModelConfig.useActiveModel || !!visionModelConfig.apiKey;
+                return {
+                  enabled: true,
+                  baseUrl: useDedicated ? visionModelConfig.baseUrl : modelConfig.baseUrl,
+                  model: useDedicated ? visionModelConfig.model : modelConfig.model,
+                  apiKey: useDedicated ? visionModelConfig.apiKey : payload.apiKey,
+                };
+              })() : undefined,
             };
             toolResult = await tool.execute(args, toolContext);
           } catch (err: any) {
