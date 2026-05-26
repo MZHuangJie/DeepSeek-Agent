@@ -15,7 +15,7 @@ interface Props {
 const ITEMS: Array<{ id: PanelView; label: string; icon?: string; glyph?: string }> = [
   { id: 'files', label: '文件', icon: '/assets/file.png' },
   { id: 'sessions', label: '会话', icon: '/assets/session.png' },
-  { id: 'git', label: 'Git', glyph: '⎇' },
+  { id: 'git', label: 'Git', icon: '/assets/git.png' },
   { id: 'browser', label: '浏览器', icon: '/assets/web.png' },
   { id: 'agent', label: 'AGENT', icon: '/assets/usaged.png' },
   { id: 'modify', label: '文件修改', icon: '/assets/modify.png' },
@@ -36,7 +36,7 @@ function BarBtn({ icon, glyph, title, onClick, active }: { icon?: string; glyph?
       {glyph ? (
         <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 700 }}>{glyph}</span>
       ) : (
-        <img src={icon} alt={title} style={{ width: 18, height: 18 }} />
+        <img src={icon} alt={title} className={styles.barBtnIcon} />
       )}
       {active && <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 2, height: 20, background: '#fff', borderRadius: 1 }} />}
     </div>
