@@ -1,7 +1,8 @@
 import { useRef, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat';
 import { useAgentStore } from '../../stores/agent';
-import { buildToolActivity, computeSubAgentProgress, formatSubAgentActivityLine, isUsefulSubAgentSnippet } from './subAgentUi';
+import { buildToolActivity, computeSubAgentProgress, isUsefulSubAgentSnippet } from './subAgentUi';
+import { summarizeSessionTitleIfNeeded } from '../../utils/sessionTitleSummarize';
 
 interface StreamHandlerDeps {
   currentStepRef: React.MutableRefObject<number>;
@@ -107,6 +108,9 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       useAgentStore.getState().setCurrentStep({
         step: current?.step || 1, total: current?.total || 1, description: '已完成', progress: 100,
       });
+      if (activeSessionId) {
+        void summarizeSessionTitleIfNeeded(activeSessionId);
+      }
     } else if (chunk.type === 'explore-progress') {
       const agentStore = useAgentStore.getState();
       agentStore.setCurrentStep({

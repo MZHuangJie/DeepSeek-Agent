@@ -125,6 +125,13 @@ const api = {
     save: (id: string, title: string, messages: string) => ipcRenderer.invoke('sessions:save', id, title, messages),
     loadAll: () => ipcRenderer.invoke('sessions:loadAll'),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
+    generateTitle: (payload: {
+      userMessage: string;
+      assistantPreview?: string;
+      model?: string;
+      baseUrl?: string;
+      apiKey?: string;
+    }) => ipcRenderer.invoke('sessions:generateTitle', payload),
   },
   marketplace: {
     add: (url: string) => ipcRenderer.invoke('marketplace:add', url),

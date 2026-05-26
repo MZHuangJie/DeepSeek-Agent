@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { deriveFallbackSessionTitle, extractPlainUserText } from '../utils/sessionTitle';
 
 export interface Message {
   id: string;
@@ -23,6 +24,8 @@ export interface Session {
   id: string;
   title: string;
   messages: Message[];
+  /** 首轮对话结束后需生成摘要标题 */
+  titlePending?: boolean;
 }
 
 interface ChatState {
@@ -37,6 +40,7 @@ interface ChatState {
   setStreaming: (v: boolean) => void;
   updateLastAssistant: (update: Partial<Message>) => void;
   newAssistantMessage: () => void;
+  updateSessionTitle: (id: string, title: string, titlePending?: boolean) => void;
 }
 
 let sessionCounter = 0;
@@ -116,10 +120,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (s.id !== activeSessionId) return s;
       const newMessages = [...s.messages, msg];
       let title = s.title;
+      let titlePending = s.titlePending;
       if (s.messages.length === 0 && msg.role === 'user') {
-        title = msg.content.slice(0, 40) + (msg.content.length > 40 ? '...' : '');
+        title = deriveFallbackSessionTitle(extractPlainUserText(msg));
+        titlePending = true;
       }
-      modifiedSession = { ...s, title, messages: newMessages };
+      modifiedSession = { ...s, title, titlePending, messages: newMessages };
       return modifiedSession;
     });
     // 把刚更新的会话移到最前面
@@ -165,5 +171,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       : newSessions;
     set({ sessions: ordered });
     if (!isStreaming) persist(ordered);
+  },
+
+  updateSessionTitle: (id, title, titlePending = false) => {
+    const { sessions, isStreaming } = get();
+    const newSessions = sessions.map(s =>
+      s.id === id ? { ...s, title, titlePending } : s,
+    );
+    const ordered = [
+      newSessions.find(s => s.id === id)!,
+      ...newSessions.filter(s => s.id !== id),
+    ];
+    set({ sessions: ordered });
+    if (!isStreaming) persist(ordered);
+    else {
+      const session = ordered.find(s => s.id === id);
+      if (session) window.api.sessions.save(session.id, session.title, JSON.stringify(session.messages));
+    }
   },
 }));

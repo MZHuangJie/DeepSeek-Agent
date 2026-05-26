@@ -236,3 +236,87 @@ export async function streamChat(
     });
   }
 }
+
+export async function completeChat(
+  apiKey: string,
+  messages: ChatMessage[],
+  modelConfig: ModelConfig,
+  options?: { maxTokens?: number; temperature?: number; signal?: AbortSignal },
+): Promise<string> {
+  const { model, baseUrl } = modelConfig;
+  const base = baseUrl.replace(/\/+$/, '');
+  const path = base.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions';
+  const url = new URL(base + path);
+  if (url.protocol !== 'https:') {
+    throw new Error('API base URL must use HTTPS for security');
+  }
+
+  const body = JSON.stringify({
+    model,
+    messages,
+    stream: false,
+    max_tokens: options?.maxTokens ?? 40,
+    temperature: options?.temperature ?? 0.3,
+  });
+
+  return new Promise((resolve, reject) => {
+    const reqOptions: https.RequestOptions & { hostname: string } = {
+      hostname: url.hostname,
+      servername: url.hostname,
+      port: url.port || 443,
+      path: url.pathname + url.search,
+      method: 'POST',
+      agent: httpsAgent,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    };
+
+    const req = https.request(reqOptions, (res) => {
+      const status = res.statusCode ?? 0;
+      let buf = '';
+      res.setEncoding('utf-8');
+      res.on('data', (c: string) => { buf += c; });
+      res.on('end', () => {
+        if (status < 200 || status >= 300) {
+          let detail = buf.trim();
+          try {
+            const parsed = JSON.parse(detail);
+            detail = parsed.error?.message || parsed.message || detail;
+          } catch {}
+          reject(classifyApiError(status, detail || res.statusMessage || '未知错误'));
+          return;
+        }
+        try {
+          const parsed = JSON.parse(buf);
+          const message = parsed.choices?.[0]?.message;
+          const content = message?.content || message?.reasoning_content || '';
+          resolve(typeof content === 'string' ? content : '');
+        } catch (err: unknown) {
+          reject(err instanceof Error ? err : new Error(String(err)));
+        }
+      });
+      res.on('error', (err) => reject(unwrapNetworkError(err, url.hostname)));
+    });
+
+    req.on('error', (err) => reject(unwrapNetworkError(err, url.hostname)));
+
+    if (options?.signal) {
+      options.signal.addEventListener('abort', () => {
+        req.destroy(new Error('Request aborted'));
+      }, { once: true });
+      if (options.signal.aborted) {
+        req.destroy(new Error('Request aborted'));
+        return;
+      }
+    }
+
+    req.setTimeout(20_000, () => {
+      req.destroy(new Error('标题生成请求超时'));
+    });
+
+    req.write(body);
+    req.end();
+  });
+}

@@ -13,6 +13,13 @@ declare global {
         save: (id: string, title: string, messages: string) => Promise<{ success: boolean }>;
         loadAll: () => Promise<Array<{ id: string; title: string; messages: string }>>;
         delete: (id: string) => Promise<{ success: boolean }>;
+        generateTitle: (payload: {
+          userMessage: string;
+          assistantPreview?: string;
+          model?: string;
+          baseUrl?: string;
+          apiKey?: string;
+        }) => Promise<{ success: true; title: string } | { success: false; error: string }>;
       };
     };
   }

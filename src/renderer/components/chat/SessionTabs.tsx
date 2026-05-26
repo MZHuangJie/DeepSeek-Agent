@@ -1,14 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/chat';
+import { displaySessionTitle } from '../../utils/sessionTitle';
 import styles from './SessionTabs.module.css';
-
-function displaySessionTitle(title: string): string {
-  const cleaned = title
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, '[图片]')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return cleaned || '新建会话';
-}
 
 export default function SessionTabs() {
   const { sessions, activeSessionId, createSession, switchSession, deleteSession } = useChatStore();
