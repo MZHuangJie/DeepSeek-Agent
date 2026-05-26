@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styles from '../../styles/components.module.css';
 import barStyles from './ActivityBar.module.css';
+import { useModeStore } from '../../stores/mode';
 
-export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify' | 'git';
+export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify' | 'git' | 'roleplay';
 
 export type SystemMenuAction = 'theme' | 'terminal' | 'model' | 'characters' | 'about';
 
@@ -45,6 +46,7 @@ function BarBtn({ icon, glyph, title, onClick, active }: { icon?: string; glyph?
 }
 
 export default function ActivityBar({ openView, onToggle, onSystemAction }: Props) {
+  const mode = useModeStore(s => s.mode);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -91,7 +93,16 @@ export default function ActivityBar({ openView, onToggle, onSystemAction }: Prop
         />
       ))}
 
-      <div ref={menuRef} className={barStyles.menuAnchor} style={{ marginTop: 'auto', paddingBottom: 8 }}>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, paddingBottom: 8 }}>
+        {mode === 'roleplay' && (
+          <BarBtn
+            icon="/assets/role.png"
+            title="角色"
+            active={openView === 'roleplay'}
+            onClick={() => onToggle('roleplay')}
+          />
+        )}
+        <div ref={menuRef} className={barStyles.menuAnchor}>
         <BarBtn
           icon="/assets/5.png"
           title="系统设置"
@@ -112,6 +123,7 @@ export default function ActivityBar({ openView, onToggle, onSystemAction }: Prop
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

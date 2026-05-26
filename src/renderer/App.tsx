@@ -20,6 +20,7 @@ import ModelSettings from './components/settings/ModelSettings';
 import ThemeSettings from './components/settings/ThemeSettings';
 import AboutDialog from './components/settings/AboutDialog';
 import CharacterSettings from './components/settings/CharacterSettings';
+import CharacterPickerPanel from './components/roleplay/CharacterPickerPanel';
 import GitPassphraseDialog from './components/git/GitPassphraseDialog';
 import QuickOpen from './components/chat/QuickOpen';
 import { useFilesStore } from './stores/files';
@@ -27,6 +28,7 @@ import { useTerminalStore } from './stores/terminal';
 import { useChatStore } from './stores/chat';
 import { useLayoutStore, SIDEBAR_MIN_WIDTH } from './stores/layout';
 import { useBrowserStore } from './stores/browser';
+import { useModeStore } from './stores/mode';
 import ResizeHandle from './components/layout/ResizeHandle';
 import SidebarResizeHandle from './components/layout/SidebarResizeHandle';
 
@@ -66,7 +68,14 @@ export default function App() {
   const [sidebarResizing, setSidebarResizing] = React.useState(false);
   const [askpassRequest, setAskpassRequest] = React.useState<{ id: string; prompt: string; keyPath: string } | null>(null);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
+  const mode = useModeStore(s => s.mode);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
+
+  useEffect(() => {
+    if (mode !== 'roleplay' && openView === 'roleplay') {
+      setOpenView(null);
+    }
+  }, [mode, openView]);
   const handleToggleView = (view: PanelView) => {
     if (view === 'browser') {
       setBrowserOpen(!browserOpen);
@@ -199,6 +208,7 @@ export default function App() {
             {!isBrowserVisible && openView === 'sessions' && <SessionList />}
             {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
             {!isBrowserVisible && openView === 'git' && <GitPanel />}
+            {!isBrowserVisible && openView === 'roleplay' && <CharacterPickerPanel />}
             {isBrowserVisible && <BrowserView initialUrl={browserUrl} />}
           </div>
         </div>
