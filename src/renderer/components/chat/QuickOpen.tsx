@@ -1,53 +1,40 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFilesStore, FileNode } from '../../stores/files';
 import { getFileIconInfo } from '../../utils/icons';
+import { useFocusedItemRef } from './Dropdown';
+import {
+  SEARCH_FILTERS,
+  SearchFilter,
+  searchWorkspace,
+  relativeWorkspacePath,
+  loadRecentSearches,
+  saveRecentSearches,
+  pushRecentSearch,
+  fuzzyScore,
+} from './quickOpenSearch';
+import styles from './QuickOpen.module.css';
 
 interface Props {
   onClose: () => void;
 }
 
-function flattenTree(nodes: FileNode[]): FileNode[] {
-  const result: FileNode[] = [];
-  const walk = (list: FileNode[]) => {
-    for (const n of list) {
-      if (!n.isDirectory) result.push(n);
-      if (n.children) walk(n.children);
-    }
-  };
-  walk(nodes);
-  return result;
-}
-
-function fuzzyScore(query: string, text: string): number {
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  let qi = 0;
-  let score = 0;
-  // 连续匹配加分
-  let consecutive = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) {
-      qi++;
-      consecutive++;
-      score += consecutive * 2;
-    } else {
-      consecutive = 0;
-    }
-  }
-  return qi === q.length ? score : -1;
-}
-
 function highlightMatch(text: string, query: string): React.ReactNode[] {
-  if (!query) return [text];
+  if (!query.trim() || query.includes('*') || query.includes('?')) return [text];
   const q = query.toLowerCase();
   const t = text.toLowerCase();
   const parts: React.ReactNode[] = [];
-  let ti = 0, qi = 0;
+  let ti = 0;
+  let qi = 0;
   let current = '';
   while (ti < t.length) {
     if (qi < q.length && t[ti] === q[qi]) {
-      if (current) { parts.push(current); current = ''; }
-      parts.push(<mark key={ti} style={{ background: '#3b82f6', color: '#fff', borderRadius: 2, padding: '0 1px' }}>{text[ti]}</mark>);
+      if (current) {
+        parts.push(current);
+        current = '';
+      }
+      parts.push(
+        <mark key={`${ti}-${qi}`}>{text[ti]}</mark>,
+      );
       qi++;
     } else {
       current += text[ti];
@@ -55,129 +42,284 @@ function highlightMatch(text: string, query: string): React.ReactNode[] {
     ti++;
   }
   if (current) parts.push(current);
-  return parts;
+  return parts.length > 0 ? parts : [text];
+}
+
+function FilterIcon({ type }: { type: SearchFilter }) {
+  const common = { className: styles.filterIcon, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5 };
+  switch (type) {
+    case 'all':
+      return (
+        <svg {...common}>
+          <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" strokeLinecap="round" />
+          <rect x="2" y="2.5" width="12" height="11" rx="2" />
+        </svg>
+      );
+    case 'file':
+      return (
+        <svg {...common}>
+          <path d="M4.5 2.5h4l3 3v8.5h-7v-11.5z" />
+          <path d="M8.5 2.5v3h3" />
+        </svg>
+      );
+    case 'folder':
+      return (
+        <svg {...common}>
+          <path d="M2.5 4.5h4l1.5 1.5h5.5v7h-11v-8.5z" />
+        </svg>
+      );
+    case 'code':
+      return (
+        <svg {...common}>
+          <path d="M5 5.5 2.5 8 5 10.5M11 5.5 13.5 8 11 10.5M9 3.5 7 12.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case 'image':
+      return (
+        <svg {...common}>
+          <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+          <circle cx="6" cy="7" r="1.2" />
+          <path d="M3.5 11.5l3-2.5 2.5 2 2-1.5 2.5 2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case 'document':
+      return (
+        <svg {...common}>
+          <path d="M4.5 2.5h4l3 3v8.5h-7v-11.5z" />
+          <path d="M6.5 8.5h3M6.5 10.5h3" strokeLinecap="round" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+function SearchGlyph() {
+  return (
+    <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-4.2-4.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ResultRow({
+  node,
+  query,
+  workspace,
+  focused,
+  onClick,
+}: {
+  node: FileNode;
+  query: string;
+  workspace: string | null;
+  focused: boolean;
+  onClick: () => void;
+}) {
+  const ref = useFocusedItemRef(focused);
+  const icon = node.isDirectory
+    ? { text: '📁', color: '#c4b5fd' }
+    : getFileIconInfo(node.name);
+
+  return (
+    <div
+      ref={ref}
+      className={`${styles.resultItem} ${focused ? styles.resultItemFocused : ''}`}
+      onClick={onClick}
+    >
+      <div
+        className={`${styles.fileIcon} ${node.isDirectory ? styles.folderIconBadge : ''}`}
+        style={node.isDirectory ? undefined : { color: icon.color, background: `${icon.color}22` }}
+      >
+        {icon.text}
+      </div>
+      <div className={styles.resultMain}>
+        <div className={styles.resultName}>{highlightMatch(node.name, query)}</div>
+        <div className={styles.resultPath}>{relativeWorkspacePath(node.path, workspace)}</div>
+      </div>
+      <span className={styles.resultKind}>{node.isDirectory ? '文件夹' : '文件'}</span>
+    </div>
+  );
 }
 
 export default function QuickOpen({ onClose }: Props) {
-  const { tree, openFile } = useFilesStore();
+  const { tree, openFile, currentWorkspace } = useFilesStore();
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<SearchFilter>('all');
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [focusIdx, setFocusIdx] = useState(0);
-  const [hoverIdx, setHoverIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const allFiles = useMemo(() => flattenTree(tree), [tree]);
-
-  const results = useMemo(() => {
-    if (!query.trim()) return allFiles.slice(0, 20).map(f => ({ file: f, score: 0 }));
-    const scored = allFiles
-      .map(f => ({ file: f, score: fuzzyScore(query, f.name) }))
-      .filter(r => r.score >= 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 20);
-    return scored;
-  }, [allFiles, query]);
-
-  // reset focus when results change
-  useEffect(() => { setFocusIdx(0); }, [results.length]);
+  const results = useMemo(
+    () => searchWorkspace(tree, query, filter),
+    [tree, query, filter],
+  );
 
   useEffect(() => {
+    loadRecentSearches().then(setRecentSearches);
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
-  const handleSelect = (idx: number) => {
-    const item = results[idx];
-    if (item) {
-      openFile(item.file.path, item.file.name);
-      onClose();
+  useEffect(() => {
+    setFocusIdx(0);
+  }, [results.length, query, filter]);
+
+  const commitSearch = useCallback(async (term: string) => {
+    const next = await pushRecentSearch(term);
+    setRecentSearches(next);
+  }, []);
+
+  const handleSelect = useCallback(async (node: FileNode) => {
+    if (query.trim()) await commitSearch(query);
+    if (node.isDirectory) {
+      await window.api.files.showInExplorer(node.path);
+    } else {
+      await openFile(node.path, node.name);
     }
-  };
+    onClose();
+  }, [commitSearch, onClose, openFile, query]);
+
+  const handleSelectIndex = useCallback((idx: number) => {
+    const item = results[idx];
+    if (item) void handleSelect(item.node);
+  }, [handleSelect, results]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setFocusIdx(i => Math.min(i + 1, results.length - 1));
+      if (results.length > 0) setFocusIdx(i => Math.min(i + 1, results.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setFocusIdx(i => Math.max(i - 1, 0));
+      if (results.length > 0) setFocusIdx(i => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      handleSelect(focusIdx);
+      if (results.length > 0) {
+        handleSelectIndex(focusIdx);
+      }
     } else if (e.key === 'Escape') {
       onClose();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const idx = SEARCH_FILTERS.findIndex(item => item.id === filter);
+      const next = e.shiftKey
+        ? (idx - 1 + SEARCH_FILTERS.length) % SEARCH_FILTERS.length
+        : (idx + 1) % SEARCH_FILTERS.length;
+      setFilter(SEARCH_FILTERS[next].id);
     }
   };
 
+  const clearRecent = async () => {
+    await saveRecentSearches([]);
+    setRecentSearches([]);
+  };
+
+  const applyRecent = (term: string) => {
+    setQuery(term);
+    inputRef.current?.focus();
+  };
+
+  const hasQuery = query.trim().length > 0;
+
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 10000,
-      display: 'flex', justifyContent: 'center', paddingTop: 32,
-      background: 'rgba(0,0,0,0.15)',
-    }} onClick={onClose}>
-      <div style={{
-        width: 520, maxHeight: 360,
-        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-        borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }} onClick={(e) => e.stopPropagation()}>
-        {/* Search input */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '10px 14px', borderBottom: '1px solid var(--border)',
-        }}>
-          <span style={{ fontSize: 14, opacity: 0.5 }}>&#x1F50D;</span>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="搜索文件..."
-            spellCheck={false}
-            style={{
-              flex: 1, background: 'transparent', border: 'none',
-              color: 'var(--text-primary)', fontSize: 14, outline: 'none',
-            }}
-          />
+    <div className={styles.overlay} data-focus-guard onClick={onClose}>
+      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <div className={styles.searchIconWrap}>
+            <SearchGlyph />
+          </div>
+          <div className={styles.inputArea}>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="搜索文件..."
+              spellCheck={false}
+              className={styles.input}
+            />
+            <div className={styles.subtitle}>搜索当前工作区的文件和目录</div>
+          </div>
+          <div className={styles.shortcut}>
+            <span className={styles.kbd}>Ctrl</span>
+            <span className={styles.kbd}>P</span>
+          </div>
         </div>
 
-        {/* Results */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
-          {results.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 12 }}>
-              {query ? '未找到匹配文件' : '当前工作区无文件'}
+        <div className={styles.filters}>
+          {SEARCH_FILTERS.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              className={`${styles.filterBtn} ${filter === item.id ? styles.filterBtnActive : ''}`}
+              onClick={() => setFilter(item.id)}
+            >
+              <FilterIcon type={item.id} />
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className={styles.body}>
+          {!hasQuery && recentSearches.length > 0 && (
+            <div className={styles.recentSection}>
+              <div className={styles.recentHeader}>
+                <span className={styles.recentTitle}>最近搜索</span>
+                <button type="button" className={styles.clearBtn} onClick={() => void clearRecent()}>
+                  <span aria-hidden>🗑</span>
+                  清除历史
+                </button>
+              </div>
+              <div className={styles.recentList}>
+                {recentSearches.map(term => (
+                  <button
+                    key={term}
+                    type="button"
+                    className={styles.recentChip}
+                    onClick={() => applyRecent(term)}
+                  >
+                    <span aria-hidden>🕘</span>
+                    {term}
+                  </button>
+                ))}
+              </div>
             </div>
-          ) : (
-            results.map((r, i) => {
-              const icon = getFileIconInfo(r.file.name);
-              return (
-                <div
-                  key={r.file.path}
-                  onClick={() => handleSelect(i)}
-                  onMouseEnter={() => setHoverIdx(i)}
-                  onMouseLeave={() => setHoverIdx(-1)}
-                  style={{
-                    background: i === focusIdx ? 'rgba(59,130,246,0.15)'
-                      : i === hoverIdx ? 'rgba(59,130,246,0.06)' : undefined,
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '6px 14px', cursor: 'pointer',
-                    borderBottom: '1px solid var(--border)',
-                    fontSize: 12, transition: 'background 0.1s',
-                  }}
-                >
-                  <span style={{
-                    color: icon.color, fontWeight: 700, fontSize: 11,
-                    fontFamily: 'Consolas, "Courier New", monospace',
-                    flexShrink: 0, width: 20, textAlign: 'center',
-                  }}>{icon.text}</span>
-                  <span style={{ flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span style={{ fontWeight: 500 }}>{highlightMatch(r.file.name, query)}</span>
-                    <span style={{ color: 'var(--text-secondary)', marginLeft: 10, fontSize: 11 }}>
-                      {r.file.path}
-                    </span>
-                  </span>
-                </div>
-              );
-            })
           )}
+
+          {!hasQuery ? (
+            <div className={styles.emptyState}>
+              <div className={styles.emptyIllustration}>
+                <span className={`${styles.sparkle} ${styles.sparkleOne}`}>✦</span>
+                <span className={`${styles.sparkle} ${styles.sparkleTwo}`}>✦</span>
+                <div className={styles.folderTab} />
+                <div className={styles.folderShape} />
+                <div className={styles.magnifier} />
+              </div>
+              <div className={styles.emptyTitle}>开始搜索文件</div>
+              <div className={styles.emptyDesc}>
+                输入关键词搜索文件、文件夹或代码，支持模糊匹配
+              </div>
+            </div>
+          ) : results.length === 0 ? (
+            <div className={styles.noResults}>未找到匹配项，试试调整关键词或切换筛选类型</div>
+          ) : (
+            <div className={styles.results}>
+              {results.map((item, index) => (
+                <ResultRow
+                  key={item.node.path}
+                  node={item.node}
+                  query={query}
+                  workspace={currentWorkspace}
+                  focused={index === focusIdx}
+                  onClick={() => void handleSelect(item.node)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={styles.footer}>
+          <span className={styles.footerIcon}>💡</span>
+          <span>提示：使用通配符 * 匹配任意字符，使用 ? 匹配单个字符</span>
         </div>
       </div>
     </div>
