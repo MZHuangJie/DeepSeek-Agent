@@ -8,7 +8,7 @@ import { usePluginStore } from '../../stores/plugin';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
-import Dropdown, { DropdownItem, useDropdownNav } from './Dropdown';
+import Dropdown, { DropdownItem, useDropdownNav, useFocusedItemRef } from './Dropdown';
 import shared from '../../styles/components.module.css';
 import styles from './ChatInput.module.css';
 
@@ -236,8 +236,13 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       {showMention && (
         <div className={shared.mentionPopup}>
           {openTabs.map((t, i) => (
-            <div key={t.path} className={shared.mentionItem} onClick={() => insertMention(t.path)}
-              style={{ background: mentionFocusIdx === i ? 'var(--bg-tertiary)' : undefined }}>{t.name}</div>
+            <MentionItem
+              key={t.path}
+              focused={mentionFocusIdx === i}
+              onClick={() => insertMention(t.path)}
+            >
+              {t.name}
+            </MentionItem>
           ))}
         </div>
       )}
@@ -392,4 +397,27 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
 function ToolbarBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
   return <button onClick={onClick} title={title} className={shared.toolbarBtn}>{children}</button>;
+}
+
+function MentionItem({
+  focused,
+  onClick,
+  children,
+}: {
+  focused: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = useFocusedItemRef(focused);
+
+  return (
+    <div
+      ref={ref}
+      className={shared.mentionItem}
+      onClick={onClick}
+      style={{ background: focused ? 'var(--bg-tertiary)' : undefined }}
+    >
+      {children}
+    </div>
+  );
 }

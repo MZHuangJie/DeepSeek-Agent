@@ -1,5 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from '../../styles/components.module.css';
+
+function useFocusedItemRef(focused?: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (focused) {
+      ref.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [focused]);
+
+  return ref;
+}
+
+export { useFocusedItemRef };
 
 interface DropdownProps {
   position?: 'top' | 'bottom';
@@ -35,8 +49,11 @@ interface DropdownItemProps {
 }
 
 export function DropdownItem({ active, onClick, children, focused }: DropdownItemProps) {
+  const ref = useFocusedItemRef(focused);
+
   return (
     <div
+      ref={ref}
       onClick={onClick}
       data-dropdown-item="true"
       className={`${styles.dropdownItem} ${active ? styles.dropdownItemActive : ''}`}
