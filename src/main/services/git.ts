@@ -304,6 +304,11 @@ export async function pullGit(cwd: string): Promise<string> {
   return out.trim() || '已 pull 最新代码';
 }
 
+export async function pullRebaseGit(cwd: string): Promise<string> {
+  const out = await runGit(cwd, ['pull', '--rebase']);
+  return out.trim() || '已 rebase pull';
+}
+
 export async function pushGit(cwd: string): Promise<string> {
   const out = await runGit(cwd, ['push']);
   return out.trim() || '已 push 到远程';

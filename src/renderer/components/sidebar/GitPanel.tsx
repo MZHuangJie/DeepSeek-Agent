@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFilesStore } from '../../stores/files';
+import { getFileIconInfo } from '../../utils/icons';
 import styles from './GitPanel.module.css';
 
 interface GitFileEntry { path: string; status: string; }
@@ -21,13 +22,6 @@ interface GitStatus {
 
 interface GitBranchInfo { name: string; current: boolean; remote: boolean; }
 
-function statusColor(status: string): string {
-  if (status === '?') return '#60a5fa';
-  if (status === 'D' || status.includes('U')) return '#ef4444';
-  if (status === 'A') return '#22c55e';
-  return '#ffb74d';
-}
-
 function basename(p: string): string {
   return p.split(/[/\\]/).pop() || p;
 }
@@ -37,8 +31,49 @@ function toAbsPath(workspace: string, rel: string): string {
   return `${workspace}${sep}${rel.split('/').join(sep)}`;
 }
 
+function displayStatus(status: string): { letter: string; color: string } {
+  if (status === '?') return { letter: 'U', color: '#4ade80' };
+  if (status === 'A') return { letter: 'A', color: '#4ade80' };
+  if (status === 'D' || status.includes('U')) return { letter: 'D', color: '#f87171' };
+  return { letter: 'M', color: '#fbbf24' };
+}
+
+function CollapsibleSection({
+  title,
+  count,
+  collapsed,
+  onToggle,
+  tools,
+  children,
+}: {
+  title: string;
+  count: number;
+  collapsed: boolean;
+  onToggle: () => void;
+  tools?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionHeader} onClick={onToggle}>
+        <div className={styles.sectionHeaderLeft}>
+          <span className={styles.chevron}>{collapsed ? '▸' : '▾'}</span>
+          <span className={styles.sectionTitle}>{title}</span>
+          <span className={styles.sectionCount}>({count})</span>
+        </div>
+        {tools && (
+          <div className={styles.sectionTools} onClick={e => e.stopPropagation()}>
+            {tools}
+          </div>
+        )}
+      </div>
+      {!collapsed && children}
+    </div>
+  );
+}
+
 export default function GitPanel() {
-  const { currentWorkspace, openFile } = useFilesStore();
+  const { currentWorkspace, recentWorkspaces, openFile, openWorkspace } = useFilesStore();
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [branches, setBranches] = useState<GitBranchInfo[]>([]);
   const [error, setError] = useState('');
@@ -50,8 +85,13 @@ export default function GitPanel() {
   const [selectedStaged, setSelectedStaged] = useState(false);
   const [diff, setDiff] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [syncMenuOpen, setSyncMenuOpen] = useState(false);
+  const [showCreateBranch, setShowCreateBranch] = useState(false);
   const [newBranch, setNewBranch] = useState('');
+  const [changesCollapsed, setChangesCollapsed] = useState(false);
+  const [stagedCollapsed, setStagedCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const syncMenuRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -83,13 +123,14 @@ export default function GitPanel() {
   }, [refresh]);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !syncMenuOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (syncMenuOpen && syncMenuRef.current && !syncMenuRef.current.contains(e.target as Node)) setSyncMenuOpen(false);
     };
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
-  }, [menuOpen]);
+  }, [menuOpen, syncMenuOpen]);
 
   useEffect(() => {
     if (!selectedPath) { setDiff(''); return; }
@@ -103,6 +144,8 @@ export default function GitPanel() {
     setBusy(label);
     setError('');
     setInfo('');
+    setSyncMenuOpen(false);
+    setMenuOpen(false);
     try {
       const res = await fn();
       if (!res.success) {
@@ -110,8 +153,8 @@ export default function GitPanel() {
         return;
       }
       if (res.output) setInfo(res.output);
-      if (res.hash) setInfo(`提交成功 ${res.hash}`);
-      if (res.result) setInfo(`同步完成\nPull: ${res.result.pull}\nPush: ${res.result.push}`);
+      if (res.hash) setInfo(`Committed ${res.hash}`);
+      if (res.result) setInfo(`Sync complete`);
       await refresh();
     } finally {
       setBusy('');
@@ -125,24 +168,12 @@ export default function GitPanel() {
     await refresh();
   };
 
-  const handleCommit = async (andPush = false, andSync = false) => {
-    if (!commitMessage.trim()) return;
-    await run('commit', async () => {
-      const res = await window.api.git.commit(commitMessage.trim());
-      if (!res.success) return res;
-      setCommitMessage('');
-      if (andSync) {
-        const sync = await window.api.git.sync();
-        if (!sync.success) return sync;
-        return { success: true as const, hash: res.hash, result: sync.result };
-      }
-      if (andPush) {
-        const push = await window.api.git.push();
-        if (!push.success) return push;
-        return { success: true as const, hash: res.hash, output: push.output };
-      }
+  const handleCommit = async () => {
+    if (!commitMessage.trim() || !status?.staged.length) return;
+    await run('commit', () => window.api.git.commit(commitMessage.trim()).then(res => {
+      if (res.success) setCommitMessage('');
       return res;
-    });
+    }));
   };
 
   const handleCheckout = async (branch: string) => {
@@ -155,52 +186,61 @@ export default function GitPanel() {
     if (!name) return;
     await run('branch', () => window.api.git.checkout({ branch: name, create: true }));
     setNewBranch('');
+    setShowCreateBranch(false);
   };
 
   const openInEditor = (rel: string) => {
     if (!currentWorkspace) return;
-    const abs = toAbsPath(currentWorkspace, rel);
-    openFile(abs, basename(rel));
+    openFile(toAbsPath(currentWorkspace, rel), basename(rel));
   };
 
-  const renderFiles = (
-    files: GitFileEntry[],
+  const renderFileRow = (
+    file: GitFileEntry,
     staged: boolean,
-    opts: { primary: string; onPrimary: (p: string) => void; secondary?: string; onSecondary?: (p: string) => void; conflict?: boolean },
-  ) => files.map(file => {
+    opts: { hoverAction: string; onAction: (p: string) => void; secondary?: string; onSecondary?: (p: string) => void },
+  ) => {
     const active = selectedPath === file.path && selectedStaged === staged;
+    const icon = getFileIconInfo(basename(file.path));
+    const st = displayStatus(file.status);
     return (
       <React.Fragment key={`${staged ? 's' : 'u'}-${file.path}`}>
-        <div className={`${styles.fileRow} ${active ? styles.fileRowActive : ''} ${opts.conflict ? styles.conflictRow : ''}`}>
-          <span className={styles.statusTag} style={{ color: statusColor(file.status) }}>{file.status}</span>
+        <div className={`${styles.fileRow} ${active ? styles.fileRowActive : ''}`}>
+          <span className={styles.fileIcon} style={{ color: icon.color }}>{icon.text}</span>
           <span
-            className={styles.filePath}
+            className={styles.fileName}
             title={file.path}
             onClick={() => { setSelectedPath(file.path); setSelectedStaged(staged); }}
             onDoubleClick={() => openInEditor(file.path)}
           >
-            {file.path}
+            {basename(file.path)}
           </span>
-          <div className={styles.rowActions}>
-            <button type="button" className={styles.rowBtn} title={opts.primary} onClick={() => opts.onPrimary(file.path)}>{opts.primary}</button>
+          <div className={styles.fileEnd}>
+            <button type="button" className={styles.hoverAction} title={opts.hoverAction} onClick={() => opts.onAction(file.path)}>
+              {opts.hoverAction}
+            </button>
             {opts.secondary && opts.onSecondary && (
-              <button type="button" className={styles.rowBtn} title={opts.secondary} onClick={() => opts.onSecondary!(file.path)}>{opts.secondary}</button>
+              <button type="button" className={styles.hoverAction} title={opts.secondary} onClick={() => opts.onSecondary!(file.path)}>
+                {opts.secondary}
+              </button>
             )}
+            <span className={styles.statusLetter} style={{ color: st.color }}>{st.letter}</span>
           </div>
         </div>
         {active && diff && <pre className={styles.diff}>{diff}</pre>}
       </React.Fragment>
     );
-  });
+  };
 
   const changesCount = (status?.unstaged.length ?? 0) + (status?.untracked.length ?? 0);
   const disabled = !!busy || loading;
+  const repoName = currentWorkspace?.split(/[/\\]/).pop() || 'workspace';
+  const allRepos = [currentWorkspace, ...recentWorkspaces.filter(p => p !== currentWorkspace)].filter(Boolean) as string[];
 
   if (!currentWorkspace) {
     return (
       <div className={styles.container}>
-        <div className={styles.header}><span className={styles.headerTitle}>源代码管理</span></div>
-        <div className={styles.empty}>请先打开工作区文件夹</div>
+        <div className={styles.header}><span className={styles.headerTitle}>Source Control (Git)</span></div>
+        <div className={styles.empty}>Open a workspace folder to manage Git.</div>
       </div>
     );
   }
@@ -208,27 +248,22 @@ export default function GitPanel() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <span className={styles.headerTitle}>源代码管理</span>
-        <div className={styles.toolbar}>
-          <button type="button" className={styles.toolBtn} title="刷新" disabled={disabled} onClick={() => void refresh()}>↻</button>
-          <button type="button" className={styles.toolBtn} title="拉取" disabled={disabled || !status?.isRepo} onClick={() => void run('pull', () => window.api.git.pull())}>↓</button>
-          <button type="button" className={styles.toolBtn} title="推送" disabled={disabled || !status?.isRepo} onClick={() => void run('push', () => window.api.git.push())}>↑</button>
-          <button type="button" className={styles.toolBtn} title="同步 (Pull + Push)" disabled={disabled || !status?.isRepo} onClick={() => void run('sync', () => window.api.git.sync())}>⟳</button>
+        <span className={styles.headerTitle}>Source Control (Git)</span>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.iconBtn} title="Refresh" disabled={disabled} onClick={() => void refresh()}>↻</button>
           <div ref={menuRef} className={styles.menuAnchor}>
-            <button type="button" className={styles.toolBtn} title="更多操作" disabled={disabled} onClick={() => setMenuOpen(v => !v)}>⋯</button>
+            <button type="button" className={styles.iconBtn} title="More Actions" disabled={disabled} onClick={() => setMenuOpen(v => !v)}>⋯</button>
             {menuOpen && (
               <div className={styles.menu}>
-                <div className={styles.menuItem} onClick={() => { setMenuOpen(false); void run('fetch', () => window.api.git.fetch()); }}>Fetch</div>
-                <div className={styles.menuItem} onClick={() => { setMenuOpen(false); void run('stash', () => window.api.git.stashPush()); }}>Stash 更改</div>
-                <div className={styles.menuItem} onClick={() => { setMenuOpen(false); void run('stash-pop', () => window.api.git.stashPop()); }}>Pop Stash</div>
+                <div className={styles.menuItem} onClick={() => void run('publish', () => window.api.git.publish())}>Publish Branch</div>
+                <div className={styles.menuItem} onClick={() => void run('stash', () => window.api.git.stashPush())}>Stash Changes</div>
+                <div className={styles.menuItem} onClick={() => void run('stash-pop', () => window.api.git.stashPop())}>Pop Stash</div>
                 <div className={styles.menuItem} onClick={() => {
-                  setMenuOpen(false);
-                  if (window.confirm('确定丢弃所有未暂存的 tracked 文件更改？')) void run('discard-all', () => window.api.git.discardAll());
-                }}>丢弃全部更改</div>
+                  if (window.confirm('Discard all unstaged changes to tracked files?')) void run('discard-all', () => window.api.git.discardAll());
+                }}>Discard All Changes</div>
                 <div className={styles.menuItem} onClick={() => {
-                  setMenuOpen(false);
-                  if (window.confirm('确定删除所有未跟踪文件？此操作不可撤销。')) void run('clean', () => window.api.git.cleanUntracked());
-                }}>清理未跟踪文件</div>
+                  if (window.confirm('Delete all untracked files? This cannot be undone.')) void run('clean', () => window.api.git.cleanUntracked());
+                }}>Clean Untracked Files</div>
               </div>
             )}
           </div>
@@ -240,17 +275,25 @@ export default function GitPanel() {
 
       {!status?.isRepo && (
         <div className={styles.empty}>
-          当前工作区尚未初始化 Git 仓库。
+          No Git repository in <strong>{repoName}</strong>.
           <br />
           <button type="button" className={styles.initBtn} disabled={disabled} onClick={() => void run('init', () => window.api.git.init())}>
-            初始化仓库
+            Initialize Repository
           </button>
         </div>
       )}
 
       {status?.isRepo && (
         <>
-          <div className={styles.branchRow}>
+          <div className={styles.block}>
+            <div className={styles.blockLabel}>
+              <span>Branches</span>
+              {!showCreateBranch ? (
+                <button type="button" className={styles.linkBtn} onClick={() => setShowCreateBranch(true)}>+ Create branch</button>
+              ) : (
+                <button type="button" className={styles.linkBtn} onClick={() => { setShowCreateBranch(false); setNewBranch(''); }}>✕</button>
+              )}
+            </div>
             <select
               className={styles.branchSelect}
               value={branches.find(b => b.current)?.name || status.branch}
@@ -258,133 +301,167 @@ export default function GitPanel() {
               onChange={e => void handleCheckout(e.target.value)}
             >
               {branches.filter(b => !b.remote).map(b => (
-                <option key={b.name} value={b.name}>{b.name}{b.current ? ' ✓' : ''}</option>
+                <option key={b.name} value={b.name}>{b.name}</option>
               ))}
               {branches.filter(b => b.remote).length > 0 && (
-                <optgroup label="远程">
+                <optgroup label="Remote">
                   {branches.filter(b => b.remote).map(b => (
                     <option key={b.name} value={b.name}>{b.name}</option>
                   ))}
                 </optgroup>
               )}
             </select>
-            {(status.ahead > 0 || status.behind > 0) && (
-              <span className={styles.syncBadge}>
-                {status.ahead > 0 ? `↑${status.ahead}` : ''}{status.behind > 0 ? ` ↓${status.behind}` : ''}
-              </span>
+            {showCreateBranch && (
+              <div className={styles.createBranchRow}>
+                <input
+                  className={styles.createBranchInput}
+                  placeholder="new-branch"
+                  value={newBranch}
+                  disabled={disabled}
+                  onChange={e => setNewBranch(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') void handleCreateBranch(); }}
+                />
+                <button type="button" className={styles.secondaryBtn} disabled={disabled || !newBranch.trim()} onClick={() => void handleCreateBranch()}>Create</button>
+              </div>
             )}
             {!status.hasUpstream && !status.detached && (
-              <button type="button" className={styles.publishBtn} disabled={disabled} onClick={() => void run('publish', () => window.api.git.publish())}>
-                发布 Branch
-              </button>
+              <div className={styles.publishLink}>
+                <button type="button" className={styles.linkBtn} disabled={disabled} onClick={() => void run('publish', () => window.api.git.publish())}>
+                  Publish Branch
+                </button>
+              </div>
             )}
           </div>
 
-          <div className={styles.branchRow} style={{ borderBottom: 'none', paddingTop: 0 }}>
-            <input
-              className={styles.branchSelect}
-              placeholder="新建分支名"
-              value={newBranch}
-              disabled={disabled}
-              onChange={e => setNewBranch(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') void handleCreateBranch(); }}
-            />
-            <button type="button" className={styles.publishBtn} disabled={disabled || !newBranch.trim()} onClick={() => void handleCreateBranch()}>
-              创建
-            </button>
+          <div className={styles.block}>
+            <div className={styles.syncMenuWrap} ref={syncMenuRef}>
+              <div className={styles.syncRow}>
+                <button type="button" className={styles.syncPrimary} disabled={disabled} onClick={() => void run('sync', () => window.api.git.sync())}>
+                  ⟳ Sync
+                </button>
+                <button type="button" className={styles.syncDrop} disabled={disabled} onClick={() => setSyncMenuOpen(v => !v)}>▾</button>
+              </div>
+              {syncMenuOpen && (
+                <div className={styles.syncMenu}>
+                  <div className={styles.menuItem} onClick={() => void run('sync', () => window.api.git.sync())}>Sync (Pull + Push)</div>
+                  <div className={styles.menuItem} onClick={() => void run('pull', () => window.api.git.pull())}>Pull</div>
+                  <div className={styles.menuItem} onClick={() => void run('push', () => window.api.git.push())}>Push</div>
+                  <div className={styles.menuItem} onClick={() => void run('fetch', () => window.api.git.fetch())}>Fetch</div>
+                </div>
+              )}
+            </div>
+            <div className={styles.secondaryActions}>
+              <button type="button" className={styles.secondaryBtn} disabled={disabled} onClick={() => void run('pull', () => window.api.git.pull())}>Pull</button>
+              <button type="button" className={styles.secondaryBtn} disabled={disabled} onClick={() => void run('fetch', () => window.api.git.fetch())}>Fetch</button>
+              <button type="button" className={styles.secondaryBtn} disabled={disabled} onClick={() => void run('rebase', () => window.api.git.pullRebase())}>Rebase</button>
+            </div>
+            <div className={styles.aheadBehind}>
+              Ahead/Behind:
+              {status.ahead > 0 && <span className={styles.ahead}>{status.ahead}↑</span>}
+              {status.behind > 0 && <span className={styles.behind}>{status.behind}↓</span>}
+              {status.ahead === 0 && status.behind === 0 && <span> —</span>}
+            </div>
           </div>
 
-          <div className={styles.commitBox}>
+          <div className={styles.block}>
             <textarea
               className={styles.commitInput}
-              placeholder="消息（Enter 提交时在上方输入）"
+              placeholder="Commit Message (Ctrl+Enter to commit)"
               value={commitMessage}
               disabled={disabled}
               onChange={e => setCommitMessage(e.target.value)}
+              onKeyDown={e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleCommit();
+                }
+              }}
             />
-            <div className={styles.commitActions}>
+            <div className={styles.commitPushRow}>
               <button
                 type="button"
                 className={styles.commitBtn}
                 disabled={disabled || !commitMessage.trim() || status.staged.length === 0}
                 onClick={() => void handleCommit()}
               >
-                ✓ 提交
+                ✓ Commit
               </button>
               <button
                 type="button"
-                className={`${styles.commitBtn} ${styles.commitBtnSecondary}`}
-                disabled={disabled || !commitMessage.trim() || status.staged.length === 0}
-                onClick={() => void handleCommit(true)}
+                className={styles.pushBtn}
+                disabled={disabled}
+                onClick={() => void run('push', () => window.api.git.push())}
               >
-                提交并推送
-              </button>
-              <button
-                type="button"
-                className={`${styles.commitBtn} ${styles.commitBtnSecondary}`}
-                disabled={disabled || !commitMessage.trim() || status.staged.length === 0}
-                onClick={() => void handleCommit(false, true)}
-              >
-                提交并同步
+                ↑ Push
               </button>
             </div>
           </div>
 
           <div className={styles.body}>
             {status.conflicts.length > 0 && (
-              <>
-                <div className={styles.sectionHeader}>
-                  <span className={styles.sectionTitle}>合并冲突 ({status.conflicts.length})</span>
-                </div>
-                {renderFiles(status.conflicts, false, {
-                  primary: '打开',
-                  onPrimary: (p) => openInEditor(p),
-                  conflict: true,
-                })}
-              </>
+              <CollapsibleSection title="Merge Conflicts" count={status.conflicts.length} collapsed={false} onToggle={() => {}}>
+                {status.conflicts.map(file => renderFileRow(file, false, {
+                  hoverAction: '↗',
+                  onAction: (p) => openInEditor(p),
+                }))}
+              </CollapsibleSection>
             )}
 
-            {status.staged.length > 0 && (
-              <>
-                <div className={styles.sectionHeader}>
-                  <span className={styles.sectionTitle}>暂存的更改 ({status.staged.length})</span>
-                  <button type="button" className={styles.sectionAction} disabled={disabled} onClick={() => void run('unstage-all', () => window.api.git.unstageAll())}>
-                    全部取消暂存
-                  </button>
-                </div>
-                {renderFiles(status.staged, true, {
-                  primary: '−',
-                  onPrimary: (p) => void runPaths(window.api.git.unstage, [p]),
-                })}
-              </>
-            )}
+            <CollapsibleSection
+              title="Changes"
+              count={changesCount}
+              collapsed={changesCollapsed}
+              onToggle={() => setChangesCollapsed(v => !v)}
+              tools={changesCount > 0 ? (
+                <button type="button" className={styles.toolIconBtn} title="Stage All" disabled={disabled} onClick={() => void run('stage-all', () => window.api.git.stageAll())}>+</button>
+              ) : undefined}
+            >
+              {[...status.unstaged, ...status.untracked].map(file => renderFileRow(file, false, {
+                hoverAction: '+',
+                onAction: (p) => void runPaths(window.api.git.stage, [p]),
+                secondary: '↶',
+                onSecondary: (p) => void runPaths(window.api.git.discard, [p]),
+              }))}
+              {changesCount === 0 && <div className={styles.empty}>No changes</div>}
+            </CollapsibleSection>
 
-            {(changesCount > 0 || status.staged.length === 0) && (
-              <>
-                <div className={styles.sectionHeader}>
-                  <span className={styles.sectionTitle}>更改 ({changesCount})</span>
-                  {changesCount > 0 && (
-                    <button type="button" className={styles.sectionAction} disabled={disabled} onClick={() => void run('stage-all', () => window.api.git.stageAll())}>
-                      全部暂存
-                    </button>
-                  )}
-                </div>
-                {renderFiles(status.unstaged, false, {
-                  primary: '+',
-                  onPrimary: (p) => void runPaths(window.api.git.stage, [p]),
-                  secondary: '↶',
-                  onSecondary: (p) => void runPaths(window.api.git.discard, [p]),
-                })}
-                {renderFiles(status.untracked, false, {
-                  primary: '+',
-                  onPrimary: (p) => void runPaths(window.api.git.stage, [p]),
-                })}
-                {changesCount === 0 && status.staged.length === 0 && status.clean && (
-                  <div className={styles.empty}>没有更改</div>
-                )}
-              </>
-            )}
+            <CollapsibleSection
+              title="Staged Changes"
+              count={status.staged.length}
+              collapsed={stagedCollapsed}
+              onToggle={() => setStagedCollapsed(v => !v)}
+              tools={status.staged.length > 0 ? (
+                <button type="button" className={styles.toolIconBtn} title="Unstage All" disabled={disabled} onClick={() => void run('unstage-all', () => window.api.git.unstageAll())}>−</button>
+              ) : undefined}
+            >
+              {status.staged.map(file => renderFileRow(file, true, {
+                hoverAction: '−',
+                onAction: (p) => void runPaths(window.api.git.unstage, [p]),
+              }))}
+              {status.staged.length === 0 && <div className={styles.empty}>No staged changes</div>}
+            </CollapsibleSection>
           </div>
+
+          {allRepos.length > 0 && (
+            <div className={styles.reposSection}>
+              <div className={styles.reposLabel}>Repositories</div>
+              {allRepos.slice(0, 6).map(p => {
+                const name = p.split(/[/\\]/).pop() || p;
+                const active = p === currentWorkspace;
+                return (
+                  <div
+                    key={p}
+                    className={`${styles.repoItem} ${active ? styles.repoItemActive : ''}`}
+                    title={p}
+                    onClick={() => { if (!active) void openWorkspace(p); }}
+                  >
+                    {active && <span className={styles.repoDot} />}
+                    <span>{name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
     </div>

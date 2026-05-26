@@ -171,6 +171,7 @@ const api = {
     commit: (message: string) => ipcRenderer.invoke('git:commit', message),
     fetch: () => ipcRenderer.invoke('git:fetch'),
     pull: () => ipcRenderer.invoke('git:pull'),
+    pullRebase: () => ipcRenderer.invoke('git:pull-rebase'),
     push: () => ipcRenderer.invoke('git:push'),
     publish: () => ipcRenderer.invoke('git:publish'),
     sync: () => ipcRenderer.invoke('git:sync'),

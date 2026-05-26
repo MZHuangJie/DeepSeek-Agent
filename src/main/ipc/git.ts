@@ -15,6 +15,7 @@ import {
   listGitStashes,
   publishGitBranch,
   pullGit,
+  pullRebaseGit,
   pushGit,
   stageAllGit,
   stageGitPaths,
@@ -114,6 +115,11 @@ export function setupGitHandlers() {
 
   ipcMain.handle('git:push', async () => {
     const res = await wrap(() => pushGit(cwd()));
+    return res.success ? { success: true as const, output: res.data } : res;
+  });
+
+  ipcMain.handle('git:pull-rebase', async () => {
+    const res = await wrap(() => pullRebaseGit(cwd()));
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
