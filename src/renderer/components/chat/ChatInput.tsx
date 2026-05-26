@@ -56,6 +56,24 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     if (mode === 'roleplay') void useRoleplayStore.getState().loadAll();
   }, [mode]);
 
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, []);
+
+  useEffect(() => {
+    focusInput();
+  }, [focusInput]);
+
+  const wasStreamingRef = useRef(isStreaming);
+  useEffect(() => {
+    if (wasStreamingRef.current && !isStreaming) {
+      focusInput();
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming, focusInput]);
+
   const pluginCommands: Command[] = useMemo(() =>
     installedPlugins.map(p => ({
       name: p.name,
@@ -136,6 +154,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (isStreaming) return;
       const trimmed = value.trim();
       if (trimmed.startsWith('/browse')) {
         const url = trimmed.slice(7).trim();
@@ -159,13 +178,14 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         clearImages();
         setAtMaxHeight(false);
         if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
+        focusInput();
       }
     }
     if (e.key === 'Escape') {
       if (isStreaming) { onStop(); return; }
       setShowModelSelect(false); setShowModeSelect(false);
     }
-  }, [value, onSend, isStreaming, onStop, hasDropdownOpen, images, clearImages]);
+  }, [value, onSend, isStreaming, onStop, hasDropdownOpen, images, clearImages, focusInput]);
 
   const selectCommand = (cmd: Command) => {
     setValue('/' + cmd.name + ' ');
@@ -179,6 +199,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   };
 
   const handleSend = () => {
+    if (isStreaming) return;
     const trimmed = value.trim();
     if (trimmed.startsWith('/browse')) {
       const url = trimmed.slice(7).trim();
@@ -202,6 +223,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       clearImages();
       setAtMaxHeight(false);
       if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
+      focusInput();
     }
   };
 
@@ -302,8 +324,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={disabled ? 'AI 正在回复...' : 'Ask DeepSeek Agent... (/ commands · @ files)'}
-          disabled={disabled}
+          placeholder={disabled ? 'AI 正在回复，可先输入下一条…' : 'Ask DeepSeek Agent... (/ commands · @ files)'}
           spellCheck={false}
           className={shared.textarea}
           style={{
@@ -382,11 +403,17 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
           <div className={styles.toolbarRight}>
             {isStreaming ? (
-              <button onClick={onStop} title="停止生成 (Esc)" className={styles.stopBtn}>
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={onStop}
+                title="停止生成 (Esc)"
+                className={styles.stopBtn}
+              >
                 <img src="/assets/stop.png" alt="stop" className={styles.stopIcon} />
               </button>
             ) : (
               <button
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={handleSend}
                 disabled={disabled || (!value.trim() && images.length === 0)}
                 className={disabled || (!value.trim() && images.length === 0) ? styles.sendBtnDisabled : styles.sendBtn}

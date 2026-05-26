@@ -16,6 +16,7 @@ import {
   readAgentImageAsDataUrl,
 } from './agent-images';
 import type { BodyMeasurements } from './roleplay-storage';
+import { resolvePortraitStyle } from '../../common/portrait-styles';
 import {
   portraitInfo,
   portraitWarn,
@@ -32,6 +33,7 @@ export interface PortraitCharacterInput {
   personality?: string;
   background?: string;
   body?: BodyMeasurements;
+  portraitStyle?: string;
 }
 
 export type PortraitGenerateStage = 'prompt' | 'image';
@@ -73,8 +75,10 @@ export function buildCharacterDescription(input: PortraitCharacterInput): string
 }
 
 function buildFallbackImagePrompt(input: PortraitCharacterInput): string {
+  const style = resolvePortraitStyle(input.portraitStyle);
   const parts = [
-    'anime style character portrait, single character, full body or half body',
+    style.promptHint,
+    'single character, full body or half body',
     input.gender ? `${input.gender}` : '',
     input.occupation ? `${input.occupation} outfit` : '',
     input.personality ? `personality: ${input.personality}` : '',
@@ -111,6 +115,7 @@ async function generatePortraitPrompt(
   input: PortraitCharacterInput,
 ): Promise<string> {
   const description = buildCharacterDescription(input);
+  const style = resolvePortraitStyle(input.portraitStyle);
   const titleModel = /reasoner|r1|thinking/i.test(modelConfig.model)
     ? 'deepseek-chat'
     : modelConfig.model;
@@ -120,6 +125,7 @@ async function generatePortraitPrompt(
     baseUrl: modelConfig.baseUrl,
     apiKey: maskSecret(apiKey),
     characterName: input.name,
+    portraitStyle: style.id,
     descriptionPreview: truncateText(description, 400),
     descriptionLength: description.length,
   });
@@ -132,9 +138,12 @@ async function generatePortraitPrompt(
         {
           role: 'system',
           content:
-            '你是角色立绘提示词专家。根据中文角色设定，输出一段英文图像生成提示词，用于生成单人角色立绘（半身或全身）。要求：只输出提示词本身，不要解释、不要 markdown。需包含外貌、服装、气质、构图与画风（如 anime illustration, character portrait）。禁止文字、水印、多人、畸形肢体。',
+            '你是角色立绘提示词专家。根据中文角色设定与指定画风，输出一段英文图像生成提示词，用于生成单人角色立绘（半身或全身）。要求：只输出提示词本身，不要解释、不要 markdown。需包含外貌、服装、气质、构图，并严格体现用户指定的画风英文关键词。禁止文字、水印、多人、畸形肢体。',
         },
-        { role: 'user', content: description },
+        {
+          role: 'user',
+          content: `画风：${style.label}\n画风英文关键词（必须融入 prompt）：${style.promptHint}\n\n角色设定：\n${description}`,
+        },
       ],
       { ...modelConfig, model: titleModel },
       { maxTokens: 500, temperature: 0.6, log: { module: 'roleplay-portrait', tag: 'prompt-llm' } },
@@ -288,6 +297,7 @@ export async function generateCharacterPortrait(
     characterName: input.name,
     gender: input.gender,
     occupation: input.occupation,
+    portraitStyle: resolvePortraitStyle(input.portraitStyle).id,
   });
 
   try {

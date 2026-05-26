@@ -61,6 +61,23 @@
   min-width: 0;
 }
 
+.portraitStyleField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.portraitStyleSelect {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
 .aiBtn {
   border: 1px solid rgba(124, 58, 237, 0.45);
   border-radius: 6px;
@@ -186,3 +203,100 @@
   background: transparent;
   color: var(--text-primary);
 }
+
+.statusFieldsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(124, 58, 237, 0.06);
+}
+
+.statusFieldsHint {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.statusFieldHeader,
+.statusFieldRow {
+  display: grid;
+  grid-template-columns: 36px minmax(72px, 0.9fr) 64px 92px minmax(0, 1.4fr) 28px;
+  gap: 6px;
+  align-items: center;
+}
+
+.statusFieldHeader {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-bottom: 2px;
+}
+
+.statusFieldCheck {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.statusFieldName,
+.statusFieldHint,
+.statusFieldSelect {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 5px 6px;
+  min-width: 0;
+}
+
+.statusFieldSelect {
+  padding-right: 4px;
+}
+
+.statusFieldRemove {
+  border: none;
+  background: transparent;
+  color: #fca5a5;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.templateRef {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid var(--border);
+}
+
+.statusFieldReadonly {
+  font-size: 11px;
+  color: var(--text-primary);
+  padding: 5px 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusFieldReadonlyHint {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 5px 6px;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.statusFieldActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+

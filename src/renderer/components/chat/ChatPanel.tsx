@@ -6,7 +6,8 @@ import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
-import { buildCharacterPrompt } from '../../utils/roleplay';
+import { buildCharacterPrompt, getTemplateById, ROLEPLAY_OPENING_USER_MESSAGE } from '../../utils/roleplay';
+import { parseRoleplayResponse, formatRoleplayMessageForHistory } from '../../utils/parseRoleplayResponse';
 import MessageBubble from './MessageBubble';
 import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -43,9 +44,26 @@ export default function ChatPanel() {
       totalThinkingRef.current += pendingThinkingRef.current;
       pendingContentRef.current = '';
       pendingThinkingRef.current = '';
-      const upd: any = {};
-      if (totalContentRef.current) upd.content = totalContentRef.current;
+      const upd: Partial<import('../../stores/chat').Message> = {};
       if (totalThinkingRef.current) upd.thinkingContent = totalThinkingRef.current;
+
+      const mode = useModeStore.getState().mode;
+      if (totalContentRef.current) {
+        if (mode === 'roleplay') {
+          const raw = totalContentRef.current;
+          const parsed = parseRoleplayResponse(raw);
+          upd.content = parsed.reply || raw.replace(/<status>[\s\S]*$/i, '').replace(/<\/?reply>/gi, '').trim() || raw;
+          if (parsed.status && parsed.statusComplete) {
+            upd.roleplayMeta = { status: parsed.status, statusComplete: true };
+            upd.rawContent = undefined;
+          } else {
+            upd.rawContent = raw;
+          }
+        } else {
+          upd.content = totalContentRef.current;
+        }
+      }
+
       useChatStore.getState().updateLastAssistant(upd);
     }
   }
@@ -54,6 +72,7 @@ export default function ChatPanel() {
 
   const session = sessions.find(s => s.id === activeSessionId);
   const messages = session?.messages ?? [];
+  const mode = useModeStore(s => s.mode);
 
   useEffect(() => {
     if (isAtBottomRef.current) {
@@ -120,14 +139,7 @@ export default function ChatPanel() {
     setStreaming(false);
   }, []);
 
-  const handleSend = useCallback(async (content: string, command?: Command, images?: PastedImage[]) => {
-    if (!activeSessionId) return;
-    if (!apiKey) { setShowKeyInput(true); return; }
-    setErrorMsg('');
-
-    const displayContent = command ? `/${command.name} ${content}` : content;
-    const hasImages = images && images.length > 0;
-
+  const buildHistory = useCallback((sourceMessages: typeof messages) => {
     function truncateToolResult(result: string): string {
       if (typeof result !== 'string') return result;
       const base64Regex = /data:image\/\w+;base64,[A-Za-z0-9+/=]{500,}/g;
@@ -138,11 +150,18 @@ export default function ChatPanel() {
       );
     }
 
+    const sendMode = useModeStore.getState().mode;
     const history: any[] = [];
-    for (const m of messages) {
+    for (const m of sourceMessages) {
+      let messageContent: string | typeof m.contentParts = m.content;
+      if (m.role === 'user' && m.contentParts?.length) {
+        messageContent = m.contentParts;
+      } else if (sendMode === 'roleplay' && m.role === 'assistant' && m.roleplayMeta?.status) {
+        messageContent = formatRoleplayMessageForHistory(m.content, m.roleplayMeta.status);
+      }
       const entry: any = {
         role: m.role,
-        content: m.role === 'user' && m.contentParts?.length ? m.contentParts : m.content,
+        content: messageContent,
       };
       if (m.role === 'assistant' && m.thinkingContent) {
         entry.reasoning_content = m.thinkingContent;
@@ -170,7 +189,10 @@ export default function ChatPanel() {
         }
       }
     }
+    return history;
+  }, []);
 
+  const resetStreamBuffers = useCallback(() => {
     agentStore.reset();
     currentStepRef.current = 1;
     pendingContentRef.current = '';
@@ -178,6 +200,85 @@ export default function ChatPanel() {
     totalContentRef.current = '';
     totalThinkingRef.current = '';
     isAtBottomRef.current = true;
+  }, [agentStore]);
+
+  const invokeAgent = useCallback(async (opts: {
+    history: any[];
+    newMessage: string;
+    commandPrompt?: string;
+  }) => {
+    const modelConfig = getActiveModel();
+    const sendMode = useModeStore.getState().mode;
+    const effectiveApiKey = modelConfig.apiKey || apiKey;
+    await window.api.agent.send({
+      messages: opts.history,
+      apiKey: effectiveApiKey,
+      projectDir,
+      newMessage: opts.newMessage,
+      model: modelConfig.model,
+      baseUrl: modelConfig.baseUrl,
+      contextMax: modelConfig.contextWindow || 64000,
+      commandPrompt: opts.commandPrompt,
+      mode: sendMode,
+      providerMultimodal: PROVIDERS[modelConfig.provider]?.multimodal ?? false,
+    });
+  }, [apiKey, projectDir, getActiveModel]);
+
+  const sendRoleplayOpening = useCallback(async (sessionId: string) => {
+    if (!apiKey) return;
+    const chat = useChatStore.getState();
+    const target = chat.sessions.find(s => s.id === sessionId);
+    if (!target?.pendingOpening || target.messages.length > 0) return;
+    if (useModeStore.getState().mode !== 'roleplay') {
+      chat.clearPendingOpening(sessionId);
+      return;
+    }
+
+    const activeCharacter = useRoleplayStore.getState().getActiveCharacter();
+    if (!activeCharacter) {
+      chat.clearPendingOpening(sessionId);
+      return;
+    }
+
+    chat.clearPendingOpening(sessionId);
+    resetStreamBuffers();
+    addMessage({ id: `msg-${Date.now()}`, role: 'assistant', content: '', timestamp: Date.now() });
+    setStreaming(true);
+
+    const templates = useRoleplayStore.getState().templates;
+    const template = getTemplateById(templates, activeCharacter.templateId);
+    const commandPrompt = buildCharacterPrompt(activeCharacter, template, { forOpening: true });
+
+    try {
+      await invokeAgent({
+        history: [],
+        newMessage: ROLEPLAY_OPENING_USER_MESSAGE,
+        commandPrompt,
+      });
+    } catch (err: unknown) {
+      setStreaming(false);
+      setErrorMsg(err instanceof Error ? err.message : '开场生成失败');
+    }
+  }, [apiKey, resetStreamBuffers, addMessage, setStreaming, invokeAgent]);
+
+  useEffect(() => {
+    if (!activeSessionId || isStreaming || !apiKey) return;
+    const target = sessions.find(s => s.id === activeSessionId);
+    if (!target?.pendingOpening || target.messages.length > 0) return;
+    if (mode !== 'roleplay') return;
+    void sendRoleplayOpening(activeSessionId);
+  }, [activeSessionId, sessions, isStreaming, apiKey, mode, sendRoleplayOpening]);
+
+  const handleSend = useCallback(async (content: string, command?: Command, images?: PastedImage[]) => {
+    if (!activeSessionId) return;
+    if (!apiKey) { setShowKeyInput(true); return; }
+    setErrorMsg('');
+
+    const displayContent = command ? `/${command.name} ${content}` : content;
+    const hasImages = images && images.length > 0;
+
+    const history = buildHistory(messages);
+    resetStreamBuffers();
 
     const modelConfig = getActiveModel();
     const providerSupportsVision = PROVIDERS[modelConfig.provider]?.multimodal ?? false;
@@ -200,36 +301,26 @@ export default function ChatPanel() {
     addMessage({ id: assistantId, role: 'assistant', content: '', timestamp: Date.now() });
     setStreaming(true);
 
-    const mode = useModeStore.getState().mode;
-    const activeCharacter = mode === 'roleplay' ? useRoleplayStore.getState().getActiveCharacter() : null;
+    const sendMode = useModeStore.getState().mode;
+    const activeCharacter = sendMode === 'roleplay' ? useRoleplayStore.getState().getActiveCharacter() : null;
     let commandPrompt = command?.systemPrompt;
-    if (mode === 'roleplay' && activeCharacter) {
-      const characterPrompt = buildCharacterPrompt(activeCharacter);
+    if (sendMode === 'roleplay' && activeCharacter) {
+      const templates = useRoleplayStore.getState().templates;
+      const template = getTemplateById(templates, activeCharacter.templateId);
+      const characterPrompt = buildCharacterPrompt(activeCharacter, template);
       commandPrompt = commandPrompt ? `${characterPrompt}\n\n${commandPrompt}` : characterPrompt;
     }
-    const effectiveApiKey = modelConfig.apiKey || apiKey;
     const userText = content || displayContent || (hasImages ? '请描述这张图片' : '');
     const textContent = userText + (providerSupportsVision ? '' : imageMarkdown);
     const newMessage = contentParts ?? textContent;
 
     try {
-      await window.api.agent.send({
-        messages: history,
-        apiKey: effectiveApiKey,
-        projectDir,
-        newMessage,
-        model: modelConfig.model,
-        baseUrl: modelConfig.baseUrl,
-        contextMax: modelConfig.contextWindow || 64000,
-        commandPrompt,
-        mode,
-        providerMultimodal: providerSupportsVision,
-      });
-    } catch (err: any) {
+      await invokeAgent({ history, newMessage, commandPrompt });
+    } catch (err: unknown) {
       setStreaming(false);
-      setErrorMsg(err.message || '请求失败');
+      setErrorMsg(err instanceof Error ? err.message : '请求失败');
     }
-  }, [activeSessionId, apiKey, projectDir, messages, addMessage, setStreaming]);
+  }, [activeSessionId, apiKey, messages, addMessage, setStreaming, buildHistory, resetStreamBuffers, invokeAgent, getActiveModel]);
 
   return (
     <div className={styles.container}>
@@ -249,8 +340,19 @@ export default function ChatPanel() {
         {messages.length === 0 && (
           <div className={styles.emptyState}>
             <div className={styles.emptyLogo}><img src="/assets/logo.png" alt="ai" className={styles.emptyLogoImg} /></div>
-            <div className={styles.emptyTitle}>开始与 DeepSeek Agent 对话</div>
-            <div className={styles.emptyHint}>输入消息或 @ 引用文件</div>
+            {mode === 'roleplay' && session?.pendingOpening ? (
+              <>
+                <div className={styles.emptyTitle}>{isStreaming ? '正在生成开场…' : apiKey ? '即将开始角色扮演' : '请先配置 API Key'}</div>
+                <div className={styles.emptyHint}>
+                  {isStreaming ? '模型正在根据开场故事撰写第一条消息' : apiKey ? '角色将先发送开场白，之后由你回复' : '保存 API Key 后将自动生成开场'}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.emptyTitle}>开始与 DeepSeek Agent 对话</div>
+                <div className={styles.emptyHint}>输入消息或 @ 引用文件</div>
+              </>
+            )}
           </div>
         )}
         {messages.map(msg => <MessageBubble key={msg.id} message={msg} />)}

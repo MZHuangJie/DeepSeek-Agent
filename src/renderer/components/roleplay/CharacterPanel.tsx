@@ -4,8 +4,11 @@ import { useModeStore } from '../../stores/mode';
 import { useChatStore } from '../../stores/chat';
 import CharacterEditor from './CharacterEditor';
 import {
-  emptyCharacterForm,
-  characterFromTemplate,
+  buildCharacterStatusEnabledMap,
+  duplicateTemplateForm,
+  emptyTemplateForm,
+  getTemplateById,
+  templateFormFromTemplate,
   type CharacterFormData,
   type RoleplayCharacter,
   type RoleplayTemplate,
@@ -56,7 +59,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
 
   const [tab, setTab] = useState<'characters' | 'templates'>('characters');
   const [editor, setEditor] = useState<
-    | { kind: 'character'; data: CharacterFormData }
+    | { kind: 'character'; data: CharacterFormData; template?: RoleplayTemplate | null }
     | { kind: 'template'; data: CharacterFormData & { id?: string } }
     | null
   >(null);
@@ -70,21 +73,28 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
     onClose?.();
   };
 
-  const openNewCharacter = () => {
-    setEditor({ kind: 'character', data: { ...emptyCharacterForm(), id: `char-${Date.now()}` } });
-  };
-
   const openEditCharacter = (character: RoleplayCharacter) => {
-    setEditor({ kind: 'character', data: { ...character } });
+    const template = getTemplateById(templates, character.templateId);
+    setEditor({
+      kind: 'character',
+      template,
+      data: {
+        ...character,
+        statusFieldEnabled: buildCharacterStatusEnabledMap(character, template),
+      },
+    });
   };
 
   const openNewTemplate = () => {
-    setEditor({ kind: 'template', data: { ...emptyCharacterForm('新模板'), id: `tpl-${Date.now()}` } });
+    setEditor({ kind: 'template', data: { ...emptyTemplateForm(), id: `tpl-${Date.now()}` } });
   };
 
   const openEditTemplate = (template: RoleplayTemplate) => {
-    if (template.isBuiltin) return;
-    setEditor({ kind: 'template', data: { ...characterFromTemplate(template), id: template.id } });
+    setEditor({ kind: 'template', data: templateFormFromTemplate(template) });
+  };
+
+  const openDuplicateTemplate = (template: RoleplayTemplate) => {
+    setEditor({ kind: 'template', data: duplicateTemplateForm(template) });
   };
 
   return (
@@ -106,7 +116,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
       {tab === 'characters' && (
         <>
           <div className={styles.toolbar}>
-            <button type="button" className={styles.primaryBtn} onClick={openNewCharacter}>+ 新建角色</button>
+            <span className={styles.hint}>请先在「模板」页用模板创建角色</span>
           </div>
           <div className={styles.list}>
             {characters.map(c => (
@@ -129,7 +139,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
               </div>
             ))}
             {characters.length === 0 && !loading && (
-              <div className={styles.empty}>暂无角色，可从模板创建或新建</div>
+              <div className={styles.empty}>暂无角色，请切换到「模板」页创建</div>
             )}
           </div>
         </>
@@ -145,34 +155,33 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
               <div key={t.id} className={styles.card}>
                 <PortraitThumb path={t.portraitPath} />
                 <div className={styles.cardMain}>
-                  <div className={styles.cardName}>
-                    {t.name}
-                    {t.isBuiltin && <span className={styles.badge}>内置</span>}
-                  </div>
+                  <div className={styles.cardName}>{t.name}</div>
                   <div className={styles.cardMeta}>{t.personality || t.background || '通用模板'}</div>
                   <div className={styles.cardActions}>
                     <button type="button" className={styles.actionBtn} onClick={() => void createFromTemplate(t.id).then(c => c && openEditCharacter(c))}>
                       用模板创建
                     </button>
-                    {!t.isBuiltin && (
-                      <>
-                        <button type="button" className={styles.actionBtn} onClick={() => openEditTemplate(t)}>编辑</button>
-                        <button type="button" className={styles.actionBtnDanger} onClick={() => void deleteTemplate(t.id)}>删除</button>
-                      </>
-                    )}
+                    <button type="button" className={styles.actionBtn} onClick={() => openEditTemplate(t)}>编辑</button>
+                    <button type="button" className={styles.actionBtn} onClick={() => openDuplicateTemplate(t)}>复制</button>
+                    <button type="button" className={styles.actionBtnDanger} onClick={() => void deleteTemplate(t.id)}>删除</button>
                   </div>
                 </div>
               </div>
             ))}
+            {templates.length === 0 && !loading && (
+              <div className={styles.empty}>暂无模板，请先新建模板</div>
+            )}
           </div>
         </>
       )}
 
       {editor?.kind === 'character' && (
         <CharacterEditor
-          title={editor.data.id ? '编辑角色' : '新建角色'}
+          title="编辑角色"
+          editorMode="character"
+          template={editor.template}
           initial={editor.data}
-          draftId={`draft-${Date.now()}`}
+          draftId={editor.data.id || `draft-${Date.now()}`}
           onPickPortrait={pickPortrait}
           onGeneratePortrait={generatePortrait}
           onCancel={() => setEditor(null)}
@@ -188,7 +197,12 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
 
       {editor?.kind === 'template' && (
         <CharacterEditor
-          title={editor.data.id ? '编辑模板' : '新建模板'}
+          title={
+            editor.data.id && templates.some(t => t.id === editor.data.id)
+              ? '编辑模板'
+              : '新建模板'
+          }
+          editorMode="template"
           initial={editor.data}
           draftId={`tpl-draft-${Date.now()}`}
           onPickPortrait={pickPortrait}

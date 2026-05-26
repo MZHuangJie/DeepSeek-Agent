@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { RoleplayCharacter, RoleplayTemplate, CharacterFormData, PortraitGenerateStage } from '../utils/roleplay';
+import { getTemplateById } from '../utils/roleplay';
 
 interface RoleplayState {
   templates: RoleplayTemplate[];
@@ -21,6 +22,7 @@ interface RoleplayState {
     onProgress?: (stage: PortraitGenerateStage) => void,
   ) => Promise<{ portraitPath: string; dataUrl?: string } | null>;
   getActiveCharacter: () => RoleplayCharacter | null;
+  getTemplateForCharacter: (character?: RoleplayCharacter | null) => RoleplayTemplate | null;
 }
 
 export const useRoleplayStore = create<RoleplayState>((set, get) => ({
@@ -142,5 +144,11 @@ export const useRoleplayStore = create<RoleplayState>((set, get) => ({
     const { characters, activeCharacterId } = get();
     if (!activeCharacterId) return null;
     return characters.find(c => c.id === activeCharacterId) ?? null;
+  },
+
+  getTemplateForCharacter: (character) => {
+    const c = character ?? get().getActiveCharacter();
+    if (!c) return null;
+    return getTemplateById(get().templates, c.templateId);
   },
 }));

@@ -1,3 +1,139 @@
+export type StatusFieldType = 'text' | 'number' | 'list';
+export type StatusFieldSection = 'clothing' | 'state' | 'monologue';
+
+import type { PortraitStyleId } from '../../common/portrait-styles';
+
+export interface StatusFieldDef {
+  key: string;
+  label: string;
+  type: StatusFieldType;
+  section: StatusFieldSection;
+  icon?: 'heart' | 'pulse' | 'trust' | 'custom';
+  promptHint?: string;
+  enabled?: boolean;
+  /** 用户手动添加的字段 */
+  custom?: boolean;
+}
+
+/** JSON 字段名：与配置中的「状态名称」一致 */
+export function getStatusFieldKey(field: StatusFieldDef): string {
+  return (field.label || field.key).trim();
+}
+
+/** 兼容旧版英文 key 的模型输出 */
+const LEGACY_STATUS_KEYS: Record<string, string> = {
+  clothing: '服装',
+  mood: '情绪',
+  heartRate: '心率',
+  trust: '信任值',
+  monologue: '内心独白',
+};
+
+export function formatStatusValue(value: unknown): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (Array.isArray(value)) return value.map(String).filter(Boolean).join('、');
+  if (typeof value === 'number') return String(value);
+  return String(value).trim();
+}
+
+export function resolveStatusValue(
+  status: Record<string, unknown>,
+  field: StatusFieldDef,
+): unknown {
+  const primary = getStatusFieldKey(field);
+  if (status[primary] !== undefined && status[primary] !== null && status[primary] !== '') {
+    return status[primary];
+  }
+  if (field.key && status[field.key] !== undefined) return status[field.key];
+  const legacyKey = Object.entries(LEGACY_STATUS_KEYS).find(([, label]) => label === field.label)?.[0];
+  if (legacyKey && status[legacyKey] !== undefined) return status[legacyKey];
+  return undefined;
+}
+
+export function normalizeStatusFields(fields: StatusFieldDef[]): StatusFieldDef[] {
+  const seen = new Set<string>();
+  return fields
+    .map(f => {
+      const label = (f.label || f.key || '').trim();
+      if (!label) return null;
+      let key = label;
+      let n = 2;
+      while (seen.has(key)) {
+        key = `${label}_${n++}`;
+      }
+      seen.add(key);
+      return {
+        key,
+        label,
+        type: f.type || 'text',
+        section: f.section || 'state',
+        icon: f.icon,
+        promptHint: f.promptHint,
+        enabled: f.enabled !== false,
+        custom: f.custom,
+      };
+    })
+    .filter((f): f is StatusFieldDef => Boolean(f));
+}
+
+export function createCustomStatusField(label = '新状态'): StatusFieldDef {
+  return {
+    key: label,
+    label,
+    type: 'text',
+    section: 'state',
+    enabled: true,
+    custom: true,
+    promptHint: '',
+  };
+}
+
+export const DEFAULT_STATUS_FIELDS: StatusFieldDef[] = [
+  {
+    key: '服装',
+    label: '服装',
+    type: 'list',
+    section: 'clothing',
+    enabled: true,
+    promptHint: '当前穿着，字符串数组，如 ["黑色宽松针织毛衣", "深色居家短裤"]',
+  },
+  {
+    key: '情绪',
+    label: '情绪',
+    type: 'text',
+    section: 'state',
+    icon: 'heart',
+    enabled: true,
+    promptHint: '当前情绪，如：害羞、压抑、内心挣扎',
+  },
+  {
+    key: '心率',
+    label: '心率',
+    type: 'number',
+    section: 'state',
+    icon: 'pulse',
+    enabled: true,
+    promptHint: '每分钟心跳次数，数字，如 101',
+  },
+  {
+    key: '信任值',
+    label: '信任值',
+    type: 'text',
+    section: 'state',
+    icon: 'trust',
+    enabled: true,
+    promptHint: '格式如 +2 (当前: 28/100)',
+  },
+  {
+    key: '内心独白',
+    label: '内心独白',
+    type: 'text',
+    section: 'monologue',
+    enabled: true,
+    promptHint: '角色此刻未说出口的内心想法，1-3 句',
+  },
+];
+
 export interface BodyMeasurements {
   height?: string;
   weight?: string;
@@ -23,7 +159,7 @@ export interface RoleplayTemplate {
   body?: BodyMeasurements;
   openingStory?: string;
   portraitPath?: string;
-  isBuiltin?: boolean;
+  statusFields?: StatusFieldDef[];
   createdAt: number;
   updatedAt: number;
 }
@@ -39,13 +175,20 @@ export interface RoleplayCharacter {
   body?: BodyMeasurements;
   openingStory?: string;
   portraitPath?: string;
+  /** 角色级：覆盖模板中各状态字段是否启用（key -> enabled） */
+  statusFieldEnabled?: Record<string, boolean>;
+  /** @deprecated 旧数据：完整状态字段副本，新角色请只用 statusFieldEnabled */
+  statusFields?: StatusFieldDef[];
   createdAt: number;
   updatedAt: number;
 }
 
-export type CharacterFormData = Omit<RoleplayCharacter, 'id' | 'createdAt' | 'updatedAt' | 'templateId'> & {
+export type CharacterFormData = Omit<RoleplayCharacter, 'id' | 'createdAt' | 'updatedAt'> & {
   id?: string;
-  templateId?: string;
+  /** 模板编辑时写入完整 statusFields；角色编辑时写入 statusFieldEnabled */
+  statusFields?: StatusFieldDef[];
+  /** 仅 AI 生成立绘时使用，不持久化 */
+  portraitStyle?: PortraitStyleId;
 };
 
 export const BODY_FIELDS: Array<{ key: keyof BodyMeasurements; label: string }> = [
@@ -65,6 +208,15 @@ export const BODY_FIELDS: Array<{ key: keyof BodyMeasurements; label: string }> 
 
 export type PortraitGenerateStage = 'prompt' | 'image';
 
+export type { PortraitStyleId } from '../../common/portrait-styles';
+export {
+  PORTRAIT_STYLE_OPTIONS,
+  PORTRAIT_STYLE_GROUPS,
+  DEFAULT_PORTRAIT_STYLE,
+  resolvePortraitStyle,
+  getPortraitStylesByGroup,
+} from '../../common/portrait-styles';
+
 export const PORTRAIT_GEN_STAGE_LABELS: Record<PortraitGenerateStage, string> = {
   prompt: '正在根据角色信息生成英文提示词…',
   image: '正在调用生图模型生成立绘，请稍候…',
@@ -74,9 +226,66 @@ export function emptyCharacterForm(name = '新角色'): CharacterFormData {
   return { name, body: {} };
 }
 
+export function emptyTemplateForm(name = '新模板'): CharacterFormData {
+  return { name, body: {}, statusFields: cloneStatusFields() };
+}
+
+export function cloneStatusFields(fields = DEFAULT_STATUS_FIELDS): StatusFieldDef[] {
+  return fields.map(f => ({ ...f }));
+}
+
+export function getTemplateById(
+  templates: RoleplayTemplate[],
+  templateId?: string,
+): RoleplayTemplate | null {
+  if (!templateId) return null;
+  return templates.find(t => t.id === templateId) ?? null;
+}
+
+export function getTemplateStatusFieldDefs(template?: RoleplayTemplate | null): StatusFieldDef[] {
+  if (template?.statusFields?.length) return normalizeStatusFields(template.statusFields);
+  return normalizeStatusFields(DEFAULT_STATUS_FIELDS);
+}
+
+export function buildCharacterStatusEnabledMap(
+  character: Pick<RoleplayCharacter, 'statusFieldEnabled' | 'statusFields'>,
+  template?: RoleplayTemplate | null,
+): Record<string, boolean> {
+  const defs = getTemplateStatusFieldDefs(template);
+  const map: Record<string, boolean> = {};
+  for (const field of defs) {
+    const key = field.key;
+    if (character.statusFieldEnabled && key in character.statusFieldEnabled) {
+      map[key] = character.statusFieldEnabled[key];
+    } else if (character.statusFields?.length) {
+      const legacy = character.statusFields.find(f => f.key === key || f.label === field.label);
+      map[key] = legacy ? legacy.enabled !== false : field.enabled !== false;
+    } else {
+      map[key] = field.enabled !== false;
+    }
+  }
+  return map;
+}
+
+export function getEffectiveStatusFields(
+  character?: Pick<RoleplayCharacter, 'statusFieldEnabled' | 'statusFields' | 'templateId'> | null,
+  template?: RoleplayTemplate | null,
+): StatusFieldDef[] {
+  if (!character) return normalizeStatusFields(DEFAULT_STATUS_FIELDS).filter(f => f.enabled !== false);
+
+  if (!template && character.statusFields?.length) {
+    return normalizeStatusFields(character.statusFields).filter(f => f.enabled !== false);
+  }
+
+  const defs = getTemplateStatusFieldDefs(template);
+  const enabledMap = buildCharacterStatusEnabledMap(character, template);
+  return defs.filter(f => enabledMap[f.key] !== false);
+}
+
 export function characterFromTemplate(template: RoleplayTemplate): CharacterFormData {
   return {
-    name: template.name === '空白模板' ? '新角色' : template.name,
+    templateId: template.id,
+    name: template.name,
     gender: template.gender,
     occupation: template.occupation,
     personality: template.personality,
@@ -84,7 +293,69 @@ export function characterFromTemplate(template: RoleplayTemplate): CharacterForm
     body: template.body ? { ...template.body } : {},
     openingStory: template.openingStory,
     portraitPath: template.portraitPath,
+    statusFieldEnabled: Object.fromEntries(
+      getTemplateStatusFieldDefs(template).map(f => [f.key, f.enabled !== false]),
+    ),
   };
+}
+
+export function templateFormFromTemplate(template: RoleplayTemplate): CharacterFormData {
+  return {
+    id: template.id,
+    name: template.name,
+    gender: template.gender,
+    occupation: template.occupation,
+    personality: template.personality,
+    background: template.background,
+    body: template.body ? { ...template.body } : {},
+    openingStory: template.openingStory,
+    portraitPath: template.portraitPath,
+    statusFields: template.statusFields?.length
+      ? cloneStatusFields(template.statusFields)
+      : cloneStatusFields(),
+  };
+}
+
+export function duplicateTemplateForm(template: RoleplayTemplate): CharacterFormData {
+  const base = templateFormFromTemplate(template);
+  return {
+    ...base,
+    id: undefined,
+    name: `${template.name}（副本）`,
+  };
+}
+
+function buildStatusOutputPrompt(fields: StatusFieldDef[]): string {
+  if (fields.length === 0) return '';
+
+  const schemaLines = fields.map(f => {
+    const jsonKey = getStatusFieldKey(f);
+    const typeHint = f.type === 'list' ? 'string[]' : f.type === 'number' ? 'number' : 'string';
+    const hint = f.promptHint ? `，${f.promptHint}` : '';
+    return `  "${jsonKey}": ${typeHint}${hint ? `  // ${hint}` : ''}`;
+  });
+
+  return [
+    '',
+    '## 回复格式（必须严格遵守）',
+    '每轮回复必须使用以下 XML 结构，不要输出 markdown 代码块：',
+    '',
+    '<reply>',
+    '（角色对用户说的话与动作描写，展示在对话气泡内）',
+    '</reply>',
+    '',
+    '<status>',
+    '{',
+    ...schemaLines,
+    '}',
+    '</status>',
+    '',
+    '规则：',
+    '- <reply> 与 <status> 各出现一次',
+    '- <status> 内必须是合法 JSON，字段名与上方完全一致',
+    '- 根据当前情境更新各状态字段，数值字段用 number，列表字段用 string[]',
+    '- 不要在 <reply> 内写 JSON 或状态信息',
+  ].join('\n');
 }
 
 export function formatBody(body?: BodyMeasurements): string {
@@ -95,7 +366,14 @@ export function formatBody(body?: BodyMeasurements): string {
     .join('\n');
 }
 
-export function buildCharacterPrompt(character: RoleplayCharacter): string {
+export const ROLEPLAY_OPENING_USER_MESSAGE =
+  '[系统] 请现在发送你的开场白，开启本轮角色扮演。用户尚未输入任何内容，请主动开场，不要等待用户先说话。';
+
+export function buildCharacterPrompt(
+  character: RoleplayCharacter,
+  template?: RoleplayTemplate | null,
+  options?: { forOpening?: boolean },
+): string {
   const lines: string[] = [`## 当前扮演角色：${character.name}`];
   if (character.gender) lines.push(`性别：${character.gender}`);
   if (character.occupation) lines.push(`职业：${character.occupation}`);
@@ -107,12 +385,20 @@ export function buildCharacterPrompt(character: RoleplayCharacter): string {
 
   lines.push('\n请完全以该角色身份回复，保持人设一致，不要跳出角色。');
 
-  if (character.openingStory?.trim()) {
-    lines.push(`\n## 开场情境\n${character.openingStory.trim()}`);
-    lines.push('若这是对话的第一轮，请以此情境自然开场。');
-  } else if (character.background?.trim()) {
-    lines.push('\n## 开场');
-    lines.push('若这是对话的第一轮且用户尚未发言具体内容，请根据故事背景自行生成合适的开场白。');
+  const statusPrompt = buildStatusOutputPrompt(getEffectiveStatusFields(character, template));
+  if (statusPrompt) lines.push(statusPrompt);
+
+  if (options?.forOpening) {
+    if (character.openingStory?.trim()) {
+      lines.push(`\n## 开场情境\n${character.openingStory.trim()}`);
+      lines.push('请立即发送第一条消息：以此情境自然开场。用户还没有发言。');
+    } else if (character.background?.trim()) {
+      lines.push('\n## 开场');
+      lines.push('请立即发送第一条消息：根据故事背景自行生成合适开场白。用户还没有发言。');
+    } else {
+      lines.push('\n## 开场');
+      lines.push('请立即发送第一条消息：以角色身份自然开场。用户还没有发言。');
+    }
   }
 
   return lines.join('\n');

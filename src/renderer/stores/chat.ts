@@ -5,6 +5,19 @@ import { useModeStore } from './mode';
 
 let sessionCounter = 0;
 
+export interface ToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  result?: string;
+  timestamp: number;
+  status: 'running' | 'success' | 'error';
+}
+
+export interface RoleplayMessageMeta {
+  status?: Record<string, unknown>;
+  statusComplete?: boolean;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -13,15 +26,10 @@ export interface Message {
   contentParts?: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }>;
   thinkingContent?: string;
   toolCalls?: ToolCall[];
+  roleplayMeta?: RoleplayMessageMeta;
+  /** roleplay 原始流式输出，用于解析失败时的回退 */
+  rawContent?: string;
   timestamp: number;
-}
-
-export interface ToolCall {
-  name: string;
-  args: Record<string, unknown>;
-  result?: string;
-  timestamp: number;
-  status: 'running' | 'success' | 'error';
 }
 
 export interface Session {
@@ -32,6 +40,8 @@ export interface Session {
   titlePending?: boolean;
   /** 角色扮演：绑定的角色 ID */
   characterId?: string;
+  /** 新建 roleplay 会话后待自动生成开场白 */
+  pendingOpening?: boolean;
 }
 
 interface ChatState {
@@ -40,6 +50,7 @@ interface ChatState {
   isStreaming: boolean;
   loadSessions: () => Promise<void>;
   createSession: () => void;
+  clearPendingOpening: (sessionId: string) => void;
   switchSession: (id: string) => void;
   deleteSession: (id: string) => void;
   addMessage: (msg: Message) => void;
@@ -50,12 +61,16 @@ interface ChatState {
   setSessionCharacter: (characterId: string | null) => void;
 }
 
-function parseSessionPayload(raw: string): { messages: Message[]; characterId?: string } {
+function parseSessionPayload(raw: string): { messages: Message[]; characterId?: string; pendingOpening?: boolean } {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return { messages: parsed };
     if (parsed && Array.isArray(parsed.messages)) {
-      return { messages: parsed.messages, characterId: parsed.characterId };
+      return {
+        messages: parsed.messages,
+        characterId: parsed.characterId,
+        pendingOpening: parsed.pendingOpening,
+      };
     }
   } catch { /* fall through */ }
   return { messages: [] };
@@ -65,6 +80,7 @@ function serializeSessionPayload(session: Session): string {
   return JSON.stringify({
     messages: session.messages,
     characterId: session.characterId,
+    pendingOpening: session.pendingOpening,
   });
 }
 
@@ -92,6 +108,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             title: r.title,
             messages: payload.messages,
             characterId: payload.characterId,
+            pendingOpening: payload.pendingOpening,
           };
         });
         if (sessions.length > 0) {
@@ -117,17 +134,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
   createSession: () => {
     sessionCounter++;
     const activeCharacterId = useRoleplayStore.getState().activeCharacterId;
+    const isRoleplay = useModeStore.getState().mode === 'roleplay';
     const session: Session = {
       id: `session-${Date.now()}`,
       title: `会话 #${sessionCounter}`,
       messages: [],
       characterId: activeCharacterId || undefined,
+      pendingOpening: Boolean(isRoleplay && activeCharacterId),
     };
     set(s => ({
       sessions: [session, ...s.sessions],
       activeSessionId: session.id,
     }));
     persistSession(session);
+  },
+
+  clearPendingOpening: (sessionId) => {
+    const { sessions, isStreaming } = get();
+    const newSessions = sessions.map(s =>
+      s.id === sessionId ? { ...s, pendingOpening: false } : s,
+    );
+    set({ sessions: newSessions });
+    if (!isStreaming) persistAll(newSessions);
   },
 
   switchSession: (id) => {
