@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { registerAllHandlers } from './ipc';
 import { infoLog, errorLog } from './logger';
+import { patchProcessEnv } from './utils/shellEnv';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -46,6 +47,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  patchProcessEnv();
   infoLog('app', 'startup', { electron: process.versions.electron, node: process.versions.node, platform: process.platform });
   registerAllHandlers();
   createWindow();

@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import { getChildProcessEnv } from '../utils/shellEnv';
 
 const execFileAsync = promisify(execFile);
 
@@ -61,6 +62,7 @@ async function runGit(cwd: string, args: string[], maxBuffer = 4 * 1024 * 1024):
       maxBuffer,
       encoding: 'utf-8',
       windowsHide: true,
+      env: getChildProcessEnv(),
     });
     return stdout ?? '';
   } catch (err: unknown) {
