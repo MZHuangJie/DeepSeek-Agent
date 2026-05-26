@@ -3,7 +3,7 @@ import styles from './styles/components.module.css';
 import Sidebar from './components/sidebar/Sidebar';
 import SessionList from './components/sidebar/SessionList';
 import ModifyPanel from './components/agent/ModifyPanel';
-import ActivityBar, { PanelView } from './components/sidebar/ActivityBar';
+import ActivityBar, { PanelView, SystemMenuAction } from './components/sidebar/ActivityBar';
 import BrowserView from './components/chat/BrowserView';
 import ChatWorkspace from './components/chat/ChatWorkspace';
 import AgentPanel from './components/agent/AgentPanel';
@@ -16,6 +16,7 @@ import TerminalList from './components/terminal/TerminalList';
 import StatusBar from './components/statusbar/StatusBar';
 import ModelSettings from './components/settings/ModelSettings';
 import ThemeSettings from './components/settings/ThemeSettings';
+import AboutDialog from './components/settings/AboutDialog';
 import QuickOpen from './components/chat/QuickOpen';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
@@ -54,6 +55,7 @@ export default function App() {
 
   const [showModelSettings, setShowModelSettings] = React.useState(false);
   const [showThemeSettings, setShowThemeSettings] = React.useState(false);
+  const [showAbout, setShowAbout] = React.useState(false);
   const [showQuickOpen, setShowQuickOpen] = React.useState(false);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
@@ -130,6 +132,13 @@ export default function App() {
     return 'text';
   };
 
+  const handleSystemAction = (action: SystemMenuAction) => {
+    if (action === 'theme') setShowThemeSettings(true);
+    else if (action === 'terminal') { setBottomClosed(false); setBottomExpanded(true); }
+    else if (action === 'model') setShowModelSettings(true);
+    else if (action === 'about') setShowAbout(true);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Title Bar */}
@@ -159,9 +168,7 @@ export default function App() {
         <ActivityBar
           openView={isBrowserVisible ? 'browser' : openView}
           onToggle={handleToggleView}
-          onOpenSettings={() => setShowModelSettings(true)}
-          onOpenTheme={() => setShowThemeSettings(true)}
-          onToggleTerminal={() => { setBottomClosed(false); setBottomExpanded(true); }}
+          onSystemAction={handleSystemAction}
         />
 
         {/* Left Panel — files/sessions/browser 滑动面板 */}
@@ -267,6 +274,7 @@ export default function App() {
       {/* Status Bar */}
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
       {showThemeSettings && <ThemeSettings onClose={() => setShowThemeSettings(false)} />}
+      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
       {showQuickOpen && <QuickOpen onClose={() => setShowQuickOpen(false)} />}
       <StatusBar language={activeFile ? getLanguage(activeFile.name) : ''} />
     </div>
