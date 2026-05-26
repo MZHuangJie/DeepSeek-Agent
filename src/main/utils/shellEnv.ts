@@ -1,4 +1,5 @@
 import { execFileSync } from 'child_process';
+import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
@@ -117,6 +118,19 @@ export function getChildProcessEnv(): NodeJS.ProcessEnv {
   }
 
   cachedEnv = env;
+  return env;
+}
+
+/** Git 远程操作用环境：优先 Windows OpenSSH，并允许 ssh 在非 TTY 下弹出 askpass */
+export function getGitRemoteEnv(): NodeJS.ProcessEnv {
+  const env = { ...getChildProcessEnv() };
+  if (process.platform === 'win32') {
+    const openSshBin = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'OpenSSH');
+    if (fs.existsSync(path.join(openSshBin, 'ssh.exe'))) {
+      env.PATH = dedupePath(`${openSshBin};${env.PATH || ''}`);
+    }
+  }
+  env.GIT_SSH_COMMAND = 'ssh -o BatchMode=no -o NumberOfPasswordPrompts=3';
   return env;
 }
 

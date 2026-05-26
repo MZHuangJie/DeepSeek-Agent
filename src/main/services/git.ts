@@ -2,6 +2,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { getChildProcessEnv } from '../utils/shellEnv';
+import { buildAskpassEnv, applyGitIdentityEnv, ensureSshKeysUnlocked } from '../utils/gitAskpass';
 
 const execFileAsync = promisify(execFile);
 
@@ -55,20 +56,35 @@ export class GitError extends Error {
 
 const UNMERGED = new Set(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']);
 
-async function runGit(cwd: string, args: string[], maxBuffer = 4 * 1024 * 1024): Promise<string> {
+async function runGit(
+  cwd: string,
+  args: string[],
+  options?: { maxBuffer?: number; needsAuth?: boolean },
+): Promise<string> {
+  const maxBuffer = options?.maxBuffer ?? 4 * 1024 * 1024;
   try {
+    if (options?.needsAuth) {
+      await ensureSshKeysUnlocked(cwd);
+    }
+    let env = options?.needsAuth
+      ? applyGitIdentityEnv(await buildAskpassEnv())
+      : getChildProcessEnv();
     const { stdout } = await execFileAsync('git', args, {
       cwd,
       maxBuffer,
       encoding: 'utf-8',
       windowsHide: true,
-      env: getChildProcessEnv(),
+      env,
     });
     return stdout ?? '';
   } catch (err: unknown) {
     const e = err as { stderr?: string; stdout?: string; message?: string; code?: number };
     const detail = (e.stderr || e.stdout || e.message || 'Git 命令执行失败').trim();
-    throw new GitError(detail.split('\n').filter(Boolean)[0]?.slice(0, 400) || 'Git 命令执行失败');
+    const firstLine = detail.split('\n').filter(Boolean)[0]?.slice(0, 400) || 'Git 命令执行失败';
+    if (/Permission denied \(publickey\)/i.test(firstLine)) {
+      throw new GitError('SSH 公钥认证失败。请在弹窗中输入密钥 passphrase，或先在终端执行 ssh-add 加载密钥。');
+    }
+    throw new GitError(firstLine);
   }
 }
 
@@ -297,29 +313,29 @@ export async function commitGit(cwd: string, message: string): Promise<string> {
 }
 
 export async function fetchGit(cwd: string): Promise<string> {
-  const out = await runGit(cwd, ['fetch', '--all', '--prune']);
+  const out = await runGit(cwd, ['fetch', '--all', '--prune'], { needsAuth: true });
   return out.trim() || '已 fetch 远程更新';
 }
 
 export async function pullGit(cwd: string): Promise<string> {
-  const out = await runGit(cwd, ['pull', '--no-rebase']);
+  const out = await runGit(cwd, ['pull', '--no-rebase'], { needsAuth: true });
   return out.trim() || '已 pull 最新代码';
 }
 
 export async function pullRebaseGit(cwd: string): Promise<string> {
-  const out = await runGit(cwd, ['pull', '--rebase']);
+  const out = await runGit(cwd, ['pull', '--rebase'], { needsAuth: true });
   return out.trim() || '已 rebase pull';
 }
 
 export async function pushGit(cwd: string): Promise<string> {
-  const out = await runGit(cwd, ['push']);
+  const out = await runGit(cwd, ['push'], { needsAuth: true });
   return out.trim() || '已 push 到远程';
 }
 
 export async function publishGitBranch(cwd: string): Promise<string> {
   const branch = (await runGit(cwd, ['branch', '--show-current'])).trim();
   if (!branch) throw new GitError('当前不在分支上，无法发布');
-  const out = await runGit(cwd, ['push', '-u', 'origin', branch]);
+  const out = await runGit(cwd, ['push', '-u', 'origin', branch], { needsAuth: true });
   return out.trim() || `已发布分支 ${branch}`;
 }
 

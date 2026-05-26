@@ -30,3 +30,15 @@ if (code !== original) {
 } else {
   console.log('[fix-electron-build] No changes needed');
 }
+
+const askpassFiles = ['git-askpass.cjs', 'git-askpass.cmd', 'git-askpass.sh'];
+const utilsDir = path.join(__dirname, '..', 'src', 'main', 'utils');
+const distMainDir = path.join(__dirname, '..', 'dist', 'main');
+for (const name of askpassFiles) {
+  const src = path.join(utilsDir, name);
+  const dest = path.join(distMainDir, name);
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, dest);
+    console.log(`[fix-electron-build] Copied ${name} -> dist/main/`);
+  }
+}

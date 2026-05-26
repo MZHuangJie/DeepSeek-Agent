@@ -18,6 +18,7 @@ import StatusBar from './components/statusbar/StatusBar';
 import ModelSettings from './components/settings/ModelSettings';
 import ThemeSettings from './components/settings/ThemeSettings';
 import AboutDialog from './components/settings/AboutDialog';
+import GitPassphraseDialog from './components/git/GitPassphraseDialog';
 import QuickOpen from './components/chat/QuickOpen';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
@@ -58,6 +59,7 @@ export default function App() {
   const [showThemeSettings, setShowThemeSettings] = React.useState(false);
   const [showAbout, setShowAbout] = React.useState(false);
   const [showQuickOpen, setShowQuickOpen] = React.useState(false);
+  const [askpassRequest, setAskpassRequest] = React.useState<{ id: string; prompt: string; keyPath: string } | null>(null);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
 
@@ -93,6 +95,13 @@ export default function App() {
     });
     return unsubscribe;
   }, [setBrowserOpen]);
+
+  useEffect(() => {
+    const unsub = window.api.git.onAskpassRequest(req => {
+      setAskpassRequest(prev => prev ?? req);
+    });
+    return unsub;
+  }, []);
 
   // 浏览器视图用 65% 宽度，其他面板用 sidebarWidth
   const isBrowserVisible = openView === 'browser' || browserOpen;
@@ -278,6 +287,20 @@ export default function App() {
       {showThemeSettings && <ThemeSettings onClose={() => setShowThemeSettings(false)} />}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
       {showQuickOpen && <QuickOpen onClose={() => setShowQuickOpen(false)} />}
+      {askpassRequest && (
+        <GitPassphraseDialog
+          prompt={askpassRequest.prompt}
+          keyPath={askpassRequest.keyPath}
+          onSubmit={(password, remember) => {
+            window.api.git.askpassResponse({ id: askpassRequest.id, password, remember });
+            setAskpassRequest(null);
+          }}
+          onCancel={() => {
+            window.api.git.askpassResponse({ id: askpassRequest.id, cancelled: true });
+            setAskpassRequest(null);
+          }}
+        />
+      )}
       <StatusBar language={activeFile ? getLanguage(activeFile.name) : ''} />
     </div>
   );

@@ -23,6 +23,7 @@ export default defineConfig({
         'https',
         'os',
         'util',
+        'net',
         'glob',
         'minipass',
         'path-scurry',
