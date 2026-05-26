@@ -12,6 +12,7 @@ import {
   pushRecentSearch,
   shouldSearchContent,
   getContentSearchFilter,
+  getContentSearchPaths,
   mergeQuickOpenResults,
   QuickOpenResultItem,
   ContentSearchMatch,
@@ -193,8 +194,9 @@ export default function QuickOpen({ onClose }: Props) {
   const [focusIdx, setFocusIdx] = useState(0);
   const [contentResults, setContentResults] = useState<ContentSearchMatch[]>([]);
   const [contentSearching, setContentSearching] = useState(false);
+  const [contentProgress, setContentProgress] = useState<{ scannedFiles: number; totalFiles: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const searchRequestRef = useRef(0);
+  const cancelSearchRef = useRef<(() => void) | null>(null);
 
   const pathResults = useMemo(
     () => searchWorkspace(tree, query, filter),
@@ -210,29 +212,45 @@ export default function QuickOpen({ onClose }: Props) {
     if (!shouldSearchContent(filter, query)) {
       setContentResults([]);
       setContentSearching(false);
+      setContentProgress(null);
+      cancelSearchRef.current?.();
+      cancelSearchRef.current = null;
       return;
     }
 
-    const requestId = ++searchRequestRef.current;
+    setContentResults([]);
     setContentSearching(true);
-    const timer = window.setTimeout(() => {
-      void window.api.files.searchContent(query.trim(), getContentSearchFilter(filter))
-        .then((matches) => {
-          if (searchRequestRef.current !== requestId) return;
-          setContentResults(matches);
-        })
-        .catch(() => {
-          if (searchRequestRef.current !== requestId) return;
-          setContentResults([]);
-        })
-        .finally(() => {
-          if (searchRequestRef.current !== requestId) return;
-          setContentSearching(false);
-        });
-    }, 220);
+    setContentProgress(null);
 
-    return () => window.clearTimeout(timer);
-  }, [query, filter]);
+    const timer = window.setTimeout(() => {
+      cancelSearchRef.current?.();
+      const filePaths = getContentSearchPaths(tree, filter);
+      cancelSearchRef.current = window.api.files.searchContent(
+        query.trim(),
+        getContentSearchFilter(filter),
+        filePaths,
+        {
+          onBatch: (matches, progress) => {
+            setContentResults(matches);
+            setContentProgress({
+              scannedFiles: progress.scannedFiles,
+              totalFiles: progress.totalFiles,
+            });
+          },
+          onDone: () => {
+            setContentSearching(false);
+            setContentProgress(null);
+          },
+        },
+      );
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timer);
+      cancelSearchRef.current?.();
+      cancelSearchRef.current = null;
+    };
+  }, [query, filter, tree]);
 
   useEffect(() => {
     loadRecentSearches().then(setRecentSearches);
@@ -403,7 +421,12 @@ export default function QuickOpen({ onClose }: Props) {
           ) : (
             <div className={styles.results}>
               {contentSearching && (
-                <div className={styles.searchingHint}>正在搜索代码内容...</div>
+                <div className={styles.searchingHint}>
+                  正在搜索代码内容...
+                  {contentProgress
+                    ? ` ${contentProgress.scannedFiles}/${contentProgress.totalFiles}`
+                    : ''}
+                </div>
               )}
               {results.map((item, index) => (
                 item.type === 'content' ? (

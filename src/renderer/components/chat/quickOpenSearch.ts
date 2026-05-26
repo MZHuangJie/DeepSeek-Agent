@@ -175,6 +175,28 @@ export function getContentSearchFilter(filter: SearchFilter): 'all' | 'code' | '
   return 'all';
 }
 
+const SKIP_CONTENT_PATH_RE = /(?:^|[\\/])(node_modules|\.git|dist|build|\.next|coverage|\.turbo|out|public[\\/]vs|vendor|target|__pycache__)([\\/]|$)/i;
+
+export function shouldSkipContentPath(filePath: string): boolean {
+  return SKIP_CONTENT_PATH_RE.test(filePath.replace(/\\/g, '/'));
+}
+
+export function getContentSearchPaths(nodes: FileNode[], filter: SearchFilter, limit = 500): string[] {
+  if (filter === 'folder' || filter === 'image') return [];
+
+  return flattenWorkspace(nodes)
+    .filter(node => !node.isDirectory)
+    .filter(node => {
+      if (filter === 'code') return matchesFilter(node, 'code');
+      if (filter === 'document') return matchesFilter(node, 'document');
+      if (filter === 'file') return matchesFilter(node, 'file');
+      return matchesFilter(node, 'code') || matchesFilter(node, 'document');
+    })
+    .filter(node => !shouldSkipContentPath(node.path))
+    .map(node => node.path)
+    .slice(0, limit);
+}
+
 export function mergeQuickOpenResults(
   pathResults: Array<{ node: FileNode; score: number }>,
   contentResults: ContentSearchMatch[],

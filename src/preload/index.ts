@@ -27,14 +27,55 @@ const api = {
     readBinary: (filePath: string) => ipcRenderer.invoke('files:readBinary', filePath),
     showInExplorer: (filePath: string) => ipcRenderer.invoke('files:show-in-explorer', filePath),
     saveClipboardImage: (base64: string, mimeType: string) => ipcRenderer.invoke('files:save-clipboard-image', base64, mimeType),
-    searchContent: (query: string, filter: 'all' | 'code' | 'document') =>
-      ipcRenderer.invoke('files:search-content', query, filter) as Promise<Array<{
-        path: string;
-        name: string;
-        line: number;
-        preview: string;
-        score: number;
-      }>>,
+    searchContent: (
+      query: string,
+      filter: 'all' | 'code' | 'document',
+      filePaths: string[],
+      handlers: {
+        onBatch: (matches: Array<{
+          path: string;
+          name: string;
+          line: number;
+          preview: string;
+          score: number;
+        }>, progress: { scannedFiles: number; totalFiles: number; matchCount: number }) => void;
+        onDone: () => void;
+      },
+    ) => {
+      const searchId = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const onBatch = (_: unknown, data: {
+        searchId: string;
+        matches: Array<{
+          path: string;
+          name: string;
+          line: number;
+          preview: string;
+          score: number;
+        }>;
+        progress: { scannedFiles: number; totalFiles: number; matchCount: number };
+      }) => {
+        if (data.searchId !== searchId) return;
+        handlers.onBatch(data.matches, data.progress);
+      };
+      const onDone = (_: unknown, data: { searchId: string }) => {
+        if (data.searchId !== searchId) return;
+        cleanup();
+        handlers.onDone();
+      };
+      const cleanup = () => {
+        ipcRenderer.removeListener('files:search-content-batch', onBatch);
+        ipcRenderer.removeListener('files:search-content-done', onDone);
+      };
+
+      ipcRenderer.on('files:search-content-batch', onBatch);
+      ipcRenderer.on('files:search-content-done', onDone);
+      void ipcRenderer.invoke('files:search-content', { searchId, query, filter, filePaths });
+
+      return () => {
+        cleanup();
+        void ipcRenderer.invoke('files:search-content-cancel', searchId);
+      };
+    },
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),

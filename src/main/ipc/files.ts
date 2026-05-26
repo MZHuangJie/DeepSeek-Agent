@@ -198,8 +198,47 @@ export function setupFileHandlers() {
     return filePath;
   });
 
-  ipcMain.handle('files:search-content', async (_event, query: string, filter: 'all' | 'code' | 'document') => {
-    const { searchWorkspaceContent } = await import('../services/contentSearch');
-    return searchWorkspaceContent(currentWorkspace, query, filter);
+  const activeContentSearches = new Map<string, AbortController>();
+
+  ipcMain.handle(
+    'files:search-content',
+    async (event, payload: { searchId: string; query: string; filter: 'all' | 'code' | 'document'; filePaths?: string[] }) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const controller = new AbortController();
+      activeContentSearches.set(payload.searchId, controller);
+
+      try {
+        const { searchContentStreaming } = await import('../services/contentSearch');
+        await searchContentStreaming({
+          workspace: currentWorkspace,
+          query: payload.query,
+          filter: payload.filter,
+          filePaths: payload.filePaths,
+          signal: controller.signal,
+          onBatch: (matches, progress) => {
+            if (win && !win.isDestroyed()) {
+              win.webContents.send('files:search-content-batch', {
+                searchId: payload.searchId,
+                matches,
+                progress,
+              });
+            }
+          },
+        });
+      } catch (err) {
+        console.error('[files:search-content] failed:', err);
+      } finally {
+        activeContentSearches.delete(payload.searchId);
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('files:search-content-done', { searchId: payload.searchId });
+        }
+      }
+    },
+  );
+
+  ipcMain.handle('files:search-content-cancel', async (_event, searchId: string) => {
+    activeContentSearches.get(searchId)?.abort();
+    activeContentSearches.delete(searchId);
+    return { success: true };
   });
 }

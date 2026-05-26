@@ -7,6 +7,8 @@ import {
   wildcardToRegex,
   mergeQuickOpenResults,
   shouldSearchContent,
+  getContentSearchPaths,
+  shouldSkipContentPath,
 } from '../quickOpenSearch';
 import { FileNode } from '../../../stores/files';
 
@@ -74,5 +76,12 @@ describe('quickOpenSearch', () => {
     expect(shouldSearchContent('all', 'abc')).toBe(true);
     expect(shouldSearchContent('folder', 'abc')).toBe(false);
     expect(shouldSearchContent('code', 'a')).toBe(false);
+  });
+
+  it('should build content search paths from tree and skip vendor dirs', () => {
+    const paths = getContentSearchPaths(tree, 'code');
+    expect(paths).toContain('D:/proj/src/main.ts');
+    expect(shouldSkipContentPath('D:/proj/node_modules/pkg/index.ts')).toBe(true);
+    expect(shouldSkipContentPath('D:/proj/public/vs/editor/main.js')).toBe(true);
   });
 });
