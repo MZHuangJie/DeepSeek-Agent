@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { getCurrentWorkspace } from './files';
+import { setupGitAskpassHandlers } from '../utils/gitAskpass';
 import {
   checkoutGitBranch,
   cleanUntrackedGit,
@@ -36,6 +37,7 @@ function wrap<T>(fn: () => Promise<T>) {
 }
 
 export function setupGitHandlers() {
+  setupGitAskpassHandlers();
   const cwd = () => getCurrentWorkspace();
 
   ipcMain.handle('git:status', async () => {

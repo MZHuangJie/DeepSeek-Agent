@@ -179,6 +179,14 @@ const api = {
     stashList: () => ipcRenderer.invoke('git:stash-list'),
     stashPush: (message?: string) => ipcRenderer.invoke('git:stash-push', message),
     stashPop: () => ipcRenderer.invoke('git:stash-pop'),
+    onAskpassRequest: (cb: (req: { id: string; prompt: string; keyPath: string }) => void) => {
+      const handler = (_: unknown, req: { id: string; prompt: string; keyPath: string }) => cb(req);
+      ipcRenderer.on('git:askpass-request', handler);
+      return () => ipcRenderer.removeListener('git:askpass-request', handler);
+    },
+    askpassResponse: (payload: { id: string; password?: string; remember?: boolean; cancelled?: boolean }) => {
+      ipcRenderer.send('git:askpass-response', payload);
+    },
   },
 };
 
