@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useFilesStore, FileNode } from '../../stores/files';
 import { useBrowserStore } from '../../stores/browser';
 import { useRefsStore } from '../../stores/refs';
+import { focusChatInput } from '../../utils/focusChatInput';
 import { getFileIconInfo } from '../../utils/icons';
 import shared from '../../styles/components.module.css';
 import styles from './FileTree.module.css';
@@ -23,7 +24,7 @@ interface ContextMenuState {
   node: FileNode | null;
 }
 
-function TreeNode({ node, depth = 0, onContextMenu, onRefresh, renamingPath, setRenamingPath, selectedPath, onSelect }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void; renamingPath: string | null; setRenamingPath: (p: string | null) => void; selectedPath: string | null; onSelect: (path: string) => void }) {
+function TreeNode({ node, depth = 0, onContextMenu, onRefresh, onError, renamingPath, setRenamingPath, selectedPath, onSelect }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void; onError: (msg: string) => void; renamingPath: string | null; setRenamingPath: (p: string | null) => void; selectedPath: string | null; onSelect: (path: string) => void }) {
   const { openFile } = useFilesStore();
   const [expanded, setExpanded] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
@@ -56,7 +57,7 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh, renamingPath, set
       await window.api.files.rename(node.path, newPath);
       onRefresh();
     } catch (err: any) {
-      alert(err.message || '重命名失败');
+      onError(err.message || '重命名失败');
     }
   };
 
@@ -93,7 +94,7 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh, renamingPath, set
         )}
       </div>
       {expanded && node.children?.map(child => (
-        <TreeNode key={child.path} node={child} depth={depth + 1} onContextMenu={onContextMenu} onRefresh={onRefresh}
+        <TreeNode key={child.path} node={child} depth={depth + 1} onContextMenu={onContextMenu} onRefresh={onRefresh} onError={onError}
           renamingPath={renamingPath} setRenamingPath={setRenamingPath}
           selectedPath={selectedPath} onSelect={onSelect} />
       ))}
@@ -101,7 +102,7 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh, renamingPath, set
   );
 }
 
-function InlineCreate({ parentPath, isDirectory, onDone, onCancel }: { parentPath: string; isDirectory: boolean; onDone: () => void; onCancel: () => void }) {
+function InlineCreate({ parentPath, isDirectory, onDone, onCancel, onError }: { parentPath: string; isDirectory: boolean; onDone: () => void; onCancel: () => void; onError: (msg: string) => void }) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -120,7 +121,7 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel }: { parentPat
       }
       onDone();
     } catch (err: any) {
-      alert(err.message || '创建失败');
+      onError(err.message || '创建失败');
       onCancel();
     }
   };
@@ -142,7 +143,7 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel }: { parentPat
 }
 
 export default function FileTree() {
-  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, removeRecentWorkspace } = useFilesStore();
+  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, removeRecentWorkspace, closeTab } = useFilesStore();
   const [showExplorer, setShowExplorer] = useState(true);
   const [showRecent, setShowRecent] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -151,6 +152,9 @@ export default function FileTree() {
   const [creating, setCreating] = useState<{ parentPath: string; isDirectory: boolean } | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<FileNode | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const deleteConfirmRef = useRef<HTMLButtonElement>(null);
   const treeAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadWorkspace(); }, []);
@@ -182,7 +186,71 @@ export default function FileTree() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedPath, renamingPath]);
 
+  useEffect(() => {
+    if (!pendingDelete) return;
+    setTimeout(() => deleteConfirmRef.current?.focus(), 0);
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPendingDelete(null);
+        focusChatInput();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [pendingDelete]);
+
   const handleRefresh = () => setRefreshKey(k => k + 1);
+
+  const reportError = (msg: string) => {
+    setActionError(msg);
+    focusChatInput();
+  };
+
+  const cleanupAfterDelete = (node: FileNode) => {
+    const { openTabs } = useFilesStore.getState();
+    const prefix = node.path.replace(/\\/g, '/');
+    for (const tab of openTabs) {
+      const tabPath = tab.path.replace(/\\/g, '/');
+      if (tabPath === prefix || (node.isDirectory && tabPath.startsWith(prefix + '/'))) {
+        closeTab(tab.path);
+      }
+    }
+
+    const refs = useRefsStore.getState();
+    for (const refPath of [...refs.refFiles]) {
+      const normalized = refPath.replace(/\\/g, '/');
+      if (normalized === prefix || (node.isDirectory && normalized.startsWith(prefix + '/'))) {
+        refs.removeRefFile(refPath);
+      }
+    }
+
+    if (selectedPath) {
+      const selected = selectedPath.replace(/\\/g, '/');
+      if (selected === prefix || (node.isDirectory && selected.startsWith(prefix + '/'))) {
+        setSelectedPath(null);
+      }
+    }
+    if (renamingPath) {
+      const renaming = renamingPath.replace(/\\/g, '/');
+      if (renaming === prefix || (node.isDirectory && renaming.startsWith(prefix + '/'))) {
+        setRenamingPath(null);
+      }
+    }
+  };
+
+  const executeDelete = async (node: FileNode) => {
+    setActionError(null);
+    try {
+      await window.api.files.delete(node.path);
+      cleanupAfterDelete(node);
+      setPendingDelete(null);
+      handleRefresh();
+      focusChatInput();
+    } catch (err: any) {
+      setActionError(err.message || '删除失败');
+      focusChatInput();
+    }
+  };
 
   const loadProjectTree = async () => {
     try {
@@ -220,20 +288,11 @@ export default function FileTree() {
     setContextMenu({ x: e.clientX, y: e.clientY, node: null });
   };
 
-  const handleDelete = async () => {
-    if (!contextMenu?.node) return;
-    const node = contextMenu.node;
-    const msg = node.isDirectory
-      ? `确定删除文件夹 "${node.name}" 及其所有内容？`
-      : `确定删除文件 "${node.name}"？`;
-    if (!confirm(msg)) return;
-    try {
-      await window.api.files.delete(node.path);
-      setContextMenu(null);
-      handleRefresh();
-    } catch (err: any) {
-      alert(err.message || '删除失败');
-    }
+  const handleDelete = () => {
+    const node = contextMenu?.node ?? contextMenuRef.current;
+    if (!node) return;
+    setContextMenu(null);
+    setPendingDelete(node);
   };
 
   const startCreate = (isDirectory: boolean) => {
@@ -271,17 +330,20 @@ export default function FileTree() {
             </div>
 
             <div ref={treeAreaRef} className={styles.treeArea} onContextMenu={handleBlankContextMenu}>
+              {actionError && (
+                <div className={styles.deleteError}>{actionError}</div>
+              )}
               {tree.length === 0 ? (
                 <div className={styles.emptyHint}>工作区无可见文件</div>
               ) : (
                 tree.map(node => (
-                  <TreeNode key={node.path} node={node} onContextMenu={handleContextMenu} onRefresh={handleRefresh}
+                  <TreeNode key={node.path} node={node} onContextMenu={handleContextMenu} onRefresh={handleRefresh} onError={reportError}
                     renamingPath={renamingPath} setRenamingPath={setRenamingPath}
                     selectedPath={selectedPath} onSelect={setSelectedPath} />
                 ))
               )}
               {creating && (
-                <InlineCreate parentPath={creating.parentPath} isDirectory={creating.isDirectory} onDone={onCreated} onCancel={() => setCreating(null)} />
+                <InlineCreate parentPath={creating.parentPath} isDirectory={creating.isDirectory} onDone={onCreated} onCancel={() => setCreating(null)} onError={reportError} />
               )}
 
               {contextMenu && createPortal(
@@ -322,6 +384,40 @@ export default function FileTree() {
                       )}
                     </>
                   )}
+                </div>,
+                document.body
+              )}
+
+              {pendingDelete && createPortal(
+                <div
+                  className={styles.deleteOverlay}
+                  onClick={() => { setPendingDelete(null); focusChatInput(); }}
+                >
+                  <div className={styles.deleteDialog} onClick={(e) => e.stopPropagation()}>
+                    <div className={styles.deleteTitle}>确认删除</div>
+                    <div className={styles.deleteMessage}>
+                      {pendingDelete.isDirectory
+                        ? `确定删除文件夹 "${pendingDelete.name}" 及其所有内容？此操作不可撤销。`
+                        : `确定删除文件 "${pendingDelete.name}"？此操作不可撤销。`}
+                    </div>
+                    <div className={styles.deleteActions}>
+                      <button
+                        type="button"
+                        className={styles.deleteCancelBtn}
+                        onClick={() => { setPendingDelete(null); focusChatInput(); }}
+                      >
+                        取消
+                      </button>
+                      <button
+                        ref={deleteConfirmRef}
+                        type="button"
+                        className={styles.deleteConfirmBtn}
+                        onClick={() => executeDelete(pendingDelete)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
                 </div>,
                 document.body
               )}
