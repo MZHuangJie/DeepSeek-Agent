@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Message } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
+import { useModeStore } from '../../stores/mode';
+import { useRoleplayStore } from '../../stores/roleplay';
 import ThinkingChain from './ThinkingChain';
 import shared from '../../styles/components.module.css';
 import styles from './MessageBubble.module.css';
@@ -342,6 +344,23 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const hasContent = !!message.content;
   const showContentBubble = isUser || !hasThinking || hasContent;
   const [actionsVisible, setActionsVisible] = useState(false);
+  const mode = useModeStore(s => s.mode);
+  const activeCharacter = useRoleplayStore(s => s.getActiveCharacter());
+  const [assistantAvatar, setAssistantAvatar] = useState('/assets/ai_avater.png');
+
+  useEffect(() => {
+    if (isUser || mode !== 'roleplay' || !activeCharacter?.portraitPath) {
+      setAssistantAvatar('/assets/ai_avater.png');
+      return;
+    }
+    let cancelled = false;
+    void window.api.files.readBinary(activeCharacter.portraitPath).then(url => {
+      if (!cancelled) setAssistantAvatar(url);
+    }).catch(() => {
+      if (!cancelled) setAssistantAvatar('/assets/ai_avater.png');
+    });
+    return () => { cancelled = true; };
+  }, [isUser, mode, activeCharacter?.portraitPath]);
 
   return (
     <div
@@ -351,7 +370,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
       style={{ flexDirection: isUser ? 'row-reverse' : 'row' }}
     >
       <div className={`${styles.avatar} ${isUser ? styles.avatarUser : styles.avatarAi}`}>
-        <img src={isUser ? '/assets/head.png' : '/assets/ai_avater.png'} alt={isUser ? 'user' : 'ai'} className={styles.avatarImg} />
+        <img src={isUser ? '/assets/head.png' : assistantAvatar} alt={isUser ? 'user' : 'ai'} className={styles.avatarImg} />
       </div>
       <div className={styles.contentWrap}>
         {hasThinking && (

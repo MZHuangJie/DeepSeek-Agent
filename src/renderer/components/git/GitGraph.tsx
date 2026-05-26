@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { GitIconArrowDown, GitIconArrowUp, GitIconRefresh, GitIconSync } from './GitIcons';
 import {
   CIRCLE_RADIUS,
   CIRCLE_STROKE_WIDTH,
@@ -151,10 +152,18 @@ export default function GitGraph({ refreshToken, disabled, onPull, onPush, onFet
         <span className={styles.title}>图表</span>
         <div className={styles.tools}>
           <span className={styles.autoLabel}>自动</span>
-          <button type="button" className={styles.toolBtn} title="Pull" disabled={disabled} onClick={onPull}>↓</button>
-          <button type="button" className={styles.toolBtn} title="Push" disabled={disabled} onClick={onPush}>↑</button>
-          <button type="button" className={styles.toolBtn} title="Fetch" disabled={disabled} onClick={onFetch}>⟳</button>
-          <button type="button" className={styles.toolBtn} title="Refresh Graph" disabled={disabled || loading} onClick={() => void loadGraph()}>↻</button>
+          <button type="button" className={styles.toolBtn} title="Pull" disabled={disabled} onClick={onPull}>
+            <GitIconArrowDown size={12} />
+          </button>
+          <button type="button" className={styles.toolBtn} title="Push" disabled={disabled} onClick={onPush}>
+            <GitIconArrowUp size={12} />
+          </button>
+          <button type="button" className={styles.toolBtn} title="Fetch" disabled={disabled} onClick={onFetch}>
+            <GitIconSync size={12} />
+          </button>
+          <button type="button" className={styles.toolBtn} title="Refresh Graph" disabled={disabled || loading} onClick={() => void loadGraph()}>
+            <GitIconRefresh size={12} />
+          </button>
         </div>
       </div>
 

@@ -12,7 +12,7 @@ interface ModeConfig {
 export const MODES: ModeConfig[] = [
   { id: 'coding', label: '编程助手', icon: '/assets/assistan.png', description: '代码编写、调试、项目分析' },
   { id: 'chat', label: '聊天', icon: '/assets/chat.png', description: '日常对话、问答' },
-  { id: 'roleplay', label: '角色扮演', icon: '/assets/role.png', description: '扮演特定角色进行对话' },
+  { id: 'roleplay', label: '角色扮演', icon: '/assets/role.png', description: '沉浸扮演角色，支持成人向内容' },
 ];
 
 interface ModeState {

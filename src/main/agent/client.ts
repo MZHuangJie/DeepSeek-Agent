@@ -4,7 +4,8 @@ import type { ChatMessage } from './types';
 import type { Provider, ParseState, StreamCallbacks } from './providers/types';
 import { createParseState, selectProvider } from './providers';
 import { classifyApiError } from './errors';
-import { log } from '../logger';
+import { infoLog, errorLog, log } from '../logger';
+import { maskSecret, truncateText, summarizeJsonForLog } from '../services/log-sanitize';
 
 const httpsAgent = new https.Agent({ keepAlive: false });
 // keepAlive: false — 每次请求独立建连，避免中转站/代理的粘滞连接问题
@@ -241,7 +242,13 @@ export async function completeChat(
   apiKey: string,
   messages: ChatMessage[],
   modelConfig: ModelConfig,
-  options?: { maxTokens?: number; temperature?: number; signal?: AbortSignal },
+  options?: {
+    maxTokens?: number;
+    temperature?: number;
+    signal?: AbortSignal;
+    /** 传入后在 logs/debug-*.log 记录请求与原始响应摘要（脱敏） */
+    log?: { module: string; tag: string };
+  },
 ): Promise<string> {
   const { model, baseUrl } = modelConfig;
   const base = baseUrl.replace(/\/+$/, '');
@@ -259,6 +266,23 @@ export async function completeChat(
     temperature: options?.temperature ?? 0.3,
   });
 
+  const logCtx = options?.log;
+  if (logCtx) {
+    infoLog(logCtx.module, `${logCtx.tag}-request`, {
+      endpoint: url.toString(),
+      model,
+      apiKey: maskSecret(apiKey),
+      messageCount: messages.length,
+      maxTokens: options?.maxTokens ?? 40,
+      temperature: options?.temperature ?? 0.3,
+      lastUserPreview: truncateText(
+        [...messages].reverse().find(m => m.role === 'user')?.content ?? '',
+        300,
+      ),
+    });
+  }
+
+  const started = Date.now();
   return new Promise((resolve, reject) => {
     const reqOptions: https.RequestOptions & { hostname: string } = {
       hostname: url.hostname,
@@ -279,12 +303,21 @@ export async function completeChat(
       res.setEncoding('utf-8');
       res.on('data', (c: string) => { buf += c; });
       res.on('end', () => {
+        const elapsedMs = Date.now() - started;
         if (status < 200 || status >= 300) {
           let detail = buf.trim();
           try {
             const parsed = JSON.parse(detail);
             detail = parsed.error?.message || parsed.message || detail;
           } catch {}
+          if (logCtx) {
+            errorLog(logCtx.module, `${logCtx.tag}-http-error`, {
+              status,
+              elapsedMs,
+              bodyPreview: summarizeJsonForLog(buf),
+              message: detail || res.statusMessage || '未知错误',
+            });
+          }
           reject(classifyApiError(status, detail || res.statusMessage || '未知错误'));
           return;
         }
@@ -292,8 +325,28 @@ export async function completeChat(
           const parsed = JSON.parse(buf);
           const message = parsed.choices?.[0]?.message;
           const content = message?.content || message?.reasoning_content || '';
-          resolve(typeof content === 'string' ? content : '');
+          const text = typeof content === 'string' ? content : '';
+          if (logCtx) {
+            infoLog(logCtx.module, `${logCtx.tag}-response`, {
+              status,
+              elapsedMs,
+              bodyPreview: summarizeJsonForLog(buf),
+              contentPreview: truncateText(text, 400),
+              contentLength: text.length,
+              finishReason: parsed.choices?.[0]?.finish_reason,
+              usage: parsed.usage,
+            });
+          }
+          resolve(text);
         } catch (err: unknown) {
+          if (logCtx) {
+            errorLog(logCtx.module, `${logCtx.tag}-parse-error`, {
+              status,
+              elapsedMs,
+              bodyPreview: summarizeJsonForLog(buf),
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
           reject(err instanceof Error ? err : new Error(String(err)));
         }
       });

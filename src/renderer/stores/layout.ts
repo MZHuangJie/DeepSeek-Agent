@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+export const SIDEBAR_MIN_WIDTH = 360;
+
 type NumberOrFn = number | ((prev: number) => number);
 
 interface LayoutState {
@@ -27,7 +29,7 @@ function resolve<T>(val: T | ((prev: T) => T), prev: T): T {
 }
 
 export const useLayoutStore = create<LayoutState>((set) => ({
-  sidebarWidth: 240,
+  sidebarWidth: 360,
   agentPanelWidth: 320,
   agentProcessPanelWidth: 300,
   terminalHeight: 180,

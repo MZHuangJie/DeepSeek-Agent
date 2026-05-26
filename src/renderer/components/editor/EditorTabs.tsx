@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFilesStore } from '../../stores/files';
 import { getFileIconInfo } from '../../utils/icons';
+import { GitIconDiff } from '../git/GitIcons';
 import shared from '../../styles/components.module.css';
 import styles from './EditorTabs.module.css';
 
@@ -38,12 +39,18 @@ export default function EditorTabs() {
       <div ref={containerRef} onWheel={handleWheel} className={styles.container}>
         {openTabs.map(tab => {
           const isActive = activeTab === tab.path;
-          const isDirty = tab.content !== tab.originalContent;
+          const isDirty = tab.kind === 'file' && tab.content !== tab.originalContent;
           return (
             <div key={tab.path} onClick={() => setActiveTab(tab.path)} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ visible: true, x: e.clientX, y: e.clientY, tabPath: tab.path }); }}
               className={`${shared.editorTab} ${isActive ? shared.editorTabActive : shared.editorTabInactive} ${isActive ? styles.tabActiveBg : styles.tabBg}`}
             >
-              <FileIcon name={tab.name} />
+              {tab.kind === 'diff' ? (
+                <span className={styles.diffTabIcon} title="Diff">
+                  <GitIconDiff size={12} />
+                </span>
+              ) : (
+                <FileIcon name={tab.name} />
+              )}
               <span>{tab.name}</span>
               <span className={shared.dirtyDot} style={{ background: isDirty ? 'var(--accent)' : 'transparent' }} title={isDirty ? '未保存' : ''} />
               <span onClick={(e) => { e.stopPropagation(); closeTab(tab.path); }} title="关闭" className={shared.closeTab}>

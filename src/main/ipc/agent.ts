@@ -7,6 +7,7 @@ import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
 import { getSetting } from '../db/settings';
+import { resolveImageModelConfig } from '../services/image-model-config';
 import { errorLog, infoLog } from '../logger';
 import { compressToolResult } from '../agent/compression';
 import { buildExploreState, detectExploreMode, shouldContinueExplore, buildExploreNudge, buildExploreCompletionNudge } from '../agent/explore-monitor';
@@ -65,13 +66,13 @@ export function setupAgentHandlers() {
 
     try {
       const tools = getAllTools(payload.projectDir);
-    const projectContext = buildProjectContext(payload.projectDir);
+    const projectContext = payload.mode === 'roleplay' ? '' : buildProjectContext(payload.projectDir);
     const subAgentManager = new SubAgentManager(win);
     activeSubAgentManager = subAgentManager;
 
     // 根据模式选择 system prompt，命令 prompt 追加在后
     const baseSystemPrompt = getSystemPrompt(payload.mode);
-    const pluginPrompts = pluginManager.getSystemPrompts();
+    const pluginPrompts = payload.mode === 'roleplay' ? '' : pluginManager.getSystemPrompts();
     const fullSystemPrompt = payload.commandPrompt
       ? `${baseSystemPrompt}\n\n${pluginPrompts}\n\n## 当前命令模式\n${payload.commandPrompt}`
       : pluginPrompts ? `${baseSystemPrompt}\n\n${pluginPrompts}` : baseSystemPrompt;
@@ -105,7 +106,7 @@ export function setupAgentHandlers() {
     let messages: any[] = buildMessages(prefix, payload.messages, processedNewMessage);
 
     infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length, ctxLen: prefix.projectContext.length });
-    const enableTools = true;
+    const enableTools = payload.mode !== 'roleplay';
     const toolSchemas = enableTools ? getToolSchemas(tools) : [];
 
     let totalPrompt = 0;
@@ -329,7 +330,7 @@ export function setupAgentHandlers() {
           messages.push(assistantMsg);
         }
 
-        if (detectExploreMode(messages, result.content || '')) {
+        if (payload.mode !== 'roleplay' && detectExploreMode(messages, result.content || '')) {
           const exploreState = buildExploreState(messages, payload.projectDir);
 
           win.webContents.send('agent:stream-chunk', {
@@ -430,7 +431,7 @@ export function setupAgentHandlers() {
             win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
 
             const imageModelRaw = getSetting('imageModel');
-            const imageModelConfig = imageModelRaw ? JSON.parse(imageModelRaw) : null;
+            const imageModelConfig = resolveImageModelConfig(imageModelRaw, payload.apiKey);
             if (abortController.signal.aborted) break;
 
             const toolContext = {
@@ -443,12 +444,7 @@ export function setupAgentHandlers() {
               subAgentManager,
               signal: abortController.signal,
               projectDir: payload.projectDir,
-              imageModelConfig: imageModelConfig?.enabled ? {
-                enabled: true,
-                baseUrl: imageModelConfig.baseUrl,
-                model: imageModelConfig.model,
-                apiKey: imageModelConfig.apiKey,
-              } : undefined,
+              imageModelConfig,
               visionModelConfig: buildVisionToolContext(modelConfig, payload.apiKey, payload.providerMultimodal),
             };
             toolResult = await tool.execute(args, toolContext);

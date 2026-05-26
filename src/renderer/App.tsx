@@ -10,6 +10,7 @@ import ChatWorkspace from './components/chat/ChatWorkspace';
 import AgentPanel from './components/agent/AgentPanel';
 import EditorTabs from './components/editor/EditorTabs';
 import CodeEditor from './components/editor/CodeEditor';
+import DiffView from './components/editor/DiffView';
 import ImageViewer, { isImageFile } from './components/editor/ImageViewer';
 import TerminalPanel from './components/terminal/TerminalPanel';
 import TerminalTabs from './components/terminal/TerminalTabs';
@@ -18,14 +19,16 @@ import StatusBar from './components/statusbar/StatusBar';
 import ModelSettings from './components/settings/ModelSettings';
 import ThemeSettings from './components/settings/ThemeSettings';
 import AboutDialog from './components/settings/AboutDialog';
+import CharacterSettings from './components/settings/CharacterSettings';
 import GitPassphraseDialog from './components/git/GitPassphraseDialog';
 import QuickOpen from './components/chat/QuickOpen';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
 import { useChatStore } from './stores/chat';
-import { useLayoutStore } from './stores/layout';
+import { useLayoutStore, SIDEBAR_MIN_WIDTH } from './stores/layout';
 import { useBrowserStore } from './stores/browser';
 import ResizeHandle from './components/layout/ResizeHandle';
+import SidebarResizeHandle from './components/layout/SidebarResizeHandle';
 
 export default function App() {
   const { activeTab, openTabs, updateTabContent, saveFile } = useFilesStore();
@@ -58,11 +61,12 @@ export default function App() {
   const [showModelSettings, setShowModelSettings] = React.useState(false);
   const [showThemeSettings, setShowThemeSettings] = React.useState(false);
   const [showAbout, setShowAbout] = React.useState(false);
+  const [showCharacterSettings, setShowCharacterSettings] = React.useState(false);
   const [showQuickOpen, setShowQuickOpen] = React.useState(false);
+  const [sidebarResizing, setSidebarResizing] = React.useState(false);
   const [askpassRequest, setAskpassRequest] = React.useState<{ id: string; prompt: string; keyPath: string } | null>(null);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
-
   const handleToggleView = (view: PanelView) => {
     if (view === 'browser') {
       setBrowserOpen(!browserOpen);
@@ -146,6 +150,7 @@ export default function App() {
     if (action === 'theme') setShowThemeSettings(true);
     else if (action === 'terminal') { setBottomClosed(false); setBottomExpanded(true); }
     else if (action === 'model') setShowModelSettings(true);
+    else if (action === 'characters') setShowCharacterSettings(true);
     else if (action === 'about') setShowAbout(true);
   };
 
@@ -187,9 +192,9 @@ export default function App() {
           flexShrink: 0, background: 'var(--bg-secondary)',
           borderRight: isLeftOpen ? '1px solid var(--border)' : 'none',
           height: '100%', overflow: 'hidden',
-          transition: 'width 0.2s ease',
+          transition: sidebarResizing ? 'none' : 'width 0.2s ease',
         }}>
-          <div style={{ width: isLeftOpen ? (isBrowserVisible ? '100%' : sidebarWidth) : '100%', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
             {!isBrowserVisible && openView === 'files' && <Sidebar />}
             {!isBrowserVisible && openView === 'sessions' && <SessionList />}
             {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
@@ -198,7 +203,17 @@ export default function App() {
           </div>
         </div>
         {isLeftOpen && !isBrowserVisible && (
-          <ResizeHandle direction="horizontal" onResize={(d) => setSidebarWidth(w => Math.max(180, w + d))} />
+          <SidebarResizeHandle
+            width={sidebarWidth}
+            minWidth={SIDEBAR_MIN_WIDTH}
+            onWidthChange={setSidebarWidth}
+            onCollapse={() => {
+              setBrowserOpen(false);
+              setOpenView(null);
+            }}
+            onDragStart={() => setSidebarResizing(true)}
+            onDragEnd={() => setSidebarResizing(false)}
+          />
         )}
 
         {/* 中间区域（Editor + Chat + Bottom Panel） */}
@@ -210,17 +225,31 @@ export default function App() {
               <>
                 <div data-area="editor" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   <EditorTabs />
-                  <div style={{ flex: 1, overflow: 'hidden', display: activeFile ? 'block' : 'none' }}>
-                    {activeFile && (isImageFile(activeFile.name) ? (
+                  <div style={{ flex: 1, overflow: 'hidden', display: activeFile ? 'flex' : 'none', flexDirection: 'column', minHeight: 0 }}>
+                    {activeFile?.kind === 'diff' ? (
+                      activeFile.diffOriginal === activeFile.diffModified ? (
+                        <div style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)' }}>无差异</div>
+                      ) : (
+                        <DiffView
+                          original={activeFile.diffOriginal || ''}
+                          modified={activeFile.diffModified || ''}
+                          language={activeFile.language || 'text'}
+                          originalLabel={activeFile.originalLabel}
+                          modifiedLabel={activeFile.modifiedLabel}
+                          fill
+                          inline={false}
+                        />
+                      )
+                    ) : activeFile && isImageFile(activeFile.name) ? (
                       <ImageViewer filePath={activeFile.path} />
-                    ) : (
+                    ) : activeFile ? (
                       <CodeEditor
                         filePath={activeFile.path}
                         content={activeFile.content || '// Select a file to view its contents'}
                         language={getLanguage(activeFile.name)}
                         onChange={(value) => value !== undefined && updateTabContent(activeFile.path, value)}
                       />
-                    ))}
+                    ) : null}
                   </div>
                 </div>
                 <ResizeHandle direction="horizontal" onResize={(d) => setChatPanelWidth(w => Math.max(260, w - d))} />
@@ -285,6 +314,7 @@ export default function App() {
       {/* Status Bar */}
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
       {showThemeSettings && <ThemeSettings onClose={() => setShowThemeSettings(false)} />}
+      {showCharacterSettings && <CharacterSettings onClose={() => setShowCharacterSettings(false)} />}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
       {showQuickOpen && <QuickOpen onClose={() => setShowQuickOpen(false)} />}
       {askpassRequest && (
@@ -301,7 +331,7 @@ export default function App() {
           }}
         />
       )}
-      <StatusBar language={activeFile ? getLanguage(activeFile.name) : ''} />
+      <StatusBar language={activeFile ? (activeFile.kind === 'diff' ? activeFile.language || '' : getLanguage(activeFile.name)) : ''} />
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { useAgentStore } from '../../stores/agent';
 import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
+import { useRoleplayStore } from '../../stores/roleplay';
+import { buildCharacterPrompt } from '../../utils/roleplay';
 import MessageBubble from './MessageBubble';
 import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -199,6 +201,12 @@ export default function ChatPanel() {
     setStreaming(true);
 
     const mode = useModeStore.getState().mode;
+    const activeCharacter = mode === 'roleplay' ? useRoleplayStore.getState().getActiveCharacter() : null;
+    let commandPrompt = command?.systemPrompt;
+    if (mode === 'roleplay' && activeCharacter) {
+      const characterPrompt = buildCharacterPrompt(activeCharacter);
+      commandPrompt = commandPrompt ? `${characterPrompt}\n\n${commandPrompt}` : characterPrompt;
+    }
     const effectiveApiKey = modelConfig.apiKey || apiKey;
     const userText = content || displayContent || (hasImages ? '请描述这张图片' : '');
     const textContent = userText + (providerSupportsVision ? '' : imageMarkdown);
@@ -213,7 +221,7 @@ export default function ChatPanel() {
         model: modelConfig.model,
         baseUrl: modelConfig.baseUrl,
         contextMax: modelConfig.contextWindow || 64000,
-        commandPrompt: command?.systemPrompt,
+        commandPrompt,
         mode,
         providerMultimodal: providerSupportsVision,
       });

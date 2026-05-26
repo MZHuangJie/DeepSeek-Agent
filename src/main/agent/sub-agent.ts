@@ -6,6 +6,7 @@ import { getSubAgentTools, getToolSchemas } from './tools';
 import { BrowserWindow } from 'electron';
 import { errorLog, log } from '../logger';
 import { getSetting } from '../db/settings';
+import { resolveImageModelConfig } from '../services/image-model-config';
 import { buildVisionToolContext } from './vision-config';
 
 export type SubAgentType = 'explore' | 'analyze' | 'implement' | 'review';
@@ -565,7 +566,7 @@ ${dirHint}
           try {
             const args = JSON.parse(tc.arguments || '{}');
             const imageModelRaw = getSetting('imageModel');
-            const imageModelCfg = imageModelRaw ? JSON.parse(imageModelRaw) : null;
+            const imageModelConfig = resolveImageModelConfig(imageModelRaw, apiKey);
 
             const toolCtx: ToolContext = {
               apiKey,
@@ -573,11 +574,7 @@ ${dirHint}
               contextMax,
               subAgentManager: undefined as any, // 子代理不能再派子代理
               projectDir,
-              imageModelConfig: imageModelCfg?.enabled ? {
-                baseUrl: imageModelCfg.baseUrl,
-                model: imageModelCfg.model,
-                apiKey: imageModelCfg.apiKey,
-              } : undefined,
+              imageModelConfig,
               visionModelConfig: buildVisionToolContext(modelConfig, apiKey, false),
             };
             toolResult = await tool.execute(args, toolCtx);

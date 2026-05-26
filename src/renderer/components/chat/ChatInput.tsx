@@ -7,6 +7,7 @@ import PluginManager from '../plugins/PluginManager';
 import { usePluginStore } from '../../stores/plugin';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
+import { useRoleplayStore } from '../../stores/roleplay';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
 import Dropdown, { DropdownItem, useDropdownNav, useFocusedItemRef } from './Dropdown';
 import shared from '../../styles/components.module.css';
@@ -48,8 +49,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const activeModel = models.find(m => m.id === activeModelId) ?? models[0];
   const { mode, setMode } = useModeStore();
   const activeMode = MODES.find(m => m.id === mode) ?? MODES[0];
+  const activeCharacter = useRoleplayStore(s => s.getActiveCharacter());
 
   useEffect(() => { loadInstalled(); }, []);
+  useEffect(() => {
+    if (mode === 'roleplay') void useRoleplayStore.getState().loadAll();
+  }, [mode]);
 
   const pluginCommands: Command[] = useMemo(() =>
     installedPlugins.map(p => ({
@@ -367,6 +372,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                 </Dropdown>
               )}
             </div>
+
+            {mode === 'roleplay' && activeCharacter && (
+              <span className={styles.characterChip} title="当前扮演角色">
+                {activeCharacter.name}
+              </span>
+            )}
           </div>
 
           <div className={styles.toolbarRight}>

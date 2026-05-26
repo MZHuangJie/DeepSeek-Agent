@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { deriveFallbackSessionTitle, extractPlainUserText } from '../utils/sessionTitle';
+import { useRoleplayStore } from './roleplay';
+import { useModeStore } from './mode';
+
+let sessionCounter = 0;
 
 export interface Message {
   id: string;
@@ -26,6 +30,8 @@ export interface Session {
   messages: Message[];
   /** 首轮对话结束后需生成摘要标题 */
   titlePending?: boolean;
+  /** 角色扮演：绑定的角色 ID */
+  characterId?: string;
 }
 
 interface ChatState {
@@ -41,14 +47,33 @@ interface ChatState {
   updateLastAssistant: (update: Partial<Message>) => void;
   newAssistantMessage: () => void;
   updateSessionTitle: (id: string, title: string, titlePending?: boolean) => void;
+  setSessionCharacter: (characterId: string | null) => void;
 }
 
-let sessionCounter = 0;
+function parseSessionPayload(raw: string): { messages: Message[]; characterId?: string } {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return { messages: parsed };
+    if (parsed && Array.isArray(parsed.messages)) {
+      return { messages: parsed.messages, characterId: parsed.characterId };
+    }
+  } catch { /* fall through */ }
+  return { messages: [] };
+}
 
-function persist(sessions: Session[]) {
-  for (const s of sessions) {
-    window.api.sessions.save(s.id, s.title, JSON.stringify(s.messages));
-  }
+function serializeSessionPayload(session: Session): string {
+  return JSON.stringify({
+    messages: session.messages,
+    characterId: session.characterId,
+  });
+}
+
+function persistSession(session: Session) {
+  window.api.sessions.save(session.id, session.title, serializeSessionPayload(session));
+}
+
+function persistAll(sessions: Session[]) {
+  for (const s of sessions) persistSession(s);
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -60,13 +85,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const raw = await window.api.sessions.loadAll();
       if (raw && Array.isArray(raw)) {
-        const sessions: Session[] = raw.map((r: any) => ({
-          id: r.id,
-          title: r.title,
-          messages: (() => {
-            try { return JSON.parse(r.messages); } catch { return []; }
-          })(),
-        }));
+        const sessions: Session[] = raw.map((r: any) => {
+          const payload = parseSessionPayload(r.messages);
+          return {
+            id: r.id,
+            title: r.title,
+            messages: payload.messages,
+            characterId: payload.characterId,
+          };
+        });
         if (sessions.length > 0) {
           const maxCounter = sessions.reduce((max, s) => {
             const match = s.title.match(/会话 #(\d+)/);
@@ -89,19 +116,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   createSession: () => {
     sessionCounter++;
+    const activeCharacterId = useRoleplayStore.getState().activeCharacterId;
     const session: Session = {
       id: `session-${Date.now()}`,
       title: `会话 #${sessionCounter}`,
       messages: [],
+      characterId: activeCharacterId || undefined,
     };
     set(s => ({
       sessions: [session, ...s.sessions],
       activeSessionId: session.id,
     }));
-    window.api.sessions.save(session.id, session.title, '[]');
+    persistSession(session);
   },
 
-  switchSession: (id) => set({ activeSessionId: id }),
+  switchSession: (id) => {
+    const session = get().sessions.find(s => s.id === id);
+    set({ activeSessionId: id });
+    if (session?.characterId) {
+      void useRoleplayStore.getState().setActiveCharacter(session.characterId);
+      useModeStore.getState().setMode('roleplay');
+    }
+  },
 
   deleteSession: (id) => {
     window.api.sessions.delete(id);
@@ -133,13 +169,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
       : newSessions;
     set({ sessions: ordered });
-    if (!isStreaming) persist(ordered);
+    if (!isStreaming) persistAll(ordered);
   },
 
   setStreaming: (v) => {
     const wasStreaming = get().isStreaming;
     set({ isStreaming: v });
-    if (wasStreaming && !v) persist(get().sessions);
+    if (wasStreaming && !v) persistAll(get().sessions);
   },
 
   newAssistantMessage: () => {
@@ -170,7 +206,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
       : newSessions;
     set({ sessions: ordered });
-    if (!isStreaming) persist(ordered);
+    if (!isStreaming) persistAll(ordered);
   },
 
   updateSessionTitle: (id, title, titlePending = false) => {
@@ -183,10 +219,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ...newSessions.filter(s => s.id !== id),
     ];
     set({ sessions: ordered });
-    if (!isStreaming) persist(ordered);
+    if (!isStreaming) persistAll(ordered);
     else {
       const session = ordered.find(s => s.id === id);
-      if (session) window.api.sessions.save(session.id, session.title, JSON.stringify(session.messages));
+      if (session) persistSession(session);
+    }
+  },
+
+  setSessionCharacter: (characterId) => {
+    const { activeSessionId, sessions, isStreaming } = get();
+    if (!activeSessionId) return;
+    const newSessions = sessions.map(s =>
+      s.id === activeSessionId
+        ? { ...s, characterId: characterId || undefined }
+        : s,
+    );
+    set({ sessions: newSessions });
+    if (!isStreaming) persistAll(newSessions);
+    else {
+      const session = newSessions.find(s => s.id === activeSessionId);
+      if (session) persistSession(session);
     }
   },
 }));

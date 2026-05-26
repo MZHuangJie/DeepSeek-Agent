@@ -15,6 +15,7 @@ interface Props {
   modifiedLabel?: string;
   height?: string;
   inline?: boolean;
+  fill?: boolean;
 }
 
 export default function DiffView({
@@ -24,7 +25,8 @@ export default function DiffView({
   originalLabel,
   modifiedLabel,
   height = '240px',
-  inline = true,
+  inline = false,
+  fill = false,
 }: Props) {
   const [monacoError, setMonacoError] = useState<string | null>(null);
 
@@ -44,7 +46,13 @@ export default function DiffView({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height, minHeight: height }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: fill ? '100%' : height,
+      minHeight: fill ? 0 : height,
+      flex: fill ? 1 : undefined,
+    }}>
       {(originalLabel || modifiedLabel) && (
         <div style={{
           display: 'flex',
@@ -70,10 +78,13 @@ export default function DiffView({
             fontSize: 12,
             automaticLayout: true,
             renderSideBySide: !inline,
+            enableSplitViewResizing: true,
+            ignoreTrimWhitespace: false,
             scrollBeyondLastLine: false,
-            renderOverviewRuler: false,
+            renderOverviewRuler: true,
             lineNumbers: 'on',
             folding: false,
+            diffAlgorithm: 'advanced',
           }}
           height="100%"
         />

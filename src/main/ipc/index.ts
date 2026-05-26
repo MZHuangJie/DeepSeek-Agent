@@ -7,6 +7,7 @@ import { setupWindowHandlers } from './window';
 import { setupPluginHandlers } from './plugin';
 import { setupBrowserHandlers } from './browser';
 import { setupGitHandlers } from './git';
+import { setupRoleplayHandlers } from './roleplay';
 
 export function registerAllHandlers() {
   setupWindowHandlers();
@@ -17,4 +18,5 @@ export function registerAllHandlers() {
   setupPluginHandlers();
   setupBrowserHandlers();
   setupGitHandlers();
+  setupRoleplayHandlers();
 }

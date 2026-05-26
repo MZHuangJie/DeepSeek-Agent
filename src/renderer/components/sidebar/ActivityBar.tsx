@@ -4,7 +4,7 @@ import barStyles from './ActivityBar.module.css';
 
 export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify' | 'git';
 
-export type SystemMenuAction = 'theme' | 'terminal' | 'model' | 'about';
+export type SystemMenuAction = 'theme' | 'terminal' | 'model' | 'characters' | 'about';
 
 interface Props {
   openView: PanelView | null;
@@ -25,6 +25,7 @@ const SYSTEM_MENU: Array<{ id: SystemMenuAction; label: string }> = [
   { id: 'theme', label: '主题设置' },
   { id: 'terminal', label: '打开终端' },
   { id: 'model', label: '模型设置' },
+  { id: 'characters', label: '角色管理' },
   { id: 'about', label: '关于 DeepSeek-Agent' },
 ];
 
@@ -83,7 +84,7 @@ export default function ActivityBar({ openView, onToggle, onSystemAction }: Prop
         <BarBtn
           key={item.id}
           icon={item.icon}
-          glyph={item.glyph}
+          glyph={'glyph' in item ? item.glyph : undefined}
           title={item.label}
           active={openView === item.id}
           onClick={() => onToggle(item.id)}

@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { validateExternalUrl } from '../../security/url';
 import { webScreenshot } from '../../services/browser';
+import { getAgentImagesDir, toDisplayPath } from '../../services/agent-images';
 import type { ToolDef } from './index';
 
 export function createWebScreenshotTool(): ToolDef {
@@ -15,11 +16,10 @@ export function createWebScreenshotTool(): ToolDef {
       const url = args.url as string;
       validateExternalUrl(url);
       const base64 = await webScreenshot(url, context?.signal);
-      const imgDir = path.join(context?.projectDir || process.cwd(), '.deepseek-agent-images');
-      fs.mkdirSync(imgDir, { recursive: true });
+      const imgDir = getAgentImagesDir(context?.projectDir || process.cwd());
       const imgFile = path.join(imgDir, `screenshot-${Date.now()}.png`);
       fs.writeFileSync(imgFile, Buffer.from(base64.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
-      return JSON.stringify({ url, screenshot: imgFile.replace(/\\/g, '/'), hint: '使用 markdown 图片语法展示：![网页截图](路径)' });
+      return JSON.stringify({ url, screenshot: toDisplayPath(imgFile), hint: '使用 markdown 图片语法展示：![网页截图](路径)' });
     },
   };
 }

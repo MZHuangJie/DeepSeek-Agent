@@ -1,6 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import DiffView from '../editor/DiffView';
 import GitGraph from '../git/GitGraph';
+import {
+  GitIconArrowDown,
+  GitIconArrowUp,
+  GitIconCheck,
+  GitIconChevronDown,
+  GitIconChevronRight,
+  GitIconClose,
+  GitIconMinus,
+  GitIconMore,
+  GitIconPlus,
+  GitIconRebase,
+  GitIconRefresh,
+  GitIconStageModified,
+  GitIconSync,
+  GitRowActionIcon,
+  type GitRowActionKind,
+} from '../git/GitIcons';
 import { useFilesStore } from '../../stores/files';
 import { getFileIconInfo } from '../../utils/icons';
 import styles from './GitPanel.module.css';
@@ -85,18 +101,6 @@ function displayStatus(status: string): { letter: string; color: string } {
   return { letter: 'M', color: '#fbbf24' };
 }
 
-function getLanguage(name: string): string {
-  if (name.endsWith('.ts') || name.endsWith('.tsx')) return 'typescript';
-  if (name.endsWith('.js') || name.endsWith('.jsx')) return 'javascript';
-  if (name.endsWith('.py')) return 'python';
-  if (name.endsWith('.json')) return 'json';
-  if (name.endsWith('.md')) return 'markdown';
-  if (name.endsWith('.css')) return 'css';
-  if (name.endsWith('.html')) return 'html';
-  if (name.endsWith('.yml') || name.endsWith('.yaml')) return 'yaml';
-  return 'text';
-}
-
 function CollapsibleSection({
   title,
   count,
@@ -116,7 +120,9 @@ function CollapsibleSection({
     <div className={styles.section}>
       <div className={styles.sectionHeader} onClick={onToggle}>
         <div className={styles.sectionHeaderLeft}>
-          <span className={styles.chevron}>{collapsed ? '▸' : '▾'}</span>
+          <span className={styles.chevron}>
+            {collapsed ? <GitIconChevronRight size={12} /> : <GitIconChevronDown size={12} />}
+          </span>
           <span className={styles.sectionTitle}>{title}</span>
           <span className={styles.sectionCount}>({count})</span>
         </div>
@@ -132,7 +138,7 @@ function CollapsibleSection({
 }
 
 export default function GitPanel() {
-  const { currentWorkspace, openFile } = useFilesStore();
+  const { currentWorkspace, openFile, openDiffTab, refreshOpenDiffTabs } = useFilesStore();
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [branches, setBranches] = useState<GitBranchInfo[]>([]);
   const [error, setError] = useState('');
@@ -142,14 +148,6 @@ export default function GitPanel() {
   const [commitMessage, setCommitMessage] = useState('');
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [selectedStaged, setSelectedStaged] = useState(false);
-  const [diffContent, setDiffContent] = useState<{
-    original: string;
-    modified: string;
-    originalLabel: string;
-    modifiedLabel: string;
-  } | null>(null);
-  const [diffLoading, setDiffLoading] = useState(false);
-  const [diffError, setDiffError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [syncMenuOpen, setSyncMenuOpen] = useState(false);
   const [showCreateBranch, setShowCreateBranch] = useState(false);
@@ -187,13 +185,14 @@ export default function GitPanel() {
         const br = await window.api.git.branches();
         if (br.success) setBranches(br.branches);
         setGraphRefreshToken(v => v + 1);
+        await refreshOpenDiffTabs();
       } else {
         setBranches([]);
       }
     } finally {
       setLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, refreshOpenDiffTabs]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
@@ -210,29 +209,6 @@ export default function GitPanel() {
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
   }, [menuOpen, syncMenuOpen]);
-
-  useEffect(() => {
-    if (!selectedPath) {
-      setDiffContent(null);
-      setDiffError('');
-      setDiffLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setDiffLoading(true);
-    setDiffError('');
-    void (async () => {
-      const res = await window.api.git.diffContent({ path: selectedPath, staged: selectedStaged });
-      if (cancelled) return;
-      setDiffLoading(false);
-      if (res.success) setDiffContent(res.content);
-      else {
-        setDiffContent(null);
-        setDiffError(res.error);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedPath, selectedStaged, status]);
 
   const run = async (label: string, fn: () => Promise<{ success: boolean; error?: string; output?: string; result?: { pull: string; push: string }; hash?: string }>) => {
     setBusy(label);
@@ -285,10 +261,19 @@ export default function GitPanel() {
     openFile(toAbsPath(currentWorkspace, rel), basename(rel));
   };
 
+  const openDiff = async (rel: string, staged: boolean) => {
+    setSelectedPath(rel);
+    setSelectedStaged(staged);
+    const res = await openDiffTab(rel, staged);
+    if (!res.success) {
+      setError(res.error || '无法加载 Diff');
+    }
+  };
+
   const renderFileRow = (
     file: GitFileEntry,
     staged: boolean,
-    opts: { hoverAction: string; onAction: (p: string) => void; secondary?: string; onSecondary?: (p: string) => void },
+    opts: { primary: GitRowActionKind; onAction: (p: string) => void; secondary?: GitRowActionKind; onSecondary?: (p: string) => void },
   ) => {
     const active = selectedPath === file.path && selectedStaged === staged;
     const icon = getFileIconInfo(basename(file.path));
@@ -300,43 +285,41 @@ export default function GitPanel() {
           <span
             className={styles.fileName}
             title={file.path}
-            onClick={() => { setSelectedPath(file.path); setSelectedStaged(staged); }}
+            onClick={() => { void openDiff(file.path, staged); }}
             onDoubleClick={() => openInEditor(file.path)}
           >
             {basename(file.path)}
           </span>
           <div className={styles.fileEnd}>
-            <button type="button" className={styles.hoverAction} title={opts.hoverAction} onClick={() => opts.onAction(file.path)}>
-              {opts.hoverAction}
+            <button
+              type="button"
+              className={`${styles.rowAction} ${opts.primary === 'stage' ? styles.rowActionStage : styles.rowActionSecondary}`}
+              title={opts.primary === 'stage' ? 'Stage' : opts.primary === 'unstage' ? 'Unstage' : opts.primary === 'open' ? 'Open' : 'Action'}
+              onClick={() => opts.onAction(file.path)}
+            >
+              <GitRowActionIcon kind={opts.primary} />
             </button>
             {opts.secondary && opts.onSecondary && (
-              <button type="button" className={styles.hoverAction} title={opts.secondary} onClick={() => opts.onSecondary!(file.path)}>
-                {opts.secondary}
+              <button
+                type="button"
+                className={`${styles.rowAction} ${styles.rowActionSecondary}`}
+                title={opts.secondary === 'discard' ? 'Discard Changes' : 'Action'}
+                onClick={() => opts.onSecondary!(file.path)}
+              >
+                <GitRowActionIcon kind={opts.secondary} />
               </button>
             )}
+            <button
+              type="button"
+              className={`${styles.rowAction} ${styles.rowActionSecondary}`}
+              title="Open Diff"
+              onClick={() => { void openDiff(file.path, staged); }}
+            >
+              <GitRowActionIcon kind="diff" />
+            </button>
             <span className={styles.statusLetter} style={{ color: st.color }}>{st.letter}</span>
           </div>
         </div>
-        {active && (
-          <div className={styles.diffWrap}>
-            {diffLoading && <div className={styles.diffPlaceholder}>加载 Diff…</div>}
-            {!diffLoading && diffError && <div className={styles.diffPlaceholder}>{diffError}</div>}
-            {!diffLoading && !diffError && diffContent && diffContent.original === diffContent.modified && (
-              <div className={styles.diffPlaceholder}>无差异</div>
-            )}
-            {!diffLoading && !diffError && diffContent && diffContent.original !== diffContent.modified && (
-              <DiffView
-                original={diffContent.original}
-                modified={diffContent.modified}
-                language={getLanguage(basename(file.path))}
-                originalLabel={diffContent.originalLabel}
-                modifiedLabel={diffContent.modifiedLabel}
-                height="220px"
-                inline
-              />
-            )}
-          </div>
-        )}
       </React.Fragment>
     );
   };
@@ -359,9 +342,13 @@ export default function GitPanel() {
       <div className={styles.header}>
         <span className={styles.headerTitle}>Source Control (Git)</span>
         <div className={styles.headerActions}>
-          <button type="button" className={styles.iconBtn} title="Refresh" disabled={disabled} onClick={() => void refresh()}>↻</button>
+          <button type="button" className={styles.iconBtn} title="Refresh" disabled={disabled} onClick={() => void refresh()}>
+            <GitIconRefresh />
+          </button>
           <div ref={menuRef} className={styles.menuAnchor}>
-            <button type="button" className={styles.iconBtn} title="More Actions" disabled={disabled} onClick={() => setMenuOpen(v => !v)}>⋯</button>
+            <button type="button" className={styles.iconBtn} title="More Actions" disabled={disabled} onClick={() => setMenuOpen(v => !v)}>
+              <GitIconMore />
+            </button>
             {menuOpen && (
               <div className={styles.menu}>
                 <div className={styles.menuItem} onClick={() => void run('publish', () => window.api.git.publish())}>Publish Branch</div>
@@ -378,6 +365,8 @@ export default function GitPanel() {
           </div>
         </div>
       </div>
+
+      {toast && <div className={styles.toast}>{toast}</div>}
 
       {(busy || loading) && (
         <div className={styles.busy}>{busy ? getBusyText(busy) : '正在刷新状态…'}</div>
@@ -396,33 +385,49 @@ export default function GitPanel() {
       )}
 
       {status?.isRepo && (
-        <>
+        <div className={styles.repoContent}>
+          <div className={styles.fixedTop}>
           <div className={styles.block}>
-            <div className={styles.blockLabel}>
-              <span>Branches</span>
-              {!showCreateBranch ? (
-                <button type="button" className={styles.linkBtn} onClick={() => setShowCreateBranch(true)}>+ Create branch</button>
-              ) : (
-                <button type="button" className={styles.linkBtn} onClick={() => { setShowCreateBranch(false); setNewBranch(''); }}>✕</button>
+            <div className={styles.blockLabel}>Branches</div>
+            <div className={styles.branchRow}>
+              <select
+                className={styles.branchSelect}
+                value={branches.find(b => b.current)?.name || status.branch}
+                disabled={disabled}
+                onChange={e => void handleCheckout(e.target.value)}
+              >
+                {branches.filter(b => !b.remote).map(b => (
+                  <option key={b.name} value={b.name}>{b.name}</option>
+                ))}
+                {branches.filter(b => b.remote).length > 0 && (
+                  <optgroup label="Remote">
+                    {branches.filter(b => b.remote).map(b => (
+                      <option key={b.name} value={b.name}>{b.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              <button
+                type="button"
+                className={`${styles.createBranchBtn} ${styles.btnWithIcon}`}
+                disabled={disabled}
+                onClick={() => setShowCreateBranch(v => !v)}
+              >
+                <GitIconPlus size={12} />
+                <span>Create branch</span>
+              </button>
+              {showCreateBranch && (
+                <button
+                  type="button"
+                  className={styles.branchCloseBtn}
+                  title="Cancel"
+                  disabled={disabled}
+                  onClick={() => { setShowCreateBranch(false); setNewBranch(''); }}
+                >
+                  <GitIconClose size={12} />
+                </button>
               )}
             </div>
-            <select
-              className={styles.branchSelect}
-              value={branches.find(b => b.current)?.name || status.branch}
-              disabled={disabled}
-              onChange={e => void handleCheckout(e.target.value)}
-            >
-              {branches.filter(b => !b.remote).map(b => (
-                <option key={b.name} value={b.name}>{b.name}</option>
-              ))}
-              {branches.filter(b => b.remote).length > 0 && (
-                <optgroup label="Remote">
-                  {branches.filter(b => b.remote).map(b => (
-                    <option key={b.name} value={b.name}>{b.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
             {showCreateBranch && (
               <div className={styles.createBranchRow}>
                 <input
@@ -446,26 +451,38 @@ export default function GitPanel() {
           </div>
 
           <div className={styles.block}>
-            <div className={styles.syncMenuWrap} ref={syncMenuRef}>
-              <div className={styles.syncRow}>
-                <button type="button" className={styles.syncPrimary} disabled={disabled} onClick={() => void run('sync', () => window.api.git.sync())}>
-                  ⟳ Sync
-                </button>
-                <button type="button" className={styles.syncDrop} disabled={disabled} onClick={() => setSyncMenuOpen(v => !v)}>▾</button>
-              </div>
-              {syncMenuOpen && (
-                <div className={styles.syncMenu}>
-                  <div className={styles.menuItem} onClick={() => void run('sync', () => window.api.git.sync())}>Sync (Pull + Push)</div>
-                  <div className={styles.menuItem} onClick={() => void run('pull', () => window.api.git.pull())}>Pull</div>
-                  <div className={styles.menuItem} onClick={() => void run('push', () => window.api.git.push())}>Push</div>
-                  <div className={styles.menuItem} onClick={() => void run('fetch', () => window.api.git.fetch())}>Fetch</div>
+            <div className={styles.actionRow}>
+              <div className={styles.syncGroup} ref={syncMenuRef}>
+                <div className={styles.syncRow}>
+                  <button type="button" className={`${styles.syncPrimary} ${styles.btnWithIcon}`} disabled={disabled} onClick={() => void run('sync', () => window.api.git.sync())}>
+                    <GitIconSync size={12} />
+                    <span>Sync</span>
+                  </button>
+                  <button type="button" className={styles.syncDrop} disabled={disabled} onClick={() => setSyncMenuOpen(v => !v)} aria-label="More sync actions">
+                    <GitIconChevronDown size={10} />
+                  </button>
                 </div>
-              )}
-            </div>
-            <div className={styles.secondaryActions}>
-              <button type="button" className={styles.secondaryBtn} disabled={disabled} onClick={() => void run('pull', () => window.api.git.pull())}>Pull</button>
-              <button type="button" className={styles.secondaryBtn} disabled={disabled} onClick={() => void run('fetch', () => window.api.git.fetch())}>Fetch</button>
-              <button type="button" className={styles.secondaryBtn} disabled={disabled} onClick={() => void run('rebase', () => window.api.git.pullRebase())}>Rebase</button>
+                {syncMenuOpen && (
+                  <div className={styles.syncMenu}>
+                    <div className={styles.menuItem} onClick={() => void run('sync', () => window.api.git.sync())}>Sync (Pull + Push)</div>
+                    <div className={styles.menuItem} onClick={() => void run('pull', () => window.api.git.pull())}>Pull</div>
+                    <div className={styles.menuItem} onClick={() => void run('push', () => window.api.git.push())}>Push</div>
+                    <div className={styles.menuItem} onClick={() => void run('fetch', () => window.api.git.fetch())}>Fetch</div>
+                  </div>
+                )}
+              </div>
+              <button type="button" className={`${styles.actionBtn} ${styles.btnWithIcon}`} disabled={disabled} onClick={() => void run('pull', () => window.api.git.pull())}>
+                <GitIconArrowDown size={12} />
+                <span>Pull</span>
+              </button>
+              <button type="button" className={`${styles.actionBtn} ${styles.btnWithIcon}`} disabled={disabled} onClick={() => void run('fetch', () => window.api.git.fetch())}>
+                <GitIconArrowDown size={12} />
+                <span>Fetch</span>
+              </button>
+              <button type="button" className={`${styles.actionBtn} ${styles.btnWithIcon}`} disabled={disabled} onClick={() => void run('rebase', () => window.api.git.pullRebase())}>
+                <GitIconRebase size={12} />
+                <span>Rebase</span>
+              </button>
             </div>
             <div className={styles.aheadBehind}>
               Ahead/Behind:
@@ -492,28 +509,31 @@ export default function GitPanel() {
             <div className={styles.commitPushRow}>
               <button
                 type="button"
-                className={styles.commitBtn}
+                className={`${styles.commitBtn} ${styles.btnWithIcon}`}
                 disabled={disabled || !commitMessage.trim() || status.staged.length === 0}
                 onClick={() => void handleCommit()}
               >
-                ✓ Commit
+                <GitIconCheck size={12} />
+                <span>Commit</span>
               </button>
               <button
                 type="button"
-                className={styles.pushBtn}
+                className={`${styles.pushBtn} ${styles.btnWithIcon}`}
                 disabled={disabled}
                 onClick={() => void run('push', () => window.api.git.push())}
               >
-                ↑ Push
+                <GitIconArrowUp size={12} />
+                <span>Push</span>
               </button>
             </div>
+          </div>
           </div>
 
           <div className={styles.body}>
             {status.conflicts.length > 0 && (
               <CollapsibleSection title="Merge Conflicts" count={status.conflicts.length} collapsed={false} onToggle={() => {}}>
                 {status.conflicts.map(file => renderFileRow(file, false, {
-                  hoverAction: '↗',
+                  primary: 'open',
                   onAction: (p) => openInEditor(p),
                 }))}
               </CollapsibleSection>
@@ -525,16 +545,18 @@ export default function GitPanel() {
               collapsed={changesCollapsed}
               onToggle={() => setChangesCollapsed(v => !v)}
               tools={changesCount > 0 ? (
-                <button type="button" className={styles.toolIconBtn} title="Stage All" disabled={disabled} onClick={() => void run('stage-all', () => window.api.git.stageAll())}>+</button>
+                <button type="button" className={styles.toolIconBtn} title="Stage All" disabled={disabled} onClick={() => void run('stage-all', () => window.api.git.stageAll())}>
+                  <GitIconPlus size={12} />
+                </button>
               ) : undefined}
             >
               {[...status.unstaged, ...status.untracked].map(file => renderFileRow(file, false, {
-                hoverAction: '+',
+                primary: 'stage',
                 onAction: (p) => void runPaths(window.api.git.stage, [p]),
-                secondary: '↶',
+                secondary: 'discard',
                 onSecondary: (p) => void runPaths(window.api.git.discard, [p]),
               }))}
-              {changesCount === 0 && <div className={styles.empty}>No changes</div>}
+              {changesCount === 0 && <div className={styles.sectionEmpty}>No changes</div>}
             </CollapsibleSection>
 
             <CollapsibleSection
@@ -542,15 +564,22 @@ export default function GitPanel() {
               count={status.staged.length}
               collapsed={stagedCollapsed}
               onToggle={() => setStagedCollapsed(v => !v)}
-              tools={status.staged.length > 0 ? (
-                <button type="button" className={styles.toolIconBtn} title="Unstage All" disabled={disabled} onClick={() => void run('unstage-all', () => window.api.git.unstageAll())}>−</button>
-              ) : undefined}
+              tools={(
+                <div className={styles.sectionLegend}>
+                  <span className={`${styles.legendIcon} ${styles.rowActionStage}`}><GitIconPlus size={10} /></span>
+                  <span className={styles.legendIcon}><GitIconStageModified size={10} /></span>
+                  <button type="button" className={styles.toolIconBtn} title="Unstage All" disabled={disabled || status.staged.length === 0} onClick={() => void run('unstage-all', () => window.api.git.unstageAll())}>
+                    <GitIconMinus size={12} />
+                  </button>
+                  <span className={styles.legendStatus}>M</span>
+                </div>
+              )}
             >
               {status.staged.map(file => renderFileRow(file, true, {
-                hoverAction: '−',
+                primary: 'unstage',
                 onAction: (p) => void runPaths(window.api.git.unstage, [p]),
               }))}
-              {status.staged.length === 0 && <div className={styles.empty}>No staged changes</div>}
+              {status.staged.length === 0 && <div className={styles.sectionEmpty}>No staged changes</div>}
             </CollapsibleSection>
           </div>
 
@@ -561,10 +590,9 @@ export default function GitPanel() {
             onPush={() => void run('push', () => window.api.git.push())}
             onFetch={() => void run('fetch', () => window.api.git.fetch())}
           />
-        </>
+        </div>
       )}
 
-      {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   );
 }

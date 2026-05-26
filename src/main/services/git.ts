@@ -206,7 +206,7 @@ function normalizeRepoPath(cwd: string, filePath: string): string {
   if (resolved !== base && !resolved.startsWith(base + path.sep)) {
     throw new GitError(`路径不在仓库内: ${filePath}`);
   }
-  return path.relative(cwd, resolved) || '.';
+  return path.relative(cwd, resolved).replace(/\\/g, '/') || '.';
 }
 
 export async function initGitRepo(cwd: string): Promise<void> {
@@ -262,11 +262,11 @@ export interface GitFileDiffContent {
   modifiedLabel: string;
 }
 
-async function readGitBlob(cwd: string, spec: string): Promise<string> {
+async function readGitBlob(cwd: string, spec: string): Promise<string | null> {
   try {
     return await runGit(cwd, ['show', spec]);
   } catch {
-    return '';
+    return null;
   }
 }
 
@@ -281,15 +281,16 @@ export async function getGitFileDiffContent(
 
   if (staged) {
     return {
-      original: await readGitBlob(cwd, `HEAD:${rel}`),
-      modified: await readGitBlob(cwd, `:${rel}`),
+      original: (await readGitBlob(cwd, `HEAD:${rel}`)) ?? '',
+      modified: (await readGitBlob(cwd, `:${rel}`)) ?? '',
       originalLabel: 'HEAD',
       modifiedLabel: 'Staged',
     };
   }
 
   const indexContent = await readGitBlob(cwd, `:${rel}`);
-  const original = indexContent || await readGitBlob(cwd, `HEAD:${rel}`);
+  const headContent = await readGitBlob(cwd, `HEAD:${rel}`);
+  const original = indexContent ?? headContent ?? '';
   let modified = '';
   if (fs.existsSync(abs)) {
     modified = fs.readFileSync(abs, 'utf-8');
@@ -298,7 +299,7 @@ export async function getGitFileDiffContent(
   return {
     original,
     modified,
-    originalLabel: indexContent ? 'Index' : 'HEAD',
+    originalLabel: indexContent != null ? 'Index' : 'HEAD',
     modifiedLabel: 'Working Tree',
   };
 }

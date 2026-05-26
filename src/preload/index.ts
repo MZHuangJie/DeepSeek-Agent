@@ -190,6 +190,32 @@ const api = {
       ipcRenderer.send('git:askpass-response', payload);
     },
   },
+  roleplay: {
+    listTemplates: () => ipcRenderer.invoke('roleplay:listTemplates'),
+    saveTemplate: (payload: Record<string, unknown>) => ipcRenderer.invoke('roleplay:saveTemplate', payload),
+    deleteTemplate: (id: string) => ipcRenderer.invoke('roleplay:deleteTemplate', id),
+    listCharacters: () => ipcRenderer.invoke('roleplay:listCharacters'),
+    saveCharacter: (payload: Record<string, unknown>) => ipcRenderer.invoke('roleplay:saveCharacter', payload),
+    deleteCharacter: (id: string) => ipcRenderer.invoke('roleplay:deleteCharacter', id),
+    createFromTemplate: (templateId: string) => ipcRenderer.invoke('roleplay:createFromTemplate', templateId),
+    setActiveCharacter: (id: string | null) => ipcRenderer.invoke('roleplay:setActiveCharacter', id),
+    pickPortrait: (ownerId: string) => ipcRenderer.invoke('roleplay:pickPortrait', ownerId),
+    generatePortrait: async (
+      ownerId: string,
+      payload: Record<string, unknown>,
+      onProgress?: (stage: 'prompt' | 'image') => void,
+    ) => {
+      const handler = (_: unknown, data: { stage: 'prompt' | 'image' }) => {
+        onProgress?.(data.stage);
+      };
+      if (onProgress) ipcRenderer.on('roleplay:portrait-progress', handler);
+      try {
+        return await ipcRenderer.invoke('roleplay:generatePortrait', ownerId, payload);
+      } finally {
+        if (onProgress) ipcRenderer.removeListener('roleplay:portrait-progress', handler);
+      }
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { generateImage, ImageModelConfig } from '../../services/imageGen';
+import { getAgentImagesDir, toDisplayPath } from '../../services/agent-images';
 import type { ToolDef } from './index';
 
 export function createGenerateImageTool(): ToolDef {
@@ -26,11 +27,10 @@ export function createGenerateImageTool(): ToolDef {
       for (let i = 0; i < r.urls.length; i++) {
         const u = r.urls[i];
         if (u.startsWith('data:')) {
-          const dir = path.join(context?.projectDir || process.cwd(), '.deepseek-agent-images');
-          fs.mkdirSync(dir, { recursive: true });
+          const dir = getAgentImagesDir(context?.projectDir || process.cwd());
           const f = path.join(dir, `img-${Date.now()}-${i}.png`);
           fs.writeFileSync(f, Buffer.from(u.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
-          displayUrls.push(f.replace(/\\/g, '/'));
+          displayUrls.push(toDisplayPath(f));
         } else { displayUrls.push(u); }
       }
       return JSON.stringify({ urls: displayUrls, revisedPrompt: r.revisedPrompt, hint: '使用 ![描述](路径) 展示图片' });
