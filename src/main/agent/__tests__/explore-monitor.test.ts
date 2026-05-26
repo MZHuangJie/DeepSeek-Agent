@@ -1,14 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { shouldContinueExplore, buildExploreNudge, buildExploreCompletionNudge } from '../explore-monitor';
 
-function makeState(overrides: Partial<{ readPercentage: number; unreadLen: number; readFileCount: number; totalFiles: number }> = {}) {
+function makeState(overrides: Partial<{ readPercentage: number; unreadLen: number; uniqueReadCount: number; totalFiles: number }> = {}) {
   return {
-    readFileCount: overrides.readFileCount ?? 5,
+    readCallCount: overrides.uniqueReadCount ?? 5,
+    uniqueReadCount: overrides.uniqueReadCount ?? 5,
     totalFiles: overrides.totalFiles ?? 50,
     readFiles: new Set<string>(),
     readPercentage: overrides.readPercentage ?? 10,
     unreadFiles: Array.from({ length: overrides.unreadLen ?? 45 }, (_, i) => `src/module${i}/file${i}.ts`),
     totalToolCalls: 3,
+    listCount: 1,
   };
 }
 
@@ -28,7 +30,7 @@ describe('shouldContinueExplore', () => {
 
 describe('buildExploreNudge', () => {
   it('should contain progress info', () => {
-    const state = makeState({ readFileCount: 5, totalFiles: 50, readPercentage: 10, unreadLen: 45 });
+    const state = makeState({ uniqueReadCount: 5, totalFiles: 50, readPercentage: 10, unreadLen: 45 });
     const msg = buildExploreNudge(state, 1, 50);
     expect(msg).toContain('进度检查');
     expect(msg).toContain('5/50');
@@ -41,7 +43,8 @@ describe('buildExploreNudge', () => {
       unreadFiles: ['src/main/file1.ts', 'src/main/file2.ts', 'src/renderer/file3.ts'],
       readPercentage: 10,
       totalFiles: 10,
-      readFileCount: 1,
+      uniqueReadCount: 1,
+      readCallCount: 3,
     };
     const msg = buildExploreNudge(state, 0, 50);
     expect(msg).toContain('src/main');

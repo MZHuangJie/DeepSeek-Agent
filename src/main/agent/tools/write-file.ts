@@ -3,7 +3,7 @@
 // 安全: 需要用户确认，路径防越界
 import fs from 'fs';
 import path from 'path';
-import { safeResolve } from './security';
+import { safeResolve, checkSensitiveFile } from './security';
 import type { ToolDef } from './index';
 
 export function createWriteFileTool(projectDir: string): ToolDef {
@@ -16,6 +16,7 @@ export function createWriteFileTool(projectDir: string): ToolDef {
     requiresConfirm: true,
     execute: async (args) => {
       const filePath = safeResolve(projectDir, args.path as string);
+      checkSensitiveFile(filePath, 'write');
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
       fs.writeFileSync(filePath, args.content as string, 'utf-8');
       return 'OK';

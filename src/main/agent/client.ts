@@ -3,6 +3,7 @@ import http from 'http';
 import type { ChatMessage } from './types';
 import type { Provider, ParseState, StreamCallbacks } from './providers/types';
 import { createParseState, selectProvider } from './providers';
+import { classifyApiError } from './errors';
 import { log } from '../logger';
 
 const httpsAgent = new https.Agent({ keepAlive: false });
@@ -164,9 +165,7 @@ export async function streamChat(
             clearTimers();
             let detail = errBuf.trim();
             try { const p = JSON.parse(detail); detail = p.error?.message || p.message || detail; } catch {}
-            const wrapped = new Error(`API ${status}: ${detail || res.statusMessage || '未知错误'}`);
-            wrapped.name = 'ApiError';
-            reject(wrapped);
+            reject(classifyApiError(status, detail || res.statusMessage || '未知错误'));
           });
           res.on('error', (err) => { clearTimers(); reject(unwrapNetworkError(err, url.hostname)); });
           return;

@@ -28,11 +28,11 @@ const SENSITIVE_NAMES = new Set([
 
 const SENSITIVE_EXTS = new Set(['.pem', '.key', '.pfx', '.p12', '.jks', '.keystore']);
 
-export function checkSensitiveFile(filePath: string): void {
+export function checkSensitiveFile(filePath: string, action: 'read' | 'write' = 'read'): void {
   const fileName = path.basename(filePath);
   const ext = path.extname(fileName);
   if (SENSITIVE_NAMES.has(fileName) || SENSITIVE_EXTS.has(ext)) {
-    throw new Error('读取敏感文件被拒绝');
+    throw new Error(`${action === 'read' ? '读取' : '写入'}敏感文件被拒绝`);
   }
 }
 
@@ -45,6 +45,12 @@ const DANGEROUS_COMMAND_PATTERNS = [
   /:\(\)\s*\{/,
   /\b(curl|wget)\b.+\|\s*(ba)?sh\b/i,
   /\bnc\s+-[e|l]\s/i, /\bncat\s+-[e|l]\s/i,
+  // Windows / PowerShell
+  /\bRemove-Item\b.*-Recurse\b/i,
+  /\b(Invoke-Expression|iex)\b/i,
+  /\bFormat-Volume\b/i,
+  /\bdel\s+\/[sfq]/i,
+  /\b(Invoke-WebRequest|iwr)\b.+\|\s*(iex|Invoke-Expression)\b/i,
 ];
 
 export function checkDangerousCommand(command: string): void {

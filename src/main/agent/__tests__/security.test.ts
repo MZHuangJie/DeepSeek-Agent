@@ -31,8 +31,12 @@ describe('safeResolve', () => {
 });
 
 describe('checkSensitiveFile', () => {
-  it('should reject .env files', () => {
-    expect(() => checkSensitiveFile('D:/project/.env')).toThrow('敏感文件');
+  it('should reject .env files for read', () => {
+    expect(() => checkSensitiveFile('D:/project/.env', 'read')).toThrow('敏感文件');
+  });
+
+  it('should reject .env files for write', () => {
+    expect(() => checkSensitiveFile('D:/project/.env', 'write')).toThrow('写入敏感文件');
   });
 
   it('should reject .pem files', () => {
@@ -69,5 +73,10 @@ describe('checkDangerousCommand', () => {
 
   it('should reject sudo commands', () => {
     expect(() => checkDangerousCommand('sudo rm /tmp/test')).toThrow('危险操作');
+  });
+
+  it('should reject PowerShell destructive commands', () => {
+    expect(() => checkDangerousCommand('Remove-Item -Recurse C:\\')).toThrow('危险操作');
+    expect(() => checkDangerousCommand('Invoke-Expression (Get-Content evil.ps1)')).toThrow('危险操作');
   });
 });

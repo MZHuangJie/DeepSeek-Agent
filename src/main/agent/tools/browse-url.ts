@@ -2,6 +2,7 @@
 // 参数: url(完整网址), useSystem(是否用系统浏览器，默认false=内置浏览器)
 // 使用场景: 用户要求查看网页时，先询问"用内置浏览器还是系统浏览器？"再调用
 import { shell } from 'electron';
+import { validateExternalUrl } from '../../security/url';
 import type { ToolDef } from './index';
 
 export function createBrowseUrlTool(): ToolDef {
@@ -18,7 +19,7 @@ export function createBrowseUrlTool(): ToolDef {
     },
     execute: async (args, context) => {
       const url = (args.url as string).trim();
-      if (!url.startsWith('http')) throw new Error('URL 必须以 http/https 开头');
+      validateExternalUrl(url);
       if (args.useSystem) {
         shell.openExternal(url);
         return `已在系统浏览器中打开: ${url}`;

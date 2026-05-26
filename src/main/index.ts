@@ -54,5 +54,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   infoLog('app', 'shutdown');
-  app.quit();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });

@@ -1,4 +1,5 @@
 import { BrowserWindow } from 'electron';
+import { validateExternalUrl } from '../security/url';
 
 interface BrowserResult {
   url: string;
@@ -7,6 +8,7 @@ interface BrowserResult {
 }
 
 export async function webFetch(url: string, signal?: AbortSignal): Promise<BrowserResult> {
+  const safeUrl = validateExternalUrl(url).href;
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -42,7 +44,7 @@ export async function webFetch(url: string, signal?: AbortSignal): Promise<Brows
         `);
         win.destroy();
         // 截取前 8000 字符
-        resolve({ url, title, text: text.slice(0, 8000) });
+        resolve({ url: safeUrl, title, text: text.slice(0, 8000) });
       } catch (err: any) {
         try { win.destroy(); } catch {}
         reject(err);
@@ -57,7 +59,7 @@ export async function webFetch(url: string, signal?: AbortSignal): Promise<Brows
     });
 
     try {
-      win.loadURL(url).catch((err) => {
+      win.loadURL(safeUrl).catch((err) => {
         clearTimeout(timeout);
         signal?.removeEventListener('abort', onAbort);
         try { win.destroy(); } catch {}
@@ -73,6 +75,7 @@ export async function webFetch(url: string, signal?: AbortSignal): Promise<Brows
 }
 
 export async function webScreenshot(url: string, signal?: AbortSignal): Promise<string> {
+  const safeUrl = validateExternalUrl(url).href;
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -117,7 +120,7 @@ export async function webScreenshot(url: string, signal?: AbortSignal): Promise<
     });
 
     try {
-      win.loadURL(url).catch((err) => {
+      win.loadURL(safeUrl).catch((err) => {
         clearTimeout(timeout);
         signal?.removeEventListener('abort', onAbort);
         try { win.destroy(); } catch {}

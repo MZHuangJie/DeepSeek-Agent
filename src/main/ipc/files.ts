@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { getSetting, setSetting } from '../db/settings';
 import { syncTerminalCwd } from '../ipc/terminal';
+import { safeResolve, checkSensitiveFile } from '../agent/tools/security';
 
 let currentWorkspace = process.cwd();
 let fileWatcher: fs.FSWatcher | null = null;
@@ -31,25 +32,6 @@ function stopWatching() {
 
 export function getCurrentWorkspace(): string {
   return currentWorkspace;
-}
-
-function safeResolve(baseDir: string, targetPath: string): string {
-  const resolved = path.resolve(baseDir, targetPath);
-  const normalizedBase = path.resolve(baseDir) + path.sep;
-  if (!resolved.startsWith(normalizedBase) && resolved !== path.resolve(baseDir)) {
-    throw new Error(`路径越界: ${targetPath} 不在项目目录内`);
-  }
-  try {
-    const realPath = fs.realpathSync(resolved);
-    const realBase = fs.realpathSync(baseDir);
-    if (!realPath.startsWith(realBase + path.sep) && realPath !== realBase) {
-      throw new Error(`路径越界: ${targetPath} 不在项目目录内`);
-    }
-    return realPath;
-  } catch (e: any) {
-    if (e.message?.includes('路径越界')) throw e;
-    return resolved;
-  }
 }
 
 function getRecentWorkspaces(): string[] {
@@ -86,6 +68,7 @@ export function setupFileHandlers() {
 
   ipcMain.handle('files:read', async (_event, filePath: string) => {
     const safePath = safeResolve(currentWorkspace, filePath);
+    checkSensitiveFile(safePath, 'read');
     return fs.readFileSync(safePath, 'utf-8');
   });
 
@@ -164,6 +147,7 @@ export function setupFileHandlers() {
 
   ipcMain.handle('files:write', async (_event, filePath: string, content: string) => {
     const safePath = safeResolve(currentWorkspace, filePath);
+    checkSensitiveFile(safePath, 'write');
     fs.writeFileSync(safePath, content, 'utf-8');
     return { success: true };
   });
