@@ -3,7 +3,7 @@ import { Message, useChatStore } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
-import { parseRoleplayResponse, parseMultiRoleplayResponse, formatRoleplayMessageForHistory } from '../../utils/parseRoleplayResponse';
+import { parseRoleplayResponse, parseMultiRoleplayResponse } from '../../utils/parseRoleplayResponse';
 import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
 import { getCharactersByIds, mapTurnsToMeta, resolveSessionCast } from '../../utils/roleplay-multi';
 import RoleplayStatusPanel from '../roleplay/RoleplayStatusPanel';
@@ -499,15 +499,6 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
     return () => { cancelled = true; };
   }, [isUser, isRoleplayChat, activeCharacter?.portraitPath]);
 
-  const expectsStatusPanel = !isUser && isRoleplayChat && (
-    isMultiRoleplay
-      ? sessionCharacters.some(c =>
-        getEffectiveStatusFields(c, getTemplateById(templates, c.templateId)).length > 0)
-      : statusFieldDefs.length > 0
-  );
-  const hasStatusPanel = isMultiRoleplay
-    ? roleplayTurns.some(turn => turn.status && Object.keys(turn.status).length > 0)
-    : !!roleplayStatus;
   const showSingleBubble = showContentBubble && roleplayTurns.length === 0;
 
   return (
@@ -552,14 +543,6 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
             status={roleplayStatus}
             fieldDefs={statusFieldDefs}
             portraitPath={primaryCharacter?.portraitPath}
-          />
-        )}
-
-        {!isUser && isRoleplayChat && hasContent && (
-          <AssistantRoleplayDebug
-            message={message}
-            hasStatusPanel={hasStatusPanel}
-            expectedStatus={expectsStatusPanel}
           />
         )}
 

@@ -99,7 +99,10 @@ export function parseRoleplayResponse(raw: string): ParsedRoleplayResponse {
 export function shouldRetryRoleplayStatus(raw: string, expectsStatus: boolean): boolean {
   if (!expectsStatus || !raw?.trim()) return false;
   const parsed = parseRoleplayResponse(raw);
-  return !(parsed.status && parsed.statusComplete);
+  if (parsed.status && parsed.statusComplete) return false;
+  // 已有较长正文时保留展示，避免因缺 status 触发整段重生成
+  if (parsed.reply.trim().length >= 80) return false;
+  return true;
 }
 
 /** 将已解析的助手消息还原为 XML 格式，供后续轮次上下文使用 */
@@ -174,7 +177,12 @@ export function shouldRetryMultiRoleplayStatus(
   if (!raw?.trim() || npcNames.length === 0) return false;
   const parsed = parseMultiRoleplayResponse(raw);
   if (parsed.turns.length === 0) return true;
-  return parsed.turns.some(turn => !(turn.status && turn.statusComplete));
+  const missingStatus = parsed.turns.some(turn => !(turn.status && turn.statusComplete));
+  if (!missingStatus) return false;
+  // 各 turn 已有实质台词时保留展示，避免因缺 status 触发整段重生成
+  const substantial = parsed.turns.every(turn => turn.reply.trim().length >= 20);
+  if (substantial) return false;
+  return true;
 }
 
 export function isMultiRoleplayRaw(raw: string): boolean {

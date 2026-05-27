@@ -93,11 +93,22 @@ describe('shouldRetryMultiRoleplayStatus', () => {
     const raw = `<scene><turn character="A"><reply>hi</reply></turn></scene>`;
     expect(shouldRetryMultiRoleplayStatus(raw, ['A'])).toBe(true);
   });
+
+  it('does not retry when turns have substantial reply but missing status', () => {
+    const long = 'y'.repeat(30);
+    const raw = `<scene><turn character="A"><reply>${long}</reply></turn></scene>`;
+    expect(shouldRetryMultiRoleplayStatus(raw, ['A'])).toBe(false);
+  });
 });
 
 describe('shouldRetryRoleplayStatus', () => {
   it('retries when status block is missing', () => {
     expect(shouldRetryRoleplayStatus('<reply>只有正文</reply>', true)).toBe(true);
+  });
+
+  it('does not retry when reply is substantial but status missing', () => {
+    const long = 'x'.repeat(80);
+    expect(shouldRetryRoleplayStatus(`<reply>${long}</reply>`, true)).toBe(false);
   });
 
   it('does not retry when status is complete', () => {

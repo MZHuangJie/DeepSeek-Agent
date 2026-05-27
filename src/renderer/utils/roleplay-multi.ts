@@ -4,6 +4,7 @@ import {
   formatBody,
   getEffectiveStatusFields,
   getTemplateById,
+  ROLEPLAY_NARRATIVE_STYLE,
   ROLEPLAY_OPENING_USER_MESSAGE,
   ROLEPLAY_STATUS_RETRY_MESSAGE,
 } from './roleplay';
@@ -116,12 +117,14 @@ function buildMultiStatusFormatPrompt(
 
   return [
     '',
+    ROLEPLAY_NARRATIVE_STYLE,
+    '',
     '## 回复格式（群像模式，必须严格遵守）',
     '每轮回复使用以下 XML 结构，不要输出 markdown 代码块：',
     '',
     '<scene>',
     '  <turn character="角色名">',
-    '    <reply>（该 NPC 的台词与动作）</reply>',
+    '    <reply>（该 NPC 的第三人称叙事：场景/动作/神态 + 穿插台词）</reply>',
     '    <status>{ 该角色对应 JSON }</status>',
     '  </turn>',
     '  <!-- 可有多个 turn，仅包含本轮应发言的相关 NPC -->',
@@ -169,7 +172,7 @@ export function buildGroupRoleplayPrompt(
   });
 
   lines.push(
-    '请以导演视角推进场景：只让相关 NPC 回应或行动，保持各角色人设一致，不要跳出角色。',
+    '请以导演视角推进场景：只让相关 NPC 回应或行动，用第三人称小说体描写，保持各角色人设一致，不要跳出角色。',
   );
   lines.push(buildMultiStatusFormatPrompt(npcSchema));
 
@@ -177,7 +180,7 @@ export function buildGroupRoleplayPrompt(
     lines.push(
       '',
       '## 开场',
-      '请立即发送群像开场：仅相关 NPC 依次或互动发言，用户本人尚未开口。',
+      '请立即发送群像开场：以第三人称小说体描写场景与人物，仅相关 NPC 依次或互动发言，用户本人尚未开口。',
     );
   }
 

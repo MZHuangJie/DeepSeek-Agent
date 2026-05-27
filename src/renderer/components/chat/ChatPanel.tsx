@@ -78,14 +78,25 @@ export default function ChatPanel() {
 
           if (cast.isMulti) {
             const parsed = parseMultiRoleplayResponse(raw);
-            upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
+            const streaming = useChatStore.getState().isStreaming;
+            if (parsed.turns.length > 0) {
+              upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
+            } else if (streaming) {
+              upd.content = stripRoleplayReplyTags(
+                raw.replace(/<status\s*>[\s\S]*$/i, '').replace(/<\/?scene\s*>/gi, ''),
+              ) || raw;
+            } else {
+              upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
+            }
             upd.rawContent = raw;
             if (parsed.turns.length > 0) {
               upd.roleplayMeta = { turns: mapTurnsToMeta(parsed.turns, participants) };
             }
           } else {
             const parsed = parseRoleplayResponse(raw);
-            upd.content = parsed.reply || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, '')) || raw;
+            upd.content = parsed.reply
+              || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, ''))
+              || raw;
             upd.rawContent = raw;
             if (parsed.status && parsed.statusComplete) {
               upd.roleplayMeta = { status: parsed.status, statusComplete: true };
@@ -255,13 +266,6 @@ export default function ChatPanel() {
 
     statusRetryUsedRef.current = true;
     resetStreamBuffers();
-    updateLastAssistant({
-      content: '',
-      rawContent: undefined,
-      roleplayMeta: undefined,
-      thinkingContent: undefined,
-      toolCalls: undefined,
-    });
     setStreaming(true);
 
     const priorMessages = target.messages.slice(0, -1);

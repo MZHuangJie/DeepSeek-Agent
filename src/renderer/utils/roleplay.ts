@@ -341,7 +341,7 @@ function buildStatusOutputPrompt(fields: StatusFieldDef[]): string {
     '每轮回复必须使用以下 XML 结构，不要输出 markdown 代码块：',
     '',
     '<reply>',
-    '（角色对用户说的话与动作描写，展示在对话气泡内）',
+    '（第三人称小说体叙事：场景/动作/神态/剧情推进 + 穿插台词，展示在对话气泡内）',
     '</reply>',
     '',
     '<status>',
@@ -360,6 +360,19 @@ function buildStatusOutputPrompt(fields: StatusFieldDef[]): string {
     '- 不要使用 markdown 代码块包裹 JSON',
   ].join('\n');
 }
+
+/** 角色扮演叙事规范：第三人称、场景描写、主动推进剧情 */
+export const ROLEPLAY_NARRATIVE_STYLE = [
+  '## 叙事与文风（必须遵守）',
+  '- 使用**第三人称**小说体（以角色名或「她/他」指代），禁止通篇第一人称「我…」',
+  '- <reply> 不只是台词：需包含环境氛围、动作神态、心理外化，并**主动推进剧情**',
+  '- 建议结构：① 场景/局势变化 ② 角色动作与表情（2-4 句） ③ 台词用「」穿插其中',
+  '- 篇幅：每轮 <reply> 建议 150-400 字；开场可 250-500 字。避免只有一两句短回复',
+  '- 禁止：替用户行动或发言；跳出角色解释规则；在 <reply> 内输出 JSON',
+  '',
+  '示例（仅示意文风，勿照抄）：',
+  '林宛儿眼帘微垂，指尖划过课桌边缘。身后窃窃私语仍未停息，她却像听不见一般，只抬起下巴，淡声问：「有事？」',
+].join('\n');
 
 export function formatBody(body?: BodyMeasurements): string {
   if (!body) return '';
@@ -389,7 +402,8 @@ export function buildCharacterPrompt(
   const bodyText = formatBody(character.body);
   if (bodyText) lines.push(`身材：\n${bodyText}`);
 
-  lines.push('\n请完全以该角色身份回复，保持人设一致，不要跳出角色。');
+  lines.push('\n请以该角色为叙述主体，用第三人称小说体回复，保持人设一致，不要跳出角色。');
+  lines.push('', ROLEPLAY_NARRATIVE_STYLE);
 
   const statusPrompt = buildStatusOutputPrompt(getEffectiveStatusFields(character, template));
   if (statusPrompt) lines.push(statusPrompt);
@@ -403,7 +417,7 @@ export function buildCharacterPrompt(
       lines.push('请立即发送第一条消息：根据故事背景自行生成合适开场白。用户还没有发言。');
     } else {
       lines.push('\n## 开场');
-      lines.push('请立即发送第一条消息：以角色身份自然开场。用户还没有发言。');
+      lines.push('请立即发送第一条消息：以第三人称小说体自然开场，含场景描写与剧情铺垫。用户还没有发言。');
     }
   }
 
