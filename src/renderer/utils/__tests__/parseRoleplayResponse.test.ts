@@ -51,6 +51,21 @@ describe('parseRoleplayResponse', () => {
     expect(parsed.reply).toBe('普通回复');
     expect(parsed.statusComplete).toBe(false);
   });
+
+  it('strips stray closing reply tag when opening tag is missing', () => {
+    const raw = `（手指刚按下拨号键的第一位数，屏幕的光映在她脸上。）
+
+（缓缓转过身，眼神复杂地看着你。）
+
+</reply>
+<status>
+{"情绪":"复杂"}
+</status>`;
+    const parsed = parseRoleplayResponse(raw);
+    expect(parsed.reply).toContain('手指刚按下');
+    expect(parsed.reply).not.toContain('</reply>');
+    expect(parsed.reply).not.toContain('<reply');
+  });
 });
 
 describe('shouldRetryRoleplayStatus', () => {

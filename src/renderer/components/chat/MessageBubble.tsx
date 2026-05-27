@@ -409,14 +409,15 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
 
   const displayContent = useMemo(() => {
     if (isUser) return message.content;
-    if (message.roleplayMeta?.statusComplete || message.roleplayMeta?.status) {
-      return message.content;
-    }
-    if (mode === 'roleplay' && message.content.includes('<reply>')) {
-      return parseRoleplayResponse(message.content).reply || message.content;
+    if (mode === 'roleplay') {
+      const raw = message.rawContent || message.content;
+      if (/<reply\s*>|<\/reply\s*>|<status\s*>/i.test(raw)) {
+        const parsed = parseRoleplayResponse(raw);
+        if (parsed.reply) return parsed.reply;
+      }
     }
     return message.content;
-  }, [isUser, message.content, message.roleplayMeta, mode]);
+  }, [isUser, message.content, message.rawContent, mode]);
 
   const roleplayStatus = useMemo(() => {
     if (isUser || mode !== 'roleplay') return null;

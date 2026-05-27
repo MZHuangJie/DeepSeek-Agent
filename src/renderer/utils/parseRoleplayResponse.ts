@@ -34,30 +34,41 @@ function tryParseStatusObject(rawJson: string): RoleplayStatus | null {
   return null;
 }
 
+function stripReplyTags(text: string): string {
+  return text.replace(/<\/?reply\s*>/gi, '').trim();
+}
+
+/** 去掉 reply 区块标签，供展示层兜底使用 */
+export function stripRoleplayReplyTags(text: string): string {
+  return stripReplyTags(text);
+}
+
 function extractReply(text: string): string {
-  const hasReplyTag = /<reply>/i.test(text);
-  if (hasReplyTag) {
-    const openIdx = text.search(/<reply>/i);
-    const closeMatch = text.slice(openIdx).match(/<reply>([\s\S]*?)<\/reply>/i);
-    if (closeMatch) return closeMatch[1].trim();
-    return text.slice(openIdx).replace(/^<reply>/i, '').replace(/<status>[\s\S]*$/i, '').trim();
-  }
-  const statusIdx = text.search(/<status>/i);
-  return (statusIdx >= 0 ? text.slice(0, statusIdx) : text).trim();
+  const paired = text.match(/<reply\s*>([\s\S]*?)<\/reply\s*>/i);
+  if (paired) return paired[1].trim();
+
+  const statusIdx = text.search(/<status\s*>/i);
+  const beforeStatus = (statusIdx >= 0 ? text.slice(0, statusIdx) : text).trim();
+
+  const openOnly = beforeStatus.match(/<reply\s*>([\s\S]*)$/i);
+  if (openOnly) return openOnly[1].trim();
+
+  // 模型漏写 <reply> 开头、只写了 </reply> 时，去掉残留标签
+  return stripReplyTags(beforeStatus);
 }
 
 function extractStatus(text: string): { status?: RoleplayStatus; statusComplete: boolean } {
-  const closed = text.match(/<status>([\s\S]*?)<\/status>/i);
+  const closed = text.match(/<status\s*>([\s\S]*?)<\/status\s*>/i);
   if (closed) {
     const status = tryParseStatusObject(closed[1]);
     if (status) return { status, statusComplete: true };
     return { statusComplete: false };
   }
 
-  const openIdx = text.search(/<status>/i);
+  const openIdx = text.search(/<status\s*>/i);
   if (openIdx < 0) return { statusComplete: false };
 
-  const tail = text.slice(openIdx).replace(/^<status>/i, '');
+  const tail = text.slice(openIdx).replace(/^<status\s*>/i, '');
   const status = tryParseStatusObject(tail);
   if (status) return { status, statusComplete: true };
   return { statusComplete: false };

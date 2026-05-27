@@ -7,7 +7,7 @@ import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
 import { buildCharacterPrompt, getEffectiveStatusFields, getTemplateById, ROLEPLAY_OPENING_USER_MESSAGE, ROLEPLAY_STATUS_RETRY_MESSAGE } from '../../utils/roleplay';
-import { parseRoleplayResponse, formatRoleplayMessageForHistory, shouldRetryRoleplayStatus } from '../../utils/parseRoleplayResponse';
+import { parseRoleplayResponse, formatRoleplayMessageForHistory, shouldRetryRoleplayStatus, stripRoleplayReplyTags } from '../../utils/parseRoleplayResponse';
 import MessageBubble from './MessageBubble';
 import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -53,7 +53,7 @@ export default function ChatPanel() {
         if (mode === 'roleplay') {
           const raw = totalContentRef.current;
           const parsed = parseRoleplayResponse(raw);
-          upd.content = parsed.reply || raw.replace(/<status>[\s\S]*$/i, '').replace(/<\/?reply>/gi, '').trim() || raw;
+          upd.content = parsed.reply || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, '')) || raw;
           upd.rawContent = raw;
           if (parsed.status && parsed.statusComplete) {
             upd.roleplayMeta = { status: parsed.status, statusComplete: true };
