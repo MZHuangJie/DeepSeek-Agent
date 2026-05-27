@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Message } from '../../stores/chat';
+import { Message, useChatStore } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
@@ -395,7 +395,11 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const showContentBubble = isUser || !hasThinking || hasContent;
   const [actionsVisible, setActionsVisible] = useState(false);
   const mode = useModeStore(s => s.mode);
+  const sessionCharacterId = useChatStore(s =>
+    s.sessions.find(sess => sess.id === s.activeSessionId)?.characterId,
+  );
   const activeCharacter = useRoleplayStore(s => s.getActiveCharacter());
+  const isRoleplayChat = mode === 'roleplay' && !!(activeCharacter || sessionCharacterId);
   const templates = useRoleplayStore(s => s.templates);
   const activeTemplate = useMemo(
     () => getTemplateById(templates, activeCharacter?.templateId),
@@ -409,7 +413,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
 
   const displayContent = useMemo(() => {
     if (isUser) return message.content;
-    if (mode === 'roleplay') {
+    if (mode === 'roleplay' && isRoleplayChat) {
       const raw = message.rawContent || message.content;
       if (/<reply\s*>|<\/reply\s*>|<status\s*>/i.test(raw)) {
         const parsed = parseRoleplayResponse(raw);
@@ -417,10 +421,10 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
       }
     }
     return message.content;
-  }, [isUser, message.content, message.rawContent, mode]);
+  }, [isUser, message.content, message.rawContent, mode, isRoleplayChat]);
 
   const roleplayStatus = useMemo(() => {
-    if (isUser || mode !== 'roleplay') return null;
+    if (isUser || !isRoleplayChat) return null;
     if (message.roleplayMeta?.status) return message.roleplayMeta.status;
     const raw = message.rawContent || message.content;
     if (raw.includes('<status>') || raw.includes('<reply>')) {
@@ -428,10 +432,10 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
       if (parsed.status) return parsed.status;
     }
     return null;
-  }, [isUser, mode, message.content, message.rawContent, message.roleplayMeta]);
+  }, [isUser, isRoleplayChat, message.content, message.rawContent, message.roleplayMeta]);
 
   useEffect(() => {
-    if (isUser || mode !== 'roleplay' || !activeCharacter?.portraitPath) {
+    if (isUser || !isRoleplayChat || !activeCharacter?.portraitPath) {
       setAssistantAvatar('/assets/ai_avater.png');
       return;
     }
@@ -442,9 +446,9 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
       if (!cancelled) setAssistantAvatar('/assets/ai_avater.png');
     });
     return () => { cancelled = true; };
-  }, [isUser, mode, activeCharacter?.portraitPath]);
+  }, [isUser, isRoleplayChat, activeCharacter?.portraitPath]);
 
-  const expectsStatusPanel = !isUser && mode === 'roleplay' && statusFieldDefs.length > 0;
+  const expectsStatusPanel = !isUser && isRoleplayChat && statusFieldDefs.length > 0;
   const hasStatusPanel = !!roleplayStatus;
 
   return (
@@ -470,7 +474,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
           </div>
         )}
 
-        {!isUser && mode === 'roleplay' && roleplayStatus && (
+        {!isUser && isRoleplayChat && roleplayStatus && (
           <RoleplayStatusPanel
             status={roleplayStatus}
             fieldDefs={statusFieldDefs}
@@ -478,7 +482,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
           />
         )}
 
-        {!isUser && mode === 'roleplay' && hasContent && (
+        {!isUser && isRoleplayChat && hasContent && (
           <AssistantRoleplayDebug
             message={message}
             hasStatusPanel={hasStatusPanel}
