@@ -20,6 +20,7 @@ interface Props {
   status: Record<string, unknown>;
   fieldDefs: StatusFieldDef[];
   portraitPath?: string;
+  characterName?: string;
 }
 
 function PortraitImage({ path }: { path?: string }) {
@@ -81,7 +82,7 @@ function buildCollapsedSummary(
   return parts.join(' · ') || '角色状态';
 }
 
-export default function RoleplayStatusPanel({ status, fieldDefs, portraitPath }: Props) {
+export default function RoleplayStatusPanel({ status, fieldDefs, portraitPath, characterName }: Props) {
   const [expanded, setExpanded] = useState(true);
 
   const grouped = useMemo(() => {
@@ -148,7 +149,7 @@ export default function RoleplayStatusPanel({ status, fieldDefs, portraitPath }:
         <PortraitImage path={portraitPath} />
         <div className={styles.headerMain}>
           <div className={styles.headerTop}>
-            <span className={styles.panelTitle}>角色状态</span>
+            <span className={styles.panelTitle}>{characterName ? `${characterName} · 角色状态` : '角色状态'}</span>
             <button
               type="button"
               className={styles.collapseBtn}

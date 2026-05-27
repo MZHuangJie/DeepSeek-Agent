@@ -8,6 +8,7 @@ import { usePluginStore } from '../../stores/plugin';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
+import { getCharactersByIds, resolveSessionCast } from '../../utils/roleplay-multi';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
 import Dropdown, { DropdownItem, useDropdownNav, useFocusedItemRef } from './Dropdown';
 import shared from '../../styles/components.module.css';
@@ -50,6 +51,14 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const { mode, setMode } = useModeStore();
   const activeMode = MODES.find(m => m.id === mode) ?? MODES[0];
   const activeCharacter = useRoleplayStore(s => s.getActiveCharacter());
+  const activeSession = useChatStore(s => s.sessions.find(sess => sess.id === s.activeSessionId));
+  const sessionCast = useMemo(() => resolveSessionCast(activeSession), [activeSession]);
+  const characters = useRoleplayStore(s => s.characters);
+  const sessionCharacters = useMemo(
+    () => getCharactersByIds(characters, sessionCast.participantIds),
+    [characters, sessionCast.participantIds],
+  );
+  const npcNames = sessionCharacters.map(c => c.name);
 
   useEffect(() => { loadInstalled(); }, []);
   useEffect(() => {
@@ -394,7 +403,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
               )}
             </div>
 
-            {mode === 'roleplay' && activeCharacter && (
+            {mode === 'roleplay' && sessionCast.isMulti && (
+              <span className={styles.characterChip} title="群像角色扮演">
+                群聊 · 你本人 · NPC: {npcNames.join('、') || '—'}
+              </span>
+            )}
+            {mode === 'roleplay' && !sessionCast.isMulti && activeCharacter && (
               <span className={styles.characterChip} title="当前扮演角色">
                 {activeCharacter.name}
               </span>

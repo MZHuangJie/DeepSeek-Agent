@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRoleplayResponse, formatRoleplayMessageForHistory, shouldRetryRoleplayStatus } from '../parseRoleplayResponse';
+import { parseRoleplayResponse, formatRoleplayMessageForHistory, shouldRetryRoleplayStatus, parseMultiRoleplayResponse, shouldRetryMultiRoleplayStatus } from '../parseRoleplayResponse';
 
 describe('parseRoleplayResponse', () => {
   it('parses reply and status json', () => {
@@ -65,6 +65,33 @@ describe('parseRoleplayResponse', () => {
     expect(parsed.reply).toContain('手指刚按下');
     expect(parsed.reply).not.toContain('</reply>');
     expect(parsed.reply).not.toContain('<reply');
+  });
+});
+
+describe('parseMultiRoleplayResponse', () => {
+  it('parses multiple turns with per-character status', () => {
+    const raw = `<scene>
+<turn character="林宛儿">
+<reply>你好。</reply>
+<status>{"情绪":"平静"}</status>
+</turn>
+<turn character="柳如烟">
+<reply>有事？</reply>
+<status>{"情绪":"冷淡"}</status>
+</turn>
+</scene>`;
+    const parsed = parseMultiRoleplayResponse(raw);
+    expect(parsed.turns).toHaveLength(2);
+    expect(parsed.turns[0].character).toBe('林宛儿');
+    expect(parsed.turns[1].reply).toContain('有事');
+    expect(parsed.turns[1].status?.['情绪']).toBe('冷淡');
+  });
+});
+
+describe('shouldRetryMultiRoleplayStatus', () => {
+  it('retries when a turn is missing status', () => {
+    const raw = `<scene><turn character="A"><reply>hi</reply></turn></scene>`;
+    expect(shouldRetryMultiRoleplayStatus(raw, ['A'])).toBe(true);
   });
 });
 

@@ -13,9 +13,18 @@ export interface ToolCall {
   status: 'running' | 'success' | 'error';
 }
 
+export interface RoleplayTurnMeta {
+  characterId: string;
+  characterName: string;
+  reply: string;
+  status?: Record<string, unknown>;
+  statusComplete?: boolean;
+}
+
 export interface RoleplayMessageMeta {
   status?: Record<string, unknown>;
   statusComplete?: boolean;
+  turns?: RoleplayTurnMeta[];
 }
 
 export interface Message {
@@ -38,8 +47,12 @@ export interface Session {
   messages: Message[];
   /** 首轮对话结束后需生成摘要标题 */
   titlePending?: boolean;
-  /** 角色扮演：绑定的角色 ID */
+  /** 角色扮演：绑定的角色 ID（单角色兼容） */
   characterId?: string;
+  /** 群像角色扮演：在场角色 ID 列表 */
+  characterIds?: string[];
+  /** @deprecated 旧版群聊字段，新会话不再写入 */
+  userCharacterId?: string;
   /** 新建 roleplay 会话后待自动生成开场白 */
   pendingOpening?: boolean;
 }
@@ -59,9 +72,16 @@ interface ChatState {
   newAssistantMessage: () => void;
   updateSessionTitle: (id: string, title: string, titlePending?: boolean) => void;
   setSessionCharacter: (characterId: string | null) => void;
+  setSessionCast: (characterIds: string[]) => void;
 }
 
-function parseSessionPayload(raw: string): { messages: Message[]; characterId?: string; pendingOpening?: boolean } {
+function parseSessionPayload(raw: string): {
+  messages: Message[];
+  characterId?: string;
+  characterIds?: string[];
+  userCharacterId?: string;
+  pendingOpening?: boolean;
+} {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return { messages: parsed };
@@ -69,6 +89,8 @@ function parseSessionPayload(raw: string): { messages: Message[]; characterId?: 
       return {
         messages: parsed.messages,
         characterId: parsed.characterId,
+        characterIds: parsed.characterIds,
+        userCharacterId: parsed.userCharacterId,
         pendingOpening: parsed.pendingOpening,
       };
     }
@@ -80,6 +102,8 @@ function serializeSessionPayload(session: Session): string {
   return JSON.stringify({
     messages: session.messages,
     characterId: session.characterId,
+    characterIds: session.characterIds,
+    userCharacterId: session.userCharacterId,
     pendingOpening: session.pendingOpening,
   });
 }
@@ -108,6 +132,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             title: r.title,
             messages: payload.messages,
             characterId: payload.characterId,
+            characterIds: payload.characterIds,
+            userCharacterId: payload.userCharacterId,
             pendingOpening: payload.pendingOpening,
           };
         });
@@ -133,14 +159,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   createSession: () => {
     sessionCounter++;
-    const activeCharacterId = useRoleplayStore.getState().activeCharacterId;
+    const roleplayState = useRoleplayStore.getState();
+    const activeCharacterId = roleplayState.activeCharacterId;
+    const draftParticipantIds = roleplayState.draftParticipantIds;
     const isRoleplay = useModeStore.getState().mode === 'roleplay';
+    const useMulti = draftParticipantIds.length >= 2;
+    const participantIds = useMulti
+      ? draftParticipantIds
+      : activeCharacterId
+        ? [activeCharacterId]
+        : [];
     const session: Session = {
       id: `session-${Date.now()}`,
       title: `会话 #${sessionCounter}`,
       messages: [],
-      characterId: activeCharacterId || undefined,
-      pendingOpening: Boolean(isRoleplay && activeCharacterId),
+      characterId: participantIds[0],
+      characterIds: participantIds.length > 0 ? participantIds : undefined,
+      pendingOpening: Boolean(isRoleplay && participantIds.length > 0),
     };
     set(s => ({
       sessions: [session, ...s.sessions],
@@ -161,8 +196,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   switchSession: (id) => {
     const session = get().sessions.find(s => s.id === id);
     set({ activeSessionId: id });
-    if (session?.characterId) {
-      void useRoleplayStore.getState().setActiveCharacter(session.characterId);
+    const participantIds = session?.characterIds?.length
+      ? session.characterIds
+      : session?.characterId
+        ? [session.characterId]
+        : [];
+    if (participantIds.length > 0) {
+      void useRoleplayStore.getState().setSessionCast(participantIds);
       useModeStore.getState().setMode('roleplay');
     }
   },
@@ -259,7 +299,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!activeSessionId) return;
     const newSessions = sessions.map(s =>
       s.id === activeSessionId
-        ? { ...s, characterId: characterId || undefined }
+        ? {
+            ...s,
+            characterId: characterId || undefined,
+            characterIds: characterId ? [characterId] : undefined,
+            userCharacterId: undefined,
+          }
+        : s,
+    );
+    set({ sessions: newSessions });
+    if (!isStreaming) persistAll(newSessions);
+    else {
+      const session = newSessions.find(s => s.id === activeSessionId);
+      if (session) persistSession(session);
+    }
+  },
+
+  setSessionCast: (characterIds) => {
+    const { activeSessionId, sessions, isStreaming } = get();
+    if (!activeSessionId) return;
+    const ids = characterIds.filter(Boolean);
+    const newSessions = sessions.map(s =>
+      s.id === activeSessionId
+        ? {
+            ...s,
+            characterIds: ids.length > 0 ? ids : undefined,
+            characterId: ids[0],
+            userCharacterId: undefined,
+            pendingOpening: ids.length > 0 ? s.pendingOpening : false,
+          }
         : s,
     );
     set({ sessions: newSessions });

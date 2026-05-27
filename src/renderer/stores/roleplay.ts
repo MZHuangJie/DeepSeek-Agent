@@ -6,6 +6,7 @@ interface RoleplayState {
   templates: RoleplayTemplate[];
   characters: RoleplayCharacter[];
   activeCharacterId: string | null;
+  draftParticipantIds: string[];
   loading: boolean;
   error: string;
   loadAll: () => Promise<void>;
@@ -15,6 +16,9 @@ interface RoleplayState {
   saveTemplate: (data: CharacterFormData & { id?: string }) => Promise<RoleplayTemplate | null>;
   deleteTemplate: (id: string) => Promise<boolean>;
   setActiveCharacter: (id: string | null) => Promise<void>;
+  setSessionCast: (participantIds: string[]) => Promise<void>;
+  toggleDraftParticipant: (id: string) => void;
+  clearDraftCast: () => void;
   pickPortrait: (ownerId: string) => Promise<string | null>;
   generatePortrait: (
     ownerId: string,
@@ -23,12 +27,14 @@ interface RoleplayState {
   ) => Promise<{ portraitPath: string; dataUrl?: string } | null>;
   getActiveCharacter: () => RoleplayCharacter | null;
   getTemplateForCharacter: (character?: RoleplayCharacter | null) => RoleplayTemplate | null;
+  getSessionCharacters: (participantIds: string[]) => RoleplayCharacter[];
 }
 
 export const useRoleplayStore = create<RoleplayState>((set, get) => ({
   templates: [],
   characters: [],
   activeCharacterId: null,
+  draftParticipantIds: [],
   loading: false,
   error: '',
 
@@ -118,7 +124,39 @@ export const useRoleplayStore = create<RoleplayState>((set, get) => ({
       set({ error: res.error });
       return;
     }
-    set({ activeCharacterId: id, error: '' });
+    set({
+      activeCharacterId: id,
+      draftParticipantIds: id ? [id] : [],
+      error: '',
+    });
+  },
+
+  setSessionCast: async (participantIds) => {
+    const primaryId = participantIds[0] ?? null;
+    const res = await window.api.roleplay.setActiveCharacter(primaryId);
+    if (!res.success) {
+      set({ error: res.error });
+      return;
+    }
+    set({
+      activeCharacterId: primaryId,
+      draftParticipantIds: participantIds,
+      error: '',
+    });
+  },
+
+  toggleDraftParticipant: (id) => {
+    set(state => {
+      const exists = state.draftParticipantIds.includes(id);
+      const draftParticipantIds = exists
+        ? state.draftParticipantIds.filter(item => item !== id)
+        : [...state.draftParticipantIds, id];
+      return { draftParticipantIds };
+    });
+  },
+
+  clearDraftCast: () => {
+    set({ draftParticipantIds: [] });
   },
 
   pickPortrait: async (ownerId) => {
@@ -150,5 +188,12 @@ export const useRoleplayStore = create<RoleplayState>((set, get) => ({
     const c = character ?? get().getActiveCharacter();
     if (!c) return null;
     return getTemplateById(get().templates, c.templateId);
+  },
+
+  getSessionCharacters: (participantIds) => {
+    const { characters } = get();
+    return participantIds
+      .map(id => characters.find(c => c.id === id))
+      .filter((c): c is RoleplayCharacter => Boolean(c));
   },
 }));

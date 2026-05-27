@@ -6,8 +6,24 @@ import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
-import { buildCharacterPrompt, getEffectiveStatusFields, getTemplateById, ROLEPLAY_OPENING_USER_MESSAGE, ROLEPLAY_STATUS_RETRY_MESSAGE } from '../../utils/roleplay';
-import { parseRoleplayResponse, formatRoleplayMessageForHistory, shouldRetryRoleplayStatus, stripRoleplayReplyTags } from '../../utils/parseRoleplayResponse';
+import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
+import {
+  buildSessionRoleplayPrompt,
+  getRoleplayOpeningMessage,
+  getRoleplayStatusRetryMessage,
+  getCharactersByIds,
+  mapTurnsToMeta,
+  resolveSessionCast,
+} from '../../utils/roleplay-multi';
+import {
+  parseRoleplayResponse,
+  parseMultiRoleplayResponse,
+  formatRoleplayMessageForHistory,
+  formatMultiRoleplayMessageForHistory,
+  shouldRetryRoleplayStatus,
+  shouldRetryMultiRoleplayStatus,
+  stripRoleplayReplyTags,
+} from '../../utils/parseRoleplayResponse';
 import MessageBubble from './MessageBubble';
 import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -52,13 +68,30 @@ export default function ChatPanel() {
       if (totalContentRef.current) {
         if (mode === 'roleplay') {
           const raw = totalContentRef.current;
-          const parsed = parseRoleplayResponse(raw);
-          upd.content = parsed.reply || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, '')) || raw;
-          upd.rawContent = raw;
-          if (parsed.status && parsed.statusComplete) {
-            upd.roleplayMeta = { status: parsed.status, statusComplete: true };
-          } else if (parsed.status) {
-            upd.roleplayMeta = { status: parsed.status, statusComplete: false };
+          const chat = useChatStore.getState();
+          const currentSession = chat.sessions.find(s => s.id === chat.activeSessionId);
+          const cast = resolveSessionCast(currentSession);
+          const participants = getCharactersByIds(
+            useRoleplayStore.getState().characters,
+            cast.participantIds,
+          );
+
+          if (cast.isMulti) {
+            const parsed = parseMultiRoleplayResponse(raw);
+            upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
+            upd.rawContent = raw;
+            if (parsed.turns.length > 0) {
+              upd.roleplayMeta = { turns: mapTurnsToMeta(parsed.turns, participants) };
+            }
+          } else {
+            const parsed = parseRoleplayResponse(raw);
+            upd.content = parsed.reply || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, '')) || raw;
+            upd.rawContent = raw;
+            if (parsed.status && parsed.statusComplete) {
+              upd.roleplayMeta = { status: parsed.status, statusComplete: true };
+            } else if (parsed.status) {
+              upd.roleplayMeta = { status: parsed.status, statusComplete: false };
+            }
           }
         } else {
           upd.content = totalContentRef.current;
@@ -110,11 +143,24 @@ export default function ChatPanel() {
     }
 
     const sendMode = useModeStore.getState().mode;
+    const chat = useChatStore.getState();
+    const currentSession = chat.sessions.find(s => s.id === chat.activeSessionId);
+    const cast = resolveSessionCast(currentSession);
+    const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
     const history: any[] = [];
     for (const m of sourceMessages) {
       let messageContent: string | typeof m.contentParts = m.content;
       if (m.role === 'user' && m.contentParts?.length) {
         messageContent = m.contentParts;
+      } else if (sendMode === 'roleplay' && m.role === 'assistant' && m.roleplayMeta?.turns?.length) {
+        messageContent = formatMultiRoleplayMessageForHistory(
+          m.roleplayMeta.turns.map(turn => ({
+            character: turn.characterName,
+            reply: turn.reply,
+            status: turn.status,
+            statusComplete: Boolean(turn.statusComplete && turn.status),
+          })),
+        );
       } else if (sendMode === 'roleplay' && m.role === 'assistant' && m.roleplayMeta?.status) {
         messageContent = formatRoleplayMessageForHistory(m.content, m.roleplayMeta.status);
       }
@@ -192,13 +238,20 @@ export default function ChatPanel() {
     const last = target?.messages.at(-1);
     if (!last || last.role !== 'assistant') return;
 
-    const activeCharacter = useRoleplayStore.getState().getActiveCharacter();
-    if (!activeCharacter) return;
-    const templates = useRoleplayStore.getState().templates;
-    const template = getTemplateById(templates, activeCharacter.templateId);
-    const expectsStatus = getEffectiveStatusFields(activeCharacter, template).length > 0;
+    const cast = resolveSessionCast(target);
+    const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
+    if (participants.length === 0) return;
     const raw = last.rawContent || last.content;
-    if (!shouldRetryRoleplayStatus(raw, expectsStatus)) return;
+
+    if (cast.isMulti) {
+      const npcNames = participants.map(c => c.name);
+      if (!shouldRetryMultiRoleplayStatus(raw, npcNames)) return;
+    } else {
+      const activeCharacter = participants[0];
+      const template = getTemplateById(useRoleplayStore.getState().templates, activeCharacter.templateId);
+      const expectsStatus = getEffectiveStatusFields(activeCharacter, template).length > 0;
+      if (!shouldRetryRoleplayStatus(raw, expectsStatus)) return;
+    }
 
     statusRetryUsedRef.current = true;
     resetStreamBuffers();
@@ -213,12 +266,12 @@ export default function ChatPanel() {
 
     const priorMessages = target.messages.slice(0, -1);
     const history = buildHistory(priorMessages);
-    const commandPrompt = buildCharacterPrompt(activeCharacter, template);
+    const commandPrompt = buildSessionRoleplayPrompt(target, participants, useRoleplayStore.getState().templates);
 
     try {
       await invokeAgent({
         history,
-        newMessage: ROLEPLAY_STATUS_RETRY_MESSAGE,
+        newMessage: getRoleplayStatusRetryMessage(target),
         commandPrompt,
       });
     } catch (err: unknown) {
@@ -281,7 +334,9 @@ export default function ChatPanel() {
     }
 
     const activeCharacter = useRoleplayStore.getState().getActiveCharacter();
-    if (!activeCharacter) {
+    const cast = resolveSessionCast(target);
+    const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
+    if (participants.length === 0) {
       chat.clearPendingOpening(sessionId);
       return;
     }
@@ -293,13 +348,12 @@ export default function ChatPanel() {
     setStreaming(true);
 
     const templates = useRoleplayStore.getState().templates;
-    const template = getTemplateById(templates, activeCharacter.templateId);
-    const commandPrompt = buildCharacterPrompt(activeCharacter, template, { forOpening: true });
+    const commandPrompt = buildSessionRoleplayPrompt(target, participants, templates, { forOpening: true });
 
     try {
       await invokeAgent({
         history: [],
-        newMessage: ROLEPLAY_OPENING_USER_MESSAGE,
+        newMessage: getRoleplayOpeningMessage(target),
         commandPrompt,
       });
     } catch (err: unknown) {
@@ -350,13 +404,19 @@ export default function ChatPanel() {
     setStreaming(true);
 
     const sendMode = useModeStore.getState().mode;
-    const activeCharacter = sendMode === 'roleplay' ? useRoleplayStore.getState().getActiveCharacter() : null;
+    const currentSession = useChatStore.getState().sessions.find(s => s.id === activeSessionId);
+    const cast = resolveSessionCast(currentSession);
+    const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
     let commandPrompt = command?.systemPrompt;
-    if (sendMode === 'roleplay' && activeCharacter) {
-      const templates = useRoleplayStore.getState().templates;
-      const template = getTemplateById(templates, activeCharacter.templateId);
-      const characterPrompt = buildCharacterPrompt(activeCharacter, template);
-      commandPrompt = commandPrompt ? `${characterPrompt}\n\n${commandPrompt}` : characterPrompt;
+    if (sendMode === 'roleplay' && participants.length > 0) {
+      const sessionPrompt = buildSessionRoleplayPrompt(
+        currentSession,
+        participants,
+        useRoleplayStore.getState().templates,
+      );
+      commandPrompt = sessionPrompt
+        ? (commandPrompt ? `${sessionPrompt}\n\n${commandPrompt}` : sessionPrompt)
+        : commandPrompt;
     }
     const userText = content || displayContent || (hasImages ? '请描述这张图片' : '');
     const textContent = userText + (providerSupportsVision ? '' : imageMarkdown);

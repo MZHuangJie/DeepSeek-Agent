@@ -3,8 +3,9 @@ import { Message, useChatStore } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
-import { parseRoleplayResponse, formatRoleplayMessageForHistory } from '../../utils/parseRoleplayResponse';
+import { parseRoleplayResponse, parseMultiRoleplayResponse, formatRoleplayMessageForHistory } from '../../utils/parseRoleplayResponse';
 import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
+import { getCharactersByIds, mapTurnsToMeta, resolveSessionCast } from '../../utils/roleplay-multi';
 import RoleplayStatusPanel from '../roleplay/RoleplayStatusPanel';
 import ThinkingChain from './ThinkingChain';
 import shared from '../../styles/components.module.css';
@@ -12,6 +13,33 @@ import styles from './MessageBubble.module.css';
 
 interface Props {
   message: Message;
+}
+
+function TurnBlock({
+  turn,
+  fieldDefs,
+  portraitPath,
+}: {
+  turn: import('../../stores/chat').RoleplayTurnMeta;
+  fieldDefs: import('../../utils/roleplay').StatusFieldDef[];
+  portraitPath?: string;
+}) {
+  return (
+    <div className={styles.turnBlock}>
+      <div className={styles.speakerName}>{turn.characterName}</div>
+      <div className={`${styles.bubble} ${styles.bubbleAi}`}>
+        <MessageContent content={turn.reply || '...'} />
+      </div>
+      {turn.status && fieldDefs.length > 0 && (
+        <RoleplayStatusPanel
+          status={turn.status}
+          fieldDefs={fieldDefs}
+          portraitPath={portraitPath}
+          characterName={turn.characterName}
+        />
+      )}
+    </div>
+  );
 }
 
 // 轻量 markdown 解析：识别图片 ![alt](url) 和普通文本
@@ -395,19 +423,25 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   const showContentBubble = isUser || !hasThinking || hasContent;
   const [actionsVisible, setActionsVisible] = useState(false);
   const mode = useModeStore(s => s.mode);
-  const sessionCharacterId = useChatStore(s =>
-    s.sessions.find(sess => sess.id === s.activeSessionId)?.characterId,
+  const activeSession = useChatStore(s => s.sessions.find(sess => sess.id === s.activeSessionId));
+  const sessionCast = useMemo(() => resolveSessionCast(activeSession), [activeSession]);
+  const characters = useRoleplayStore(s => s.characters);
+  const sessionCharacters = useMemo(
+    () => getCharactersByIds(characters, sessionCast.participantIds),
+    [characters, sessionCast.participantIds],
   );
   const activeCharacter = useRoleplayStore(s => s.getActiveCharacter());
-  const isRoleplayChat = mode === 'roleplay' && !!(activeCharacter || sessionCharacterId);
+  const isRoleplayChat = mode === 'roleplay' && sessionCast.participantIds.length > 0;
+  const isMultiRoleplay = sessionCast.isMulti;
   const templates = useRoleplayStore(s => s.templates);
+  const primaryCharacter = sessionCharacters[0] ?? activeCharacter;
   const activeTemplate = useMemo(
-    () => getTemplateById(templates, activeCharacter?.templateId),
-    [templates, activeCharacter?.templateId],
+    () => getTemplateById(templates, primaryCharacter?.templateId),
+    [templates, primaryCharacter?.templateId],
   );
   const statusFieldDefs = useMemo(
-    () => getEffectiveStatusFields(activeCharacter, activeTemplate),
-    [activeCharacter, activeTemplate],
+    () => getEffectiveStatusFields(primaryCharacter, activeTemplate),
+    [primaryCharacter, activeTemplate],
   );
   const [assistantAvatar, setAssistantAvatar] = useState('/assets/ai_avater.png');
 
@@ -415,6 +449,10 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
     if (isUser) return message.content;
     if (mode === 'roleplay' && isRoleplayChat) {
       const raw = message.rawContent || message.content;
+      if (/<turn\s+character=|<scene\s*>/i.test(raw)) {
+        const parsed = parseMultiRoleplayResponse(raw);
+        if (parsed.displayText) return parsed.displayText;
+      }
       if (/<reply\s*>|<\/reply\s*>|<status\s*>/i.test(raw)) {
         const parsed = parseRoleplayResponse(raw);
         if (parsed.reply) return parsed.reply;
@@ -422,6 +460,19 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
     }
     return message.content;
   }, [isUser, message.content, message.rawContent, mode, isRoleplayChat]);
+
+  const roleplayTurns = useMemo(() => {
+    if (isUser || !isRoleplayChat || !isMultiRoleplay) return [];
+    if (message.roleplayMeta?.turns?.length) return message.roleplayMeta.turns;
+    const raw = message.rawContent || message.content;
+    if (/<turn\s+character=|<scene\s*>/i.test(raw)) {
+      const parsed = parseMultiRoleplayResponse(raw);
+      if (parsed.turns.length > 0) {
+        return mapTurnsToMeta(parsed.turns, sessionCharacters);
+      }
+    }
+    return [];
+  }, [isUser, isRoleplayChat, isMultiRoleplay, message.roleplayMeta, message.rawContent, message.content, sessionCharacters]);
 
   const roleplayStatus = useMemo(() => {
     if (isUser || !isRoleplayChat) return null;
@@ -448,8 +499,16 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
     return () => { cancelled = true; };
   }, [isUser, isRoleplayChat, activeCharacter?.portraitPath]);
 
-  const expectsStatusPanel = !isUser && isRoleplayChat && statusFieldDefs.length > 0;
-  const hasStatusPanel = !!roleplayStatus;
+  const expectsStatusPanel = !isUser && isRoleplayChat && (
+    isMultiRoleplay
+      ? sessionCharacters.some(c =>
+        getEffectiveStatusFields(c, getTemplateById(templates, c.templateId)).length > 0)
+      : statusFieldDefs.length > 0
+  );
+  const hasStatusPanel = isMultiRoleplay
+    ? roleplayTurns.some(turn => turn.status && Object.keys(turn.status).length > 0)
+    : !!roleplayStatus;
+  const showSingleBubble = showContentBubble && roleplayTurns.length === 0;
 
   return (
     <div
@@ -468,17 +527,31 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
 
         <ToolCallProgress toolCalls={message.toolCalls} />
 
-        {showContentBubble && (
+        {showSingleBubble && (
           <div className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleAi}`}>
             <MessageContent content={displayContent || '...'} />
           </div>
         )}
 
-        {!isUser && isRoleplayChat && roleplayStatus && (
+        {!isUser && isRoleplayChat && roleplayTurns.length > 0 && roleplayTurns.map(turn => {
+          const character = sessionCharacters.find(c => c.id === turn.characterId);
+          const template = getTemplateById(templates, character?.templateId);
+          const fieldDefs = getEffectiveStatusFields(character, template);
+          return (
+            <TurnBlock
+              key={`${turn.characterId}-${turn.reply.slice(0, 24)}`}
+              turn={turn}
+              fieldDefs={fieldDefs}
+              portraitPath={character?.portraitPath}
+            />
+          );
+        })}
+
+        {!isUser && isRoleplayChat && roleplayTurns.length === 0 && roleplayStatus && (
           <RoleplayStatusPanel
             status={roleplayStatus}
             fieldDefs={statusFieldDefs}
-            portraitPath={activeCharacter?.portraitPath}
+            portraitPath={primaryCharacter?.portraitPath}
           />
         )}
 

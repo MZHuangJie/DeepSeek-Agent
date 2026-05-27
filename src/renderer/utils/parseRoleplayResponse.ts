@@ -1,9 +1,22 @@
 export type RoleplayStatus = Record<string, unknown>;
 
+export interface RoleplayTurn {
+  character: string;
+  reply: string;
+  status?: RoleplayStatus;
+  statusComplete: boolean;
+}
+
 export interface ParsedRoleplayResponse {
   reply: string;
   status?: RoleplayStatus;
   statusComplete: boolean;
+}
+
+export interface ParsedMultiRoleplayResponse {
+  turns: RoleplayTurn[];
+  displayText: string;
+  isMulti: boolean;
 }
 
 function stripCodeFence(text: string): string {
@@ -96,4 +109,74 @@ export function formatRoleplayMessageForHistory(
 ): string {
   if (!status || Object.keys(status).length === 0) return reply;
   return `<reply>\n${reply}\n</reply>\n\n<status>\n${JSON.stringify(status, null, 2)}\n</status>`;
+}
+
+function parseTurnBlock(character: string, inner: string): RoleplayTurn {
+  const reply = extractReply(inner);
+  const { status, statusComplete } = extractStatus(inner);
+  return { character: character.trim(), reply, status, statusComplete };
+}
+
+export function parseMultiRoleplayResponse(raw: string): ParsedMultiRoleplayResponse {
+  const text = raw ?? '';
+  const turns: RoleplayTurn[] = [];
+  const turnRegex = /<turn\s+character=["']([^"']+)["']\s*>([\s\S]*?)<\/turn\s*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = turnRegex.exec(text)) !== null) {
+    turns.push(parseTurnBlock(match[1], match[2]));
+  }
+
+  if (turns.length === 0 && /<scene\s*>/i.test(text)) {
+    const sceneMatch = text.match(/<scene\s*>([\s\S]*?)<\/scene\s*>/i);
+    const inner = sceneMatch?.[1] ?? text;
+    const looseRegex = /<turn\s+character=["']([^"']+)["']\s*>([\s\S]*?)(?=<turn\s+character=|<\/scene\s*>|$)/gi;
+    while ((match = looseRegex.exec(inner)) !== null) {
+      turns.push(parseTurnBlock(match[1], match[2]));
+    }
+  }
+
+  const displayText = turns.length > 0
+    ? turns.map(t => `【${t.character}】\n${t.reply}`.trim()).filter(Boolean).join('\n\n')
+    : parseRoleplayResponse(text).reply;
+
+  return {
+    turns,
+    displayText,
+    isMulti: turns.length > 0 || /<scene\s*>/i.test(text) || /<turn\s+character=/i.test(text),
+  };
+}
+
+export function formatMultiRoleplayMessageForHistory(turns: RoleplayTurn[]): string {
+  if (turns.length === 0) return '';
+  const body = turns.map(turn => {
+    const statusJson = turn.status && Object.keys(turn.status).length > 0
+      ? JSON.stringify(turn.status, null, 2)
+      : '{}';
+    return [
+      `<turn character="${turn.character}">`,
+      '<reply>',
+      turn.reply,
+      '</reply>',
+      '',
+      '<status>',
+      statusJson,
+      '</status>',
+      '</turn>',
+    ].join('\n');
+  }).join('\n\n');
+  return `<scene>\n${body}\n</scene>`;
+}
+
+export function shouldRetryMultiRoleplayStatus(
+  raw: string,
+  npcNames: string[],
+): boolean {
+  if (!raw?.trim() || npcNames.length === 0) return false;
+  const parsed = parseMultiRoleplayResponse(raw);
+  if (parsed.turns.length === 0) return true;
+  return parsed.turns.some(turn => !(turn.status && turn.statusComplete));
+}
+
+export function isMultiRoleplayRaw(raw: string): boolean {
+  return parseMultiRoleplayResponse(raw).isMulti;
 }

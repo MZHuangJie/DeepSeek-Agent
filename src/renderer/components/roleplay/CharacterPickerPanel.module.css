@@ -136,3 +136,65 @@
   margin: 8px 10px 0;
   border-radius: 6px;
 }
+
+.castBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(124, 58, 237, 0.06);
+}
+
+.castSummary {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.userRoleField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.userRoleSelect {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.groupBtn {
+  margin-left: auto;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.cardTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 0;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.joinCheck,
+.roleRadio {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}

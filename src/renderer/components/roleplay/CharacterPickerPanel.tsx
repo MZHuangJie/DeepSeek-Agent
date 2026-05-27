@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRoleplayStore } from '../../stores/roleplay';
 import { useModeStore } from '../../stores/mode';
 import { useChatStore } from '../../stores/chat';
@@ -32,53 +32,90 @@ export default function CharacterPickerPanel() {
   const {
     characters,
     activeCharacterId,
+    draftParticipantIds,
     loading,
     error,
     loadAll,
     setActiveCharacter,
+    setSessionCast,
+    toggleDraftParticipant,
   } = useRoleplayStore();
   const setMode = useModeStore(s => s.setMode);
-  const bindSessionCharacter = useChatStore(s => s.setSessionCharacter);
+  const { setSessionCharacter, setSessionCast: bindSessionCast, createSession, activeSessionId } = useChatStore();
 
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
 
-  const selectCharacter = async (character: RoleplayCharacter) => {
-    if (character.id === activeCharacterId) return;
+  const isMultiDraft = draftParticipantIds.length >= 2;
+
+  const selectSingleCharacter = async (character: RoleplayCharacter) => {
     setMode('roleplay');
     await setActiveCharacter(character.id);
-    bindSessionCharacter(character.id);
+    setSessionCharacter(character.id);
+  };
+
+  const startGroupChat = async () => {
+    if (!isMultiDraft) return;
+    setMode('roleplay');
+    await setSessionCast(draftParticipantIds);
+    if (activeSessionId) {
+      bindSessionCast(draftParticipantIds);
+    } else {
+      createSession();
+    }
   };
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
         <div>角色</div>
-        <div className={styles.subtitle}>悬停卡片并选择，切换当前对话角色</div>
+        <div className={styles.subtitle}>单选进入 1v1；多选 2 人以上开启群聊，你以本人身份与 NPC 互动</div>
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
       {loading && characters.length === 0 && <div className={styles.hint}>加载中…</div>}
 
+      {draftParticipantIds.length > 0 && (
+        <div className={styles.castBar}>
+          <span className={styles.castSummary}>已选 {draftParticipantIds.length} 人</span>
+          {isMultiDraft && (
+            <button type="button" className={styles.groupBtn} onClick={() => void startGroupChat()}>
+              开始群聊
+            </button>
+          )}
+        </div>
+      )}
+
       <div className={styles.list}>
         {characters.map(character => {
-          const isActive = character.id === activeCharacterId;
+          const isSelected = draftParticipantIds.includes(character.id);
+          const isActiveSingle = character.id === activeCharacterId && draftParticipantIds.length <= 1;
           return (
             <div
               key={character.id}
-              className={`${styles.card} ${isActive ? styles.cardActive : ''}`}
+              className={`${styles.card} ${isSelected ? styles.cardActive : ''}`}
             >
+              <div className={styles.cardTopBar}>
+                <label className={styles.joinCheck}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleDraftParticipant(character.id)}
+                  />
+                  加入场景
+                </label>
+              </div>
               <div className={styles.portraitWrap}>
                 <PortraitImage path={character.portraitPath} />
                 <div className={styles.hoverOverlay}>
                   <button
                     type="button"
-                    className={`${styles.selectBtn} ${isActive ? styles.selectBtnActive : ''}`}
-                    onClick={() => void selectCharacter(character)}
-                    disabled={isActive}
+                    className={`${styles.selectBtn} ${isActiveSingle ? styles.selectBtnActive : ''}`}
+                    onClick={() => void selectSingleCharacter(character)}
+                    disabled={isActiveSingle}
                   >
-                    {isActive ? '已选中' : '选择'}
+                    {isActiveSingle ? '已选中' : '1v1 选择'}
                   </button>
                 </div>
               </div>

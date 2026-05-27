@@ -147,6 +147,18 @@
   width: 14px; height: 14px;
 }
 
+.turnBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.speakerName {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c4b5fd;
+}
+
 .debugWrap {
   margin-top: 2px;
 }
