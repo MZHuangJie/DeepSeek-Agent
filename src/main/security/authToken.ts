@@ -36,16 +36,15 @@ function decryptWithCrypto(payload: string, key: Buffer): string | null {
 }
 
 export function getAuthApiBase(): string {
-  return getSetting(AUTH_API_BASE_KEY) || DEFAULT_AUTH_API_BASE;
+  return DEFAULT_AUTH_API_BASE;
 }
 
 export function isAuthApiBaseEditable(): boolean {
-  return true;
+  return false;
 }
 
-export function setAuthApiBase(baseUrl: string): void {
-  const trimmed = baseUrl.trim().replace(/\/+$/, '');
-  setSetting(AUTH_API_BASE_KEY, trimmed || DEFAULT_AUTH_API_BASE);
+export function setAuthApiBase(_baseUrl: string): void {
+  // 服务器地址固定，不可修改
 }
 
 export function saveAuthToken(token: string): void {

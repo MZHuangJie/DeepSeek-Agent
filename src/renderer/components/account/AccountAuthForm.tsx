@@ -1,29 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuthStore } from '../../stores/auth';
 import styles from './AccountCenter.module.css';
 
 type Tab = 'login' | 'register';
 
 export default function AccountAuthForm() {
-  const { error, login, register, apiBase, apiBaseEditable, setApiBase, clearError, loadApiBase } = useAuthStore();
+  const { error, login, register, clearError } = useAuthStore();
   const [tab, setTab] = useState<Tab>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [serverUrl, setServerUrl] = useState(apiBase);
-
-  useEffect(() => { void loadApiBase(); }, [loadApiBase]);
-  useEffect(() => { setServerUrl(apiBase); }, [apiBase]);
 
   const handleSubmit = async () => {
     if (!username.trim()) return;
     setSubmitting(true);
     clearError();
-    const targetBase = serverUrl.trim();
-    if (apiBaseEditable && targetBase && targetBase !== apiBase) {
-      await setApiBase(targetBase);
-    }
     if (tab === 'login') {
       await login(username.trim(), password);
     } else {
@@ -53,19 +44,7 @@ export default function AccountAuthForm() {
         <button type="button" className={styles.primaryBtn} disabled={submitting || !username.trim()} onClick={() => void handleSubmit()}>
           {submitting ? '提交中…' : tab === 'login' ? '登录' : '注册'}
         </button>
-        {apiBaseEditable && (
-          <>
-            <button type="button" className={styles.linkBtn} onClick={() => setShowAdvanced(v => !v)}>
-              {showAdvanced ? '收起服务器地址' : '服务器地址'}
-            </button>
-            {showAdvanced && (
-              <div className={styles.advancedRow}>
-                <input className={styles.fieldInput} value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://127.0.0.1:8787/ds/api" />
-                <button type="button" className={styles.secondaryBtn} onClick={() => void setApiBase(serverUrl)}>保存</button>
-              </div>
-            )}
-          </>
-        )}
+        <p className={styles.authDesc}>服务器：dominusgame.top</p>
       </div>
     </div>
   );
