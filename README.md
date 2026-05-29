@@ -51,9 +51,21 @@
 - 插件管理器 UI，支持发现、安装、卸载
 - 内置 6 个技能文件（plan/code-review/brainstorming/debugging/tdd/coding）
 
+### 账号中心
+- 个人账户概览：角色/模板/会话统计、最近活动
+- 角色卡片管理：查看、编辑、AI 生成立绘、全图浏览
+- 角色云端同步：编辑后一键 ☁ 上传到服务器
+- 个人资料修改：用户名编辑，JWT 自动刷新
+
+### 云端同步
+- 自建服务端，独立部署
+- 对话会话备份/恢复到云端
+- 角色卡片云端同步
+- PostgreSQL 数据存储，用户数据隔离
+
 ### 其他
 - 模型设置：支持多模型切换，自定义 API Key/Base URL
-- 生图模型配置：独立的 API 端点、模型选择
+- 生图模型配置：独立的 API 端点、模型选择、质量参数
 - Token 用量实时统计
 - 探索进度：已读文件数/总数、百分比进度条
 - 操作确认弹框，支持"本次会话内自动允许"
@@ -155,7 +167,8 @@ npm start
 - **终端**：node-pty + xterm.js
 - **桌面框架**：Electron 34
 - **构建工具**：Vite 6 + electron-builder
-- **数据库**：better-sqlite3（会话、插件、设置持久化）
+- **本地数据库**：better-sqlite3（会话、插件、设置持久化）
+- **服务端数据库**：PostgreSQL（云端同步）
 
 ## 项目结构
 
@@ -179,9 +192,44 @@ DeepSeek-Agent/
 │       │   └── ...
 │       ├── stores/     # Zustand 状态管理
 │       └── public/     # 静态资源
+├── server/             # 云端同步服务端（Express + PostgreSQL）
 ├── skills/             # 内置技能文件
 └── package.json
 ```
+
+## 服务端部署
+
+云端同步功能需要单独部署服务端。详见 [`deploy/server/`](deploy/server/) 目录。
+
+### 快速部署（Ubuntu）
+
+```bash
+# 1. 创建数据库
+sudo -u postgres createdb deepseek_agent
+
+# 2. 上传代码并安装依赖
+npm install
+
+# 3. 配置环境变量
+cp .env.example .env
+# 修改 DATABASE_URL 和 JWT_SECRET
+
+# 4. 启动（自动建表）
+npm run start:server
+
+# 或使用 PM2 守护
+pm2 start ecosystem.config.cjs
+```
+
+### 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `DATABASE_URL` | PostgreSQL 连接字符串 | 必填 |
+| `JWT_SECRET` | JWT 签名密钥（≥16位） | 必填 |
+| `PORT` | 监听端口 | 8787 |
+| `ALLOW_REGISTER` | 是否允许公开注册 | true |
+| `NODE_ENV` | 运行环境 | production |
 
 ## License
 
