@@ -40,7 +40,8 @@ export default function CharacterPickerPanel() {
     setSessionCast,
     toggleDraftParticipant,
   } = useRoleplayStore();
-  const setMode = useModeStore(s => s.setMode);
+  const { mode, setMode } = useModeStore();
+  const isRoleplayMode = mode === 'roleplay';
   const { setSessionCharacter, setSessionCast: bindSessionCast, createSession, activeSessionId } = useChatStore();
 
   useEffect(() => {
@@ -52,7 +53,13 @@ export default function CharacterPickerPanel() {
   const selectSingleCharacter = async (character: RoleplayCharacter) => {
     setMode('roleplay');
     await setActiveCharacter(character.id);
-    setSessionCharacter(character.id);
+    if (!useChatStore.getState().activeSessionId) {
+      createSession();
+    }
+    setSessionCharacter(character.id, {
+      sessionMode: 'roleplay',
+      pendingOpening: true,
+    });
   };
 
   const startGroupChat = async () => {
@@ -70,13 +77,15 @@ export default function CharacterPickerPanel() {
     <div className={styles.panel}>
       <div className={styles.header}>
         <div>角色</div>
-        <div className={styles.subtitle}>单选进入 1v1；多选 2 人以上开启群聊，你以本人身份与 NPC 互动</div>
+        <div className={styles.subtitle}>
+          角色扮演：单选 1v1；多选 2 人以上开启群聊，你以本人身份与 NPC 互动
+        </div>
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
       {loading && characters.length === 0 && <div className={styles.hint}>加载中…</div>}
 
-      {draftParticipantIds.length > 0 && (
+      {isRoleplayMode && draftParticipantIds.length > 0 && (
         <div className={styles.castBar}>
           <span className={styles.castSummary}>已选 {draftParticipantIds.length} 人</span>
           {isMultiDraft && (
@@ -97,14 +106,16 @@ export default function CharacterPickerPanel() {
               className={`${styles.card} ${isSelected ? styles.cardActive : ''}`}
             >
               <div className={styles.cardTopBar}>
-                <label className={styles.joinCheck}>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleDraftParticipant(character.id)}
-                  />
-                  加入场景
-                </label>
+                {isRoleplayMode && (
+                  <label className={styles.joinCheck}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleDraftParticipant(character.id)}
+                    />
+                    加入场景
+                  </label>
+                )}
               </div>
               <div className={styles.portraitWrap}>
                 <PortraitImage path={character.portraitPath} />

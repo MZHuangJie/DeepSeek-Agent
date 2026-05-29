@@ -66,13 +66,14 @@ export function setupAgentHandlers() {
 
     try {
       const tools = getAllTools(payload.projectDir);
-    const projectContext = payload.mode === 'roleplay' ? '' : buildProjectContext(payload.projectDir);
+    const isCharacterMode = payload.mode === 'roleplay';
+    const projectContext = isCharacterMode ? '' : buildProjectContext(payload.projectDir);
     const subAgentManager = new SubAgentManager(win);
     activeSubAgentManager = subAgentManager;
 
     // 根据模式选择 system prompt，命令 prompt 追加在后
     const baseSystemPrompt = getSystemPrompt(payload.mode);
-    const pluginPrompts = payload.mode === 'roleplay' ? '' : pluginManager.getSystemPrompts();
+    const pluginPrompts = isCharacterMode ? '' : pluginManager.getSystemPrompts();
     const fullSystemPrompt = payload.commandPrompt
       ? `${baseSystemPrompt}\n\n${pluginPrompts}\n\n## 当前命令模式\n${payload.commandPrompt}`
       : pluginPrompts ? `${baseSystemPrompt}\n\n${pluginPrompts}` : baseSystemPrompt;

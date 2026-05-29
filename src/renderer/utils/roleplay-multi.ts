@@ -54,6 +54,20 @@ export function resolveSessionCast(session?: {
   return { participantIds, isMulti };
 }
 
+/** 会话未绑定角色时，回退到侧栏当前选中角色（角色扮演单聊） */
+export function resolveEffectiveCast(
+  session: Parameters<typeof resolveSessionCast>[0],
+  activeCharacterId: string | null | undefined,
+  mode: 'roleplay' | string,
+): RoleplaySessionCast {
+  const cast = resolveSessionCast(session);
+  if (cast.participantIds.length > 0) return cast;
+  if (mode === 'roleplay' && activeCharacterId) {
+    return { participantIds: [activeCharacterId], isMulti: false };
+  }
+  return cast;
+}
+
 export function getCharactersByIds(
   characters: RoleplayCharacter[],
   ids: string[],

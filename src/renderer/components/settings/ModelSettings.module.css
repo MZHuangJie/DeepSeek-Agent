@@ -9,10 +9,12 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
-  width: 480px;
-  max-height: 80vh;
+  width: 520px;
+  max-height: 90vh;
+  height: min(860px, 90vh);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .header {
@@ -41,9 +43,18 @@
 }
 
 .modelList {
-  flex: 1;
+  flex: 0 0 auto;
+  min-height: 320px;
+  max-height: min(480px, 52vh);
   overflow: auto;
   padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panelExtras {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .providerGroup {
@@ -76,6 +87,15 @@
   font-weight: 500;
 }
 
+.catalogBadge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-weight: 500;
+}
+
 .enabledBadge {
   font-size: 10px;
   padding: 1px 6px;
@@ -91,6 +111,7 @@
   color: var(--text-secondary);
   padding: 4px 0 8px;
   line-height: 1.5;
+  word-break: break-all;
 }
 
 .modelRow {
@@ -254,6 +275,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .cancelBtn {
@@ -296,4 +318,42 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+.catalogToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.fetchBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fetchBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.linkBtn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.catalogError {
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: #e57373;
+  line-height: 1.4;
 }

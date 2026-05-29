@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { deriveFallbackSessionTitle, extractPlainUserText } from '../utils/sessionTitle';
 import { useRoleplayStore } from './roleplay';
-import { useModeStore } from './mode';
+import { useModeStore, type AgentMode } from './mode';
 
 let sessionCounter = 0;
 
@@ -55,6 +55,8 @@ export interface Session {
   userCharacterId?: string;
   /** 新建 roleplay 会话后待自动生成开场白 */
   pendingOpening?: boolean;
+  /** 会话绑定的 Agent 模式（角色相关会话） */
+  sessionMode?: 'roleplay';
 }
 
 interface ChatState {
@@ -71,7 +73,10 @@ interface ChatState {
   updateLastAssistant: (update: Partial<Message>) => void;
   newAssistantMessage: () => void;
   updateSessionTitle: (id: string, title: string, titlePending?: boolean) => void;
-  setSessionCharacter: (characterId: string | null) => void;
+  setSessionCharacter: (
+    characterId: string | null,
+    options?: { sessionMode?: 'roleplay'; pendingOpening?: boolean },
+  ) => void;
   setSessionCast: (characterIds: string[]) => void;
 }
 
@@ -81,6 +86,7 @@ function parseSessionPayload(raw: string): {
   characterIds?: string[];
   userCharacterId?: string;
   pendingOpening?: boolean;
+  sessionMode?: 'roleplay';
 } {
   try {
     const parsed = JSON.parse(raw);
@@ -92,6 +98,7 @@ function parseSessionPayload(raw: string): {
         characterIds: parsed.characterIds,
         userCharacterId: parsed.userCharacterId,
         pendingOpening: parsed.pendingOpening,
+        sessionMode: parsed.sessionMode === 'dzmm' ? 'roleplay' : parsed.sessionMode,
       };
     }
   } catch { /* fall through */ }
@@ -105,6 +112,7 @@ function serializeSessionPayload(session: Session): string {
     characterIds: session.characterIds,
     userCharacterId: session.userCharacterId,
     pendingOpening: session.pendingOpening,
+    sessionMode: session.sessionMode,
   });
 }
 
@@ -135,6 +143,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             characterIds: payload.characterIds,
             userCharacterId: payload.userCharacterId,
             pendingOpening: payload.pendingOpening,
+            sessionMode: payload.sessionMode,
           };
         });
         if (sessions.length > 0) {
@@ -162,13 +171,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const roleplayState = useRoleplayStore.getState();
     const activeCharacterId = roleplayState.activeCharacterId;
     const draftParticipantIds = roleplayState.draftParticipantIds;
-    const isRoleplay = useModeStore.getState().mode === 'roleplay';
-    const useMulti = draftParticipantIds.length >= 2;
+    const currentMode = useModeStore.getState().mode;
+    const isRoleplay = currentMode === 'roleplay';
+    const useMulti = isRoleplay && draftParticipantIds.length >= 2;
     const participantIds = useMulti
       ? draftParticipantIds
       : activeCharacterId
         ? [activeCharacterId]
         : [];
+    const sessionMode: Session['sessionMode'] | undefined = isRoleplay ? 'roleplay' : undefined;
     const session: Session = {
       id: `session-${Date.now()}`,
       title: `会话 #${sessionCounter}`,
@@ -176,6 +187,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       characterId: participantIds[0],
       characterIds: participantIds.length > 0 ? participantIds : undefined,
       pendingOpening: Boolean(isRoleplay && participantIds.length > 0),
+      sessionMode,
     };
     set(s => ({
       sessions: [session, ...s.sessions],
@@ -203,7 +215,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : [];
     if (participantIds.length > 0) {
       void useRoleplayStore.getState().setSessionCast(participantIds);
-      useModeStore.getState().setMode('roleplay');
+      const targetMode: AgentMode = session?.sessionMode === 'roleplay' || !session?.sessionMode
+        ? 'roleplay'
+        : useModeStore.getState().mode;
+      if (session?.sessionMode === 'roleplay' || participantIds.length > 0) {
+        useModeStore.getState().setMode(targetMode);
+      }
     }
   },
 
@@ -294,7 +311,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  setSessionCharacter: (characterId) => {
+  setSessionCharacter: (characterId, options) => {
     const { activeSessionId, sessions, isStreaming } = get();
     if (!activeSessionId) return;
     const newSessions = sessions.map(s =>
@@ -304,6 +321,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
             characterId: characterId || undefined,
             characterIds: characterId ? [characterId] : undefined,
             userCharacterId: undefined,
+            sessionMode: options?.sessionMode ?? s.sessionMode,
+            pendingOpening: options?.pendingOpening ?? (
+              characterId && s.messages.length === 0 ? true : s.pendingOpening
+            ),
           }
         : s,
     );

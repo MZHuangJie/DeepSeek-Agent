@@ -6,6 +6,7 @@ import { createParseState, selectProvider } from './providers';
 import { classifyApiError } from './errors';
 import { infoLog, errorLog, log } from '../logger';
 import { maskSecret, truncateText, summarizeJsonForLog } from '../services/log-sanitize';
+import { buildChatCompletionsUrl } from '../services/openai-endpoints';
 
 const httpsAgent = new https.Agent({ keepAlive: false });
 // keepAlive: false — 每次请求独立建连，避免中转站/代理的粘滞连接问题
@@ -71,8 +72,7 @@ export async function streamChat(
   provider?: Provider,
 ): Promise<StreamResult> {
   const { model, baseUrl } = modelConfig;
-  const apiPath = baseUrl.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions';
-  const url = new URL(apiPath, baseUrl);
+  const url = buildChatCompletionsUrl(baseUrl);
   if (url.protocol !== 'https:') {
     throw new Error('API base URL must use HTTPS for security');
   }
@@ -251,9 +251,7 @@ export async function completeChat(
   },
 ): Promise<string> {
   const { model, baseUrl } = modelConfig;
-  const base = baseUrl.replace(/\/+$/, '');
-  const path = base.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions';
-  const url = new URL(base + path);
+  const url = buildChatCompletionsUrl(baseUrl);
   if (url.protocol !== 'https:') {
     throw new Error('API base URL must use HTTPS for security');
   }

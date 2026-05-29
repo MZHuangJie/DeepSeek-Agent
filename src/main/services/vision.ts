@@ -2,6 +2,7 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { buildChatCompletionsUrl as buildOpenAIChatUrl } from './openai-endpoints';
 
 export interface VisionModelConfig {
   enabled?: boolean;
@@ -33,12 +34,6 @@ function loadImagePayload(imagePath: string, prompt?: string): ImagePayload {
   const userPrompt = prompt || '请详细描述这张图片的内容，包括画面主体、场景、文字、颜色等所有可见信息。用中文回复。';
 
   return { mime, base64: buf.toString('base64'), userPrompt };
-}
-
-function buildChatCompletionsUrl(baseUrl: string): URL {
-  const base = baseUrl.replace(/\/+$/, '');
-  const path = base.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions';
-  return new URL(base + path);
 }
 
 /** 从 OpenAI 兼容响应中提取文本（支持 string / content 数组 / reasoning_content） */
@@ -154,7 +149,7 @@ async function describeImageOpenAI(
     max_tokens: 1024,
   });
 
-  const url = buildChatCompletionsUrl(config.baseUrl);
+  const url = buildOpenAIChatUrl(config.baseUrl);
 
   return httpJsonRequest(url, {
     'Content-Type': 'application/json',

@@ -432,6 +432,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   );
   const activeCharacter = useRoleplayStore(s => s.getActiveCharacter());
   const isRoleplayChat = mode === 'roleplay' && sessionCast.participantIds.length > 0;
+  const isCharacterChat = isRoleplayChat;
   const isMultiRoleplay = sessionCast.isMulti;
   const templates = useRoleplayStore(s => s.templates);
   const primaryCharacter = sessionCharacters[0] ?? activeCharacter;
@@ -486,18 +487,18 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   }, [isUser, isRoleplayChat, message.content, message.rawContent, message.roleplayMeta]);
 
   useEffect(() => {
-    if (isUser || !isRoleplayChat || !activeCharacter?.portraitPath) {
+    if (isUser || !isCharacterChat || !primaryCharacter?.portraitPath) {
       setAssistantAvatar('/assets/ai_avater.png');
       return;
     }
     let cancelled = false;
-    void window.api.files.readBinary(activeCharacter.portraitPath).then(url => {
+    void window.api.files.readBinary(primaryCharacter.portraitPath).then(url => {
       if (!cancelled) setAssistantAvatar(url);
     }).catch(() => {
       if (!cancelled) setAssistantAvatar('/assets/ai_avater.png');
     });
     return () => { cancelled = true; };
-  }, [isUser, isRoleplayChat, activeCharacter?.portraitPath]);
+  }, [isUser, isCharacterChat, primaryCharacter?.portraitPath]);
 
   const showSingleBubble = showContentBubble && roleplayTurns.length === 0;
 

@@ -140,18 +140,24 @@ export const useModelStore = create<ModelState>((set, get) => ({
       if (saved) {
         const parsed = JSON.parse(saved);
         // 兼容旧数据：已配模型用默认列表里的最新 contextWindow
-        const migrated = parsed.map((m: ModelConfig) => {
+        const migrated = parsed
+          .filter((m: ModelConfig) => m.provider !== 'xiaoshuoai')
+          .map((m: ModelConfig) => {
           const def = DEFAULT_MODELS.find(d => d.id === m.id || d.model === m.model);
           return {
             ...m,
             contextWindow: def?.contextWindow ?? m.contextWindow ?? inferContextWindow(m.model),
           };
         });
-        set({ models: migrated });
+        if (migrated.length > 0) {
+          set({ models: migrated });
+        }
       }
       const active = await window.api.settings.get('activeModel');
       if (active && get().models.find(m => m.id === active)) {
         set({ activeModelId: active });
+      } else if (active && !get().models.find(m => m.id === active)) {
+        set({ activeModelId: DEFAULT_MODELS[0].id });
       }
     } catch {
       // use defaults

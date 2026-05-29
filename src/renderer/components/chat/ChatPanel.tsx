@@ -14,6 +14,7 @@ import {
   getCharactersByIds,
   mapTurnsToMeta,
   resolveSessionCast,
+  resolveEffectiveCast,
 } from '../../utils/roleplay-multi';
 import {
   parseRoleplayResponse,
@@ -327,18 +328,18 @@ export default function ChatPanel() {
     setStreaming(false);
   }, []);
 
-  const sendRoleplayOpening = useCallback(async (sessionId: string) => {
+  const sendCharacterOpening = useCallback(async (sessionId: string) => {
     if (!apiKey) return;
     const chat = useChatStore.getState();
     const target = chat.sessions.find(s => s.id === sessionId);
     if (!target?.pendingOpening || target.messages.length > 0) return;
-    if (useModeStore.getState().mode !== 'roleplay') {
+    const currentMode = useModeStore.getState().mode;
+    if (currentMode !== 'roleplay') {
       chat.clearPendingOpening(sessionId);
       return;
     }
 
-    const activeCharacter = useRoleplayStore.getState().getActiveCharacter();
-    const cast = resolveSessionCast(target);
+    const cast = resolveEffectiveCast(target, useRoleplayStore.getState().activeCharacterId, currentMode);
     const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
     if (participants.length === 0) {
       chat.clearPendingOpening(sessionId);
@@ -346,6 +347,7 @@ export default function ChatPanel() {
     }
 
     chat.clearPendingOpening(sessionId);
+
     statusRetryUsedRef.current = false;
     resetStreamBuffers();
     addMessage({ id: `msg-${Date.now()}`, role: 'assistant', content: '', timestamp: Date.now() });
@@ -371,8 +373,8 @@ export default function ChatPanel() {
     const target = sessions.find(s => s.id === activeSessionId);
     if (!target?.pendingOpening || target.messages.length > 0) return;
     if (mode !== 'roleplay') return;
-    void sendRoleplayOpening(activeSessionId);
-  }, [activeSessionId, sessions, isStreaming, apiKey, mode, sendRoleplayOpening]);
+    void sendCharacterOpening(activeSessionId);
+  }, [activeSessionId, sessions, isStreaming, apiKey, mode, sendCharacterOpening]);
 
   const handleSend = useCallback(async (content: string, command?: Command, images?: PastedImage[]) => {
     if (!activeSessionId) return;
@@ -408,9 +410,11 @@ export default function ChatPanel() {
     setStreaming(true);
 
     const sendMode = useModeStore.getState().mode;
+    const roleplayState = useRoleplayStore.getState();
     const currentSession = useChatStore.getState().sessions.find(s => s.id === activeSessionId);
-    const cast = resolveSessionCast(currentSession);
-    const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
+    const cast = resolveEffectiveCast(currentSession, roleplayState.activeCharacterId, sendMode);
+    let participants = getCharactersByIds(roleplayState.characters, cast.participantIds);
+
     let commandPrompt = command?.systemPrompt;
     if (sendMode === 'roleplay' && participants.length > 0) {
       const sessionPrompt = buildSessionRoleplayPrompt(

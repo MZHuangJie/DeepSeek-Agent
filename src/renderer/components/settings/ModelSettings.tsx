@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useModelStore, ModelConfig, ImageModelConfig, VisionModelConfig, PROVIDERS, ProviderKey } from '../../stores/model';
+import {
+  useModelStore,
+  ModelConfig,
+  ImageModelConfig,
+  VisionModelConfig,
+  PROVIDERS,
+  ProviderKey,
+} from '../../stores/model';
 import styles from './ModelSettings.module.css';
 
 interface Props {
@@ -120,6 +127,7 @@ export default function ModelSettings({ onClose }: Props) {
           </button>
         </div>
 
+        <div className={styles.panelExtras}>
         <ModelSection
           title="生图模型配置"
           enabled={imageConfig.enabled}
@@ -170,6 +178,7 @@ export default function ModelSettings({ onClose }: Props) {
             </div>
           )}
         </ModelSection>
+        </div>
 
         <div className={styles.footer}>
           <button onClick={onClose} className={styles.cancelBtn}>取消</button>
@@ -178,85 +187,123 @@ export default function ModelSettings({ onClose }: Props) {
       </div>
 
       {editing && (
-        <div className={styles.overlay} style={{ zIndex: 1001 }}>
-          <div className={styles.editPanel}>
-            <div className={styles.editTitle}>
-              {editing.id.startsWith('custom-') && !list.find(m => m.id === editing.id) ? '添加模型' : '编辑模型'}
-            </div>
-            <FieldRow label="显示名称">
-              <input
-                value={editing.name}
-                onChange={e => setEditing({ ...editing, name: e.target.value })}
-                className={styles.input}
-              />
-            </FieldRow>
-            <FieldRow label="提供商">
-              <select
-                value={editing.provider}
-                onChange={e => {
-                  const p = e.target.value as ProviderKey;
-                  const preset = PROVIDERS[p];
-                  setEditing({ ...editing, provider: p, baseUrl: preset.baseUrl, model: preset.defaultModel, contextWindow: preset.contextWindow });
-                }}
-                className={styles.select}
-              >
-                {(Object.keys(PROVIDERS) as ProviderKey[]).map(k => (
-                  <option key={k} value={k}>{PROVIDERS[k].label}{PROVIDERS[k].multimodal ? ' (多模态)' : ''}</option>
-                ))}
-              </select>
-            </FieldRow>
-            <FieldRow label="Base URL">
-              <input
-                value={editing.baseUrl}
-                onChange={e => setEditing({ ...editing, baseUrl: e.target.value })}
-                className={styles.input}
-              />
-            </FieldRow>
-            <FieldRow label="模型 ID">
-              <input
-                value={editing.model}
-                onChange={e => setEditing({ ...editing, model: e.target.value })}
-                className={styles.input}
-              />
-            </FieldRow>
-            <FieldRow label="上下文窗口">
-              <div className={styles.rowSplit}>
-                <input
-                  type="number"
-                  value={editing.contextWindow ?? 64000}
-                  onChange={e => setEditing({ ...editing, contextWindow: parseInt(e.target.value) || 0 })}
-                  className={styles.input}
-                />
-                <select
-                  value={editing.contextWindow ?? 64000}
-                  onChange={e => setEditing({ ...editing, contextWindow: parseInt(e.target.value) })}
-                  className={styles.select}
-                >
-                  <option value={8000}>8k</option>
-                  <option value={32000}>32k</option>
-                  <option value={64000}>64k</option>
-                  <option value={128000}>128k</option>
-                  <option value={1000000}>1M</option>
-                  <option value={2000000}>2M</option>
-                </select>
-              </div>
-            </FieldRow>
-            <FieldRow label="API Key（可选，覆盖全局 Key）">
-              <input
-                type="password"
-                value={editing.apiKey || ''}
-                onChange={e => setEditing({ ...editing, apiKey: e.target.value || undefined })}
-                className={styles.input}
-                placeholder="留空则使用全局 API Key"
-              />
-            </FieldRow>
-            <div className={styles.editFooter}>
-              <button onClick={() => setEditing(null)} className={styles.cancelBtn}>取消</button>
-              <button onClick={saveEdit} className={styles.saveBtn}>确定</button>
-            </div>
-          </div>
-        </div>
+        <ModelEditDialog
+          editing={editing}
+          list={list}
+          onChange={setEditing}
+          onCancel={() => setEditing(null)}
+          onSave={saveEdit}
+        />
       )}
+    </div>
+  );
+}
+
+function ModelEditDialog({
+  editing,
+  list,
+  onChange,
+  onCancel,
+  onSave,
+}: {
+  editing: ModelConfig;
+  list: ModelConfig[];
+  onChange: (model: ModelConfig) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const handleProviderChange = (provider: ProviderKey) => {
+    const preset = PROVIDERS[provider];
+    onChange({
+      ...editing,
+      provider,
+      baseUrl: preset.baseUrl,
+      model: preset.defaultModel,
+      contextWindow: preset.contextWindow,
+    });
+  };
+
+  return (
+    <div className={styles.overlay} style={{ zIndex: 1001 }}>
+      <div className={styles.editPanel}>
+        <div className={styles.editTitle}>
+          {editing.id.startsWith('custom-') && !list.find(m => m.id === editing.id) ? '添加模型' : '编辑模型'}
+        </div>
+        <FieldRow label="显示名称">
+          <input
+            value={editing.name}
+            onChange={e => onChange({ ...editing, name: e.target.value })}
+            className={styles.input}
+          />
+        </FieldRow>
+        <FieldRow label="提供商">
+          <select
+            value={editing.provider}
+            onChange={e => handleProviderChange(e.target.value as ProviderKey)}
+            className={styles.select}
+          >
+            {(Object.keys(PROVIDERS) as ProviderKey[]).map(k => (
+              <option key={k} value={k}>
+                {PROVIDERS[k].label}
+                {PROVIDERS[k].multimodal ? ' (多模态)' : ''}
+              </option>
+            ))}
+          </select>
+        </FieldRow>
+        <FieldRow label="Base URL">
+          <input
+            value={editing.baseUrl}
+            onChange={e => onChange({ ...editing, baseUrl: e.target.value })}
+            className={styles.input}
+            placeholder="https://api.openai.com"
+          />
+        </FieldRow>
+        <FieldRow label="模型 ID">
+          <input
+            value={editing.model}
+            onChange={e => onChange({ ...editing, model: e.target.value })}
+            className={styles.input}
+            placeholder="gpt-4o"
+          />
+        </FieldRow>
+        <FieldRow label="上下文窗口">
+          <div className={styles.rowSplit}>
+            <input
+              type="number"
+              value={editing.contextWindow ?? 64000}
+              onChange={e => onChange({ ...editing, contextWindow: parseInt(e.target.value) || 0 })}
+              className={styles.input}
+            />
+            <select
+              value={editing.contextWindow ?? 64000}
+              onChange={e => onChange({ ...editing, contextWindow: parseInt(e.target.value) })}
+              className={styles.select}
+            >
+              <option value={8000}>8k</option>
+              <option value={10000}>10k</option>
+              <option value={16000}>16k</option>
+              <option value={32000}>32k</option>
+              <option value={64000}>64k</option>
+              <option value={128000}>128k</option>
+              <option value={1000000}>1M</option>
+              <option value={2000000}>2M</option>
+            </select>
+          </div>
+        </FieldRow>
+        <FieldRow label="API Key（可选，覆盖全局 Key）">
+          <input
+            type="password"
+            value={editing.apiKey || ''}
+            onChange={e => onChange({ ...editing, apiKey: e.target.value || undefined })}
+            className={styles.input}
+            placeholder="留空则使用全局 API Key"
+          />
+        </FieldRow>
+        <div className={styles.editFooter}>
+          <button onClick={onCancel} className={styles.cancelBtn}>取消</button>
+          <button onClick={onSave} className={styles.saveBtn}>确定</button>
+        </div>
+      </div>
     </div>
   );
 }
