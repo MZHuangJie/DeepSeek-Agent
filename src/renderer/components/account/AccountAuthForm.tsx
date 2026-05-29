@@ -44,7 +44,6 @@ export default function AccountAuthForm() {
         <button type="button" className={styles.primaryBtn} disabled={submitting || !username.trim()} onClick={() => void handleSubmit()}>
           {submitting ? '提交中…' : tab === 'login' ? '登录' : '注册'}
         </button>
-        <p className={styles.authDesc}>服务器：dominusgame.top</p>
       </div>
     </div>
   );
