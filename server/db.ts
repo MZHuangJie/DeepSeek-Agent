@@ -23,6 +23,7 @@ export async function initDb(): Promise<void> {
       id SERIAL PRIMARY KEY,
       username VARCHAR(32) UNIQUE NOT NULL,
       email VARCHAR(255),
+      avatar TEXT,
       password_hash VARCHAR(255) NOT NULL,
       created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000
     );
@@ -30,6 +31,10 @@ export async function initDb(): Promise<void> {
   // 兼容已有表：添加 email 字段
   try {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`);
+  } catch { /* ignore */ }
+  // 兼容已有表：添加 avatar 字段
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT`);
   } catch { /* ignore */ }
 
   await pool.query(`
@@ -84,7 +89,7 @@ export async function createUser(username: string, passwordHash: string, email?:
   const result = await pool.query<UserRow>(
     `INSERT INTO users (username, email, password_hash, created_at)
      VALUES ($1, $2, $3, $4)
-     RETURNING id, username, email, password_hash, created_at`,
+     RETURNING id, username, email, avatar, password_hash, created_at`,
     [username.trim(), email?.trim() || null, passwordHash, Date.now()]
   );
   return result.rows[0];
