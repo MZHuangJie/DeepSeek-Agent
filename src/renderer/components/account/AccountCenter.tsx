@@ -132,17 +132,47 @@ export default function AccountCenter({ onClose }: Props) {
     </div>
   );
 
+  const compressAvatar = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const maxSize = 256;
+          let w = img.width;
+          let h = img.height;
+          if (w > h) {
+            if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; }
+          } else {
+            if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('canvas error')); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleAvatarPick = async (file: File) => {
     if (!user) return;
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      if (!base64.startsWith('data:image/')) return;
+    try {
       setUpdatingField('avatar');
+      const base64 = await compressAvatar(file);
       await updateProfile({ avatar: base64 });
+    } catch {
+      // ignore
+    } finally {
       setUpdatingField(null);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleFieldBlur = async (field: 'username' | 'email') => {

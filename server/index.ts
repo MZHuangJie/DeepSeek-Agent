@@ -9,7 +9,7 @@ const API_PREFIX = `${BASE_PATH}/api`;
 const PORT = Number(process.env.PORT) || 8787;
 
 const app = express();
-app.use(express.json({ limit: '6mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 const jwtSecret = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
 if (jwtSecret.length < 16 || jwtSecret.includes('change-me')) {
