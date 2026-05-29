@@ -23,13 +23,17 @@ export async function initDb(): Promise<void> {
       id SERIAL PRIMARY KEY,
       username VARCHAR(32) UNIQUE NOT NULL,
       email VARCHAR(255),
+      avatar TEXT,
       password_hash VARCHAR(255) NOT NULL,
       created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000
     );
   `);
-  // 兼容已有表：添加 email 字段
+  // 兼容已有表
   try {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`);
+  } catch { /* ignore */ }
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT`);
   } catch { /* ignore */ }
 
   await pool.query(`
