@@ -27,7 +27,6 @@ export default function AccountAuthForm() {
     <div className={styles.authWrap}>
       <div className={styles.authCard}>
         <h2 className={styles.authTitle}>登录 DeepSeek Agent 账户</h2>
-        <p className={styles.authDesc}>登录后可同步会话与配置到云端（Phase 2）</p>
         <div className={styles.tabs}>
           <button type="button" className={`${styles.tabBtn} ${tab === 'login' ? styles.tabActive : ''}`} onClick={() => { setTab('login'); clearError(); }}>登录</button>
           <button type="button" className={`${styles.tabBtn} ${tab === 'register' ? styles.tabActive : ''}`} onClick={() => { setTab('register'); clearError(); }}>注册</button>
