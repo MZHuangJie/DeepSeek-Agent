@@ -26,7 +26,7 @@ export async function initDb(): Promise<void> {
       created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000
     );
   `);
-  -- 兼容已有表：添加 email 字段
+  // 兼容已有表：添加 email 字段
   try {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`);
   } catch { /* ignore */ }
