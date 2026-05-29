@@ -19,7 +19,7 @@ interface RoleplayState {
   setSessionCast: (participantIds: string[]) => Promise<void>;
   toggleDraftParticipant: (id: string) => void;
   clearDraftCast: () => void;
-  pickPortrait: (ownerId: string) => Promise<string | null>;
+  pickPortrait: (ownerId: string, copy?: boolean) => Promise<string | null>;
   generatePortrait: (
     ownerId: string,
     data: CharacterFormData,
@@ -159,8 +159,8 @@ export const useRoleplayStore = create<RoleplayState>((set, get) => ({
     set({ draftParticipantIds: [] });
   },
 
-  pickPortrait: async (ownerId) => {
-    const res = await window.api.roleplay.pickPortrait(ownerId);
+  pickPortrait: async (ownerId, copy = true) => {
+    const res = await window.api.roleplay.pickPortrait(ownerId, copy);
     if (!res.success) {
       if (res.error !== '已取消') set({ error: res.error });
       return null;

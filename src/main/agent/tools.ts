@@ -12,6 +12,11 @@ import { createSpawnSubAgentTool } from './tools/spawn-sub-agent';
 import { createSpawnRoleAgentsTool } from './tools/spawn-role-agents';
 import { createWritePlanTool } from './tools/write-plan';
 import { createWriteTodosTool } from './tools/write-todos';
+import {
+  createCloudListSessionsTool,
+  createCloudPushSessionTool,
+  createCloudPullSessionTool,
+} from './tools/cloud-sync';
 import { createAutoDecomposeTaskTool } from './tools/auto-decompose-task';
 import { createBrowseUrlTool } from './tools/browse-url';
 import { createWebSearchTool } from './tools/web-search';
@@ -45,6 +50,9 @@ const SUB_AGENT_EXCLUDED_TOOLS = new Set([
   'git_commit',
   'git_pull',
   'git_push',
+  'cloud_list_sessions',
+  'cloud_push_session',
+  'cloud_pull_session',
 ]);
 
 export function getAllTools(projectDir: string): ToolDef[] {
@@ -75,6 +83,9 @@ export function getAllTools(projectDir: string): ToolDef[] {
     createGitPullTool(projectDir),
     createGitPushTool(projectDir),
     createWriteTodosTool(),
+    createCloudListSessionsTool(),
+    createCloudPushSessionTool(),
+    createCloudPullSessionTool(),
   ];
 }
 

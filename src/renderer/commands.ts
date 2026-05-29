@@ -279,7 +279,7 @@ export const COMMANDS: Command[] = [
 2. 调用 generate_image 工具生成图片，参数参考：
    - prompt: 优化后的英文描述
    - size: 1024x1024 / 1792x1024 / 1024x1792（默认 1024x1024）
-   - quality: low / medium / high / auto（默认 auto）
+   - quality: low / medium / high / auto（默认 high）
    - n: 1-4（默认 1）
 3. 用 markdown 图片语法展示结果：![图片描述](图片路径)
 4. 如果用户没有指定风格或细节，主动补充合理的画面描述`,

@@ -31,7 +31,7 @@ interface Props {
   template?: RoleplayTemplate | null;
   onSave: (data: CharacterFormData) => Promise<void>;
   onCancel: () => void;
-  onPickPortrait: (ownerId: string) => Promise<string | null>;
+  onPickPortrait: (ownerId: string, copy?: boolean) => Promise<string | null>;
   onGeneratePortrait?: (
     ownerId: string,
     data: CharacterFormData,
@@ -71,6 +71,7 @@ export default function CharacterEditor({
   const [portraitGenStage, setPortraitGenStage] = useState<PortraitGenerateStage | null>(null);
   const [portraitGenError, setPortraitGenError] = useState('');
   const [portraitStyle, setPortraitStyle] = useState<PortraitStyleId>(DEFAULT_PORTRAIT_STYLE);
+  const [fullPortraitDataUrl, setFullPortraitDataUrl] = useState<string | null>(null);
   const [showBody, setShowBody] = useState(() => Boolean(formatBodyHasValue(initial.body)));
   const [showStatusFields, setShowStatusFields] = useState(false);
 
@@ -125,6 +126,20 @@ export default function CharacterEditor({
   }, [form.portraitPath]);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!form.portraitFullPath) {
+      setFullPortraitDataUrl(null);
+      return;
+    }
+    void window.api.files.readBinary(form.portraitFullPath).then(url => {
+      if (!cancelled) setFullPortraitDataUrl(url);
+    }).catch(() => {
+      if (!cancelled) setFullPortraitDataUrl(null);
+    });
+    return () => { cancelled = true; };
+  }, [form.portraitFullPath]);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopPropagation();
@@ -168,6 +183,11 @@ export default function CharacterEditor({
   const handlePickPortrait = async () => {
     const path = await onPickPortrait(form.id || draftId);
     if (path) setForm(f => ({ ...f, portraitPath: path }));
+  };
+
+  const handlePickFullPortrait = async () => {
+    const path = await onPickPortrait(`${form.id || draftId}-full`, false);
+    if (path) setForm(f => ({ ...f, portraitFullPath: path }));
   };
 
   const handleGeneratePortrait = async () => {
@@ -242,6 +262,12 @@ export default function CharacterEditor({
               <button type="button" className={styles.secondaryBtn} onClick={() => void handlePickPortrait()} disabled={generatingPortrait}>
                 选择立绘
               </button>
+              <button type="button" className={styles.secondaryBtn} onClick={() => void handlePickFullPortrait()} disabled={generatingPortrait}>
+                设置查看大图
+              </button>
+              {form.portraitFullPath && (
+                <span className={styles.genHint}>已设置查看大图</span>
+              )}
               {onGeneratePortrait && (
                 <button
                   type="button"

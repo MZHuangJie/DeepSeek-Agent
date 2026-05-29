@@ -37,7 +37,7 @@ import shared from '../../styles/components.module.css';
 import styles from './ChatPanel.module.css';
 
 export default function ChatPanel() {
-  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions } = useChatStore();
+  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions, clearPlanTodos } = useChatStore();
   const { loadModels, getActiveModel, loadImageModel, loadVisionModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
@@ -543,6 +543,8 @@ export default function ChatPanel() {
             planDocPath={session.planDocPath}
             executing={isStreaming}
             onExecute={() => void handleExecutePlan()}
+            onStop={() => void handleStop()}
+            onClose={() => clearPlanTodos()}
           />
         )}
         {choiceReq && (

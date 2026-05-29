@@ -7,6 +7,8 @@ interface Props {
   planDocPath?: string;
   executing: boolean;
   onExecute: () => void;
+  onStop: () => void;
+  onClose: () => void;
 }
 
 const STATUS_GLYPH: Record<PlanTodo['status'], string> = {
@@ -16,7 +18,7 @@ const STATUS_GLYPH: Record<PlanTodo['status'], string> = {
   cancelled: '✕',
 };
 
-export default function PlanTodoPanel({ todos, planDocPath, executing, onExecute }: Props) {
+export default function PlanTodoPanel({ todos, planDocPath, executing, onExecute, onStop, onClose }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   if (todos.length === 0) return null;
 
@@ -30,14 +32,35 @@ export default function PlanTodoPanel({ todos, planDocPath, executing, onExecute
         <span className={styles.title}>任务清单</span>
         <span className={styles.progress}>{done}/{todos.length}</span>
         {planDocPath && <span className={styles.docPath} title={planDocPath}>{planDocPath}</span>}
-        <button
-          className={styles.execBtn}
-          disabled={executing || allDone}
-          onClick={(e) => { e.stopPropagation(); onExecute(); }}
-          title={allDone ? '全部任务已完成' : '切换到 Agent 模式并逐项执行'}
-        >
-          {executing ? '执行中…' : allDone ? '已完成' : '▶ 执行计划'}
-        </button>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.cancelBtn}
+            disabled={executing}
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            title={executing ? '请先停止执行' : '关闭任务清单（计划文档仍保留）'}
+          >
+            取消
+          </button>
+          {executing ? (
+            <button
+              className={`${styles.execBtn} ${styles.stopBtn}`}
+              onClick={(e) => { e.stopPropagation(); onStop(); }}
+              title="停止执行计划"
+            >
+              ■ 停止执行
+            </button>
+          ) : (
+            <button
+              className={styles.execBtn}
+              disabled={allDone}
+              onClick={(e) => { e.stopPropagation(); onExecute(); }}
+              title={allDone ? '全部任务已完成' : '切换到 Agent 模式并逐项执行'}
+            >
+              {allDone ? '已完成' : '▶ 执行计划'}
+            </button>
+          )}
+        </div>
       </div>
       {!collapsed && (
         <div className={styles.list}>

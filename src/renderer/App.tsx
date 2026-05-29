@@ -30,6 +30,8 @@ import { useChatStore } from './stores/chat';
 import { useLayoutStore, SIDEBAR_MIN_WIDTH } from './stores/layout';
 import { useBrowserStore } from './stores/browser';
 import { useModeStore } from './stores/mode';
+import AccountCenter from './components/account/AccountCenter';
+import { useAuthStore } from './stores/auth';
 import ResizeHandle from './components/layout/ResizeHandle';
 import SidebarResizeHandle from './components/layout/SidebarResizeHandle';
 
@@ -72,13 +74,20 @@ export default function App() {
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const mode = useModeStore(s => s.mode);
   const setRoleplay = useModeStore(s => s.setRoleplay);
+  const authUser = useAuthStore(s => s.user);
+  const authRestore = useAuthStore(s => s.restore);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
+  const [showAccountCenter, setShowAccountCenter] = React.useState(false);
 
   useEffect(() => {
     if (mode !== 'roleplay' && openView === 'roleplay') {
       setOpenView(null);
     }
   }, [mode, openView]);
+
+  useEffect(() => {
+    void authRestore();
+  }, [authRestore]);
   const handleToggleView = (view: PanelView) => {
     if (view === 'browser') {
       setBrowserOpen(!browserOpen);
@@ -215,11 +224,17 @@ export default function App() {
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {showAccountCenter ? (
+          <AccountCenter onClose={() => setShowAccountCenter(false)} />
+        ) : (
+        <>
         {/* Activity Bar — 最左边 */}
         <ActivityBar
           openView={isBrowserVisible ? 'browser' : openView}
           onToggle={handleToggleView}
           onSystemAction={handleSystemAction}
+          onOpenLogin={() => setShowAccountCenter(true)}
+          username={authUser?.username ?? null}
         />
 
         {/* Left Panel — files/sessions/browser 滑动面板 */}
@@ -232,7 +247,7 @@ export default function App() {
         }}>
           <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
             {!isBrowserVisible && openView === 'files' && <Sidebar />}
-            {!isBrowserVisible && openView === 'sessions' && <SessionList />}
+            {!isBrowserVisible && openView === 'sessions' && <SessionList onOpenLogin={() => setShowAccountCenter(true)} />}
             {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
             {!isBrowserVisible && openView === 'git' && <GitPanel />}
             {!isBrowserVisible && openView === 'roleplay' && <CharacterPickerPanel />}
@@ -346,6 +361,8 @@ export default function App() {
         {openView === 'agent' && (
           <ResizeHandle direction="horizontal" onResize={(d) => setAgentPanelWidth(w => Math.max(200, w - d))} />
         )}
+        </>
+        )}
       </div>
 
       {/* Status Bar */}
@@ -369,7 +386,7 @@ export default function App() {
           }}
         />
       )}
-      <StatusBar language={activeFile ? (activeFile.kind === 'diff' ? activeFile.language || '' : getLanguage(activeFile.name)) : ''} />
+      <StatusBar language={showAccountCenter ? '' : (activeFile ? (activeFile.kind === 'diff' ? activeFile.language || '' : getLanguage(activeFile.name)) : '')} />
     </div>
   );
 }

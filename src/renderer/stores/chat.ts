@@ -91,6 +91,7 @@ interface ChatState {
   ) => void;
   setSessionCast: (characterIds: string[]) => void;
   setPlanTodos: (todos: PlanTodo[], planDocPath?: string) => void;
+  clearPlanTodos: () => void;
 }
 
 function parseSessionPayload(raw: string): {
@@ -390,6 +391,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
             planTodos: todos,
             planDocPath: planDocPath ?? s.planDocPath,
           }
+        : s,
+    );
+    set({ sessions: newSessions });
+    const session = newSessions.find(s => s.id === activeSessionId);
+    if (session) persistSession(session);
+  },
+
+  clearPlanTodos: () => {
+    const { activeSessionId, sessions } = get();
+    if (!activeSessionId) return;
+    const newSessions = sessions.map(s =>
+      s.id === activeSessionId
+        ? { ...s, planTodos: undefined, planDocPath: undefined }
         : s,
     );
     set({ sessions: newSessions });

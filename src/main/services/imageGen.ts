@@ -158,7 +158,7 @@ export async function generateImage(
     prompt: args.prompt,
     n: Math.min(Math.max(args.n ?? 1, 1), 4),
     size: args.size || '1024x1024',
-    quality: args.quality || 'standard',
+    quality: args.quality || 'high',
   };
   const body = JSON.stringify(payload);
 

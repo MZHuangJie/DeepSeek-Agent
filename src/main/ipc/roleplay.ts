@@ -91,7 +91,7 @@ export function setupRoleplayHandlers() {
     }
   });
 
-  ipcMain.handle('roleplay:pickPortrait', async (event, ownerId: string) => {
+  ipcMain.handle('roleplay:pickPortrait', async (event, ownerId: string, copy = true) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return { success: false as const, error: '窗口不可用' };
     const result = await dialog.showOpenDialog(win, {
@@ -103,7 +103,9 @@ export function setupRoleplayHandlers() {
       return { success: false as const, error: '已取消' };
     }
     try {
-      const portraitPath = copyPortraitFromFile(result.filePaths[0], ownerId);
+      const portraitPath = copy
+        ? copyPortraitFromFile(result.filePaths[0], ownerId)
+        : result.filePaths[0];
       return { success: true as const, portraitPath };
     } catch (err: unknown) {
       return { success: false as const, error: err instanceof Error ? err.message : String(err) };

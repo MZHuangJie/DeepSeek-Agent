@@ -1,0 +1,34 @@
+import express from 'express';
+import { loadStore } from './db';
+import authRouter from './routes/auth';
+import syncRouter from './routes/sync';
+
+const BASE_PATH = '/ds';
+const API_PREFIX = `${BASE_PATH}/api`;
+const PORT = Number(process.env.PORT) || 8787;
+
+const app = express();
+app.use(express.json({ limit: '6mb' }));
+
+loadStore();
+
+const jwtSecret = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
+if (jwtSecret.length < 16 || jwtSecret.includes('change-me')) {
+  console.warn('[server] 警告: JWT_SECRET 过弱或为默认值，生产环境请务必修改');
+}
+
+app.get(`${API_PREFIX}/health`, (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.use(`${API_PREFIX}/auth`, authRouter);
+app.use(`${API_PREFIX}/sync`, syncRouter);
+
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+app.listen(PORT, () => {
+  console.log(`[server] listening on http://127.0.0.1:${PORT}${API_PREFIX}`);
+  console.log(`[server] health: http://127.0.0.1:${PORT}${API_PREFIX}/health`);
+});

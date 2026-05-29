@@ -121,6 +121,17 @@ const api = {
     getApiKey: () => ipcRenderer.invoke('settings:getApiKey'),
     setApiKey: (key: string) => ipcRenderer.invoke('settings:setApiKey', key),
   },
+  auth: {
+    getApiBase: () => ipcRenderer.invoke('auth:getApiBase'),
+    isApiBaseEditable: () => ipcRenderer.invoke('auth:isApiBaseEditable'),
+    setApiBase: (baseUrl: string) => ipcRenderer.invoke('auth:setApiBase', baseUrl),
+    login: (username: string, password: string) => ipcRenderer.invoke('auth:login', username, password),
+    register: (username: string, password: string) => ipcRenderer.invoke('auth:register', username, password),
+    restore: () => ipcRenderer.invoke('auth:restore'),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    updateProfile: (username: string) => ipcRenderer.invoke('auth:updateProfile', username),
+    healthCheck: (baseUrl?: string) => ipcRenderer.invoke('auth:healthCheck', baseUrl),
+  },
   sessions: {
     save: (id: string, title: string, messages: string) => ipcRenderer.invoke('sessions:save', id, title, messages),
     loadAll: () => ipcRenderer.invoke('sessions:loadAll'),
@@ -132,6 +143,16 @@ const api = {
       baseUrl?: string;
       apiKey?: string;
     }) => ipcRenderer.invoke('sessions:generateTitle', payload),
+  },
+  sync: {
+    listSessions: () => ipcRenderer.invoke('sync:listSessions'),
+    getSession: (sessionId: string) => ipcRenderer.invoke('sync:getSession', sessionId),
+    pushSession: (sessionId: string, title: string, payload: string) => ipcRenderer.invoke('sync:pushSession', sessionId, title, payload),
+    deleteSession: (sessionId: string) => ipcRenderer.invoke('sync:deleteSession', sessionId),
+    listCharacters: () => ipcRenderer.invoke('sync:listCharacters'),
+    getCharacter: (characterId: string) => ipcRenderer.invoke('sync:getCharacter', characterId),
+    pushCharacter: (characterId: string, name: string, payload: string) => ipcRenderer.invoke('sync:pushCharacter', characterId, name, payload),
+    deleteCharacter: (characterId: string) => ipcRenderer.invoke('sync:deleteCharacter', characterId),
   },
   marketplace: {
     add: (url: string) => ipcRenderer.invoke('marketplace:add', url),
@@ -199,7 +220,7 @@ const api = {
     deleteCharacter: (id: string) => ipcRenderer.invoke('roleplay:deleteCharacter', id),
     createFromTemplate: (templateId: string) => ipcRenderer.invoke('roleplay:createFromTemplate', templateId),
     setActiveCharacter: (id: string | null) => ipcRenderer.invoke('roleplay:setActiveCharacter', id),
-    pickPortrait: (ownerId: string) => ipcRenderer.invoke('roleplay:pickPortrait', ownerId),
+    pickPortrait: (ownerId: string, copy?: boolean) => ipcRenderer.invoke('roleplay:pickPortrait', ownerId, copy),
     generatePortrait: async (
       ownerId: string,
       payload: Record<string, unknown>,

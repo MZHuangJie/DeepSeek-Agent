@@ -8,6 +8,8 @@ import { setupPluginHandlers } from './plugin';
 import { setupBrowserHandlers } from './browser';
 import { setupGitHandlers } from './git';
 import { setupRoleplayHandlers } from './roleplay';
+import { setupAuthHandlers } from './auth';
+import { setupSyncHandlers } from './sync';
 
 export function registerAllHandlers() {
   setupWindowHandlers();
@@ -15,6 +17,8 @@ export function registerAllHandlers() {
   setupAgentHandlers();
   setupTerminalHandlers();
   setupSettingsHandlers();
+  setupAuthHandlers();
+  setupSyncHandlers();
   setupPluginHandlers();
   setupBrowserHandlers();
   setupGitHandlers();

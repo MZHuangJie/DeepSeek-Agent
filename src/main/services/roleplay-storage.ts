@@ -106,6 +106,7 @@ export interface RoleplayTemplate {
   body?: BodyMeasurements;
   openingStory?: string;
   portraitPath?: string;
+  portraitFullPath?: string;
   statusFields?: StatusFieldDef[];
   createdAt: number;
   updatedAt: number;
@@ -122,6 +123,7 @@ export interface RoleplayCharacter {
   body?: BodyMeasurements;
   openingStory?: string;
   portraitPath?: string;
+  portraitFullPath?: string;
   statusFieldEnabled?: Record<string, boolean>;
   /** @deprecated 旧数据 */
   statusFields?: StatusFieldDef[];
@@ -174,6 +176,7 @@ export function saveTemplate(input: Omit<RoleplayTemplate, 'id' | 'createdAt' | 
     body: input.body,
     openingStory: input.openingStory?.trim() || undefined,
     portraitPath: input.portraitPath || existing?.portraitPath,
+    portraitFullPath: input.portraitFullPath || existing?.portraitFullPath,
     statusFields: input.statusFields?.length
       ? input.statusFields
       : existing?.statusFields?.length
@@ -234,6 +237,7 @@ export function saveCharacter(input: Omit<RoleplayCharacter, 'id' | 'createdAt' 
     body: input.body,
     openingStory: input.openingStory?.trim() || undefined,
     portraitPath: input.portraitPath || existing?.portraitPath,
+    portraitFullPath: input.portraitFullPath || existing?.portraitFullPath,
     statusFieldEnabled,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
@@ -282,6 +286,10 @@ export function createCharacterFromTemplate(templateId: string): RoleplayCharact
   if (template.portraitPath && fs.existsSync(template.portraitPath)) {
     portraitPath = copyPortraitFromFile(template.portraitPath, id);
   }
+  let portraitFullPath: string | undefined;
+  if (template.portraitFullPath && fs.existsSync(template.portraitFullPath)) {
+    portraitFullPath = copyPortraitFromFile(template.portraitFullPath, `${id}-full`);
+  }
   return saveCharacter({
     id,
     templateId,
@@ -293,6 +301,7 @@ export function createCharacterFromTemplate(templateId: string): RoleplayCharact
     body: template.body ? { ...template.body } : undefined,
     openingStory: template.openingStory,
     portraitPath,
+    portraitFullPath,
     statusFieldEnabled: buildStatusEnabledFromTemplate(template),
   });
 }

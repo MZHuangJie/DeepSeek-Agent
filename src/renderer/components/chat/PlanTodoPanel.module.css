@@ -44,8 +44,15 @@
   white-space: nowrap;
 }
 
-.execBtn {
+.actions {
   margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.execBtn {
   flex-shrink: 0;
   border: 1px solid var(--accent);
   background: var(--accent);
@@ -62,6 +69,32 @@
 }
 
 .execBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.stopBtn {
+  border-color: #e5534b;
+  background: #e5534b;
+}
+
+.cancelBtn {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.cancelBtn:disabled {
   opacity: 0.5;
   cursor: default;
 }

@@ -38,7 +38,7 @@ export function buildPortraitImageArgs(prompt: string) {
   return {
     prompt,
     size: DEFAULT_PORTRAIT_IMAGE_SIZE,
-    quality: 'standard',
+    quality: 'high',
     n: 1,
   };
 }

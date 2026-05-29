@@ -159,6 +159,8 @@ export interface RoleplayTemplate {
   body?: BodyMeasurements;
   openingStory?: string;
   portraitPath?: string;
+  /** 点击角色卡片时弹出的查看大图 */
+  portraitFullPath?: string;
   statusFields?: StatusFieldDef[];
   createdAt: number;
   updatedAt: number;
@@ -175,6 +177,8 @@ export interface RoleplayCharacter {
   body?: BodyMeasurements;
   openingStory?: string;
   portraitPath?: string;
+  /** 点击角色卡片时弹出的查看大图 */
+  portraitFullPath?: string;
   /** 角色级：覆盖模板中各状态字段是否启用（key -> enabled） */
   statusFieldEnabled?: Record<string, boolean>;
   /** @deprecated 旧数据：完整状态字段副本，新角色请只用 statusFieldEnabled */

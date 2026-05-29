@@ -11,6 +11,8 @@ interface Props {
   openView: PanelView | null;
   onToggle: (view: PanelView) => void;
   onSystemAction: (action: SystemMenuAction) => void;
+  onOpenLogin: () => void;
+  username: string | null;
 }
 
 const ITEMS: Array<{ id: PanelView; label: string; icon?: string; glyph?: string }> = [
@@ -46,7 +48,7 @@ function BarBtn({ icon, glyph, title, onClick, active }: { icon?: string; glyph?
   );
 }
 
-export default function ActivityBar({ openView, onToggle, onSystemAction }: Props) {
+export default function ActivityBar({ openView, onToggle, onSystemAction, onOpenLogin, username }: Props) {
   const mode = useModeStore(s => s.mode);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -103,6 +105,20 @@ export default function ActivityBar({ openView, onToggle, onSystemAction }: Prop
             onClick={() => onToggle('roleplay')}
           />
         )}
+        <div
+          className={barStyles.avatarBtn}
+          onClick={onOpenLogin}
+          title={username ? username : '点击登录'}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenLogin(); }}
+        >
+          {username ? (
+            <span className={barStyles.avatarLetter}>{username[0]?.toUpperCase()}</span>
+          ) : (
+            <img src="/assets/head.png" className={barStyles.avatarDefaultIcon} alt="user" />
+          )}
+        </div>
         <div ref={menuRef} className={barStyles.menuAnchor}>
         <BarBtn
           icon="/assets/5.png"
