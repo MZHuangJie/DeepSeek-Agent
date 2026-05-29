@@ -6,6 +6,7 @@ import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
+import { useAgentRolesStore, resolveSendableRoles } from '../../stores/agentRoles';
 import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
 import {
   buildSessionRoleplayPrompt,
@@ -26,6 +27,7 @@ import {
   stripRoleplayReplyTags,
 } from '../../utils/parseRoleplayResponse';
 import MessageBubble from './MessageBubble';
+import PlanTodoPanel from './PlanTodoPanel';
 import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
 import ChoiceDialog from './ChoiceDialog';
@@ -140,6 +142,7 @@ export default function ChatPanel() {
       if (key) setApiKey(key);
       else setShowKeyInput(true);
       await loadWorkspace();
+      await useAgentRolesStore.getState().loadRoles();
     })();
   }, []);
 
@@ -227,6 +230,14 @@ export default function ChatPanel() {
     const modelConfig = getActiveModel();
     const sendMode = useModeStore.getState().mode;
     const effectiveApiKey = modelConfig.apiKey || apiKey;
+    const roles = sendMode === 'multi-agent'
+      ? resolveSendableRoles(
+          useAgentRolesStore.getState().roles,
+          useModelStore.getState().models,
+          modelConfig,
+          effectiveApiKey || '',
+        )
+      : undefined;
     await window.api.agent.send({
       messages: opts.history,
       apiKey: effectiveApiKey,
@@ -238,6 +249,7 @@ export default function ChatPanel() {
       commandPrompt: opts.commandPrompt,
       mode: sendMode,
       providerMultimodal: PROVIDERS[modelConfig.provider]?.multimodal ?? false,
+      roles,
     });
   }, [apiKey, projectDir, getActiveModel]);
 
@@ -438,6 +450,18 @@ export default function ChatPanel() {
     }
   }, [activeSessionId, apiKey, messages, addMessage, setStreaming, buildHistory, resetStreamBuffers, invokeAgent, getActiveModel]);
 
+  const handleExecutePlan = useCallback(async () => {
+    if (!activeSessionId) return;
+    const s = useChatStore.getState().sessions.find(x => x.id === activeSessionId);
+    const todos = s?.planTodos ?? [];
+    if (todos.length === 0) return;
+    useModeStore.getState().setMode('agent');
+    const lines = todos.map((t, i) => `${i + 1}. ${t.content}`).join('\n');
+    const docRef = s?.planDocPath ? `\n\n参考计划文档：${s.planDocPath}` : '';
+    const msg = `请按照已确认的实施计划，逐项执行下面的任务清单。每开始一项就调用 write_todos 将该项 status 设为 in_progress，完成后设为 completed（每次都传完整列表以同步进度）。全部完成后给出总结。${docRef}\n\n任务清单：\n${lines}`;
+    await handleSend(msg);
+  }, [activeSessionId, handleSend]);
+
   return (
     <div className={styles.container}>
       <div
@@ -513,6 +537,14 @@ export default function ChatPanel() {
       )}
 
       <div className={styles.inputWrap}>
+        {session?.planTodos && session.planTodos.length > 0 && (
+          <PlanTodoPanel
+            todos={session.planTodos}
+            planDocPath={session.planDocPath}
+            executing={isStreaming}
+            onExecute={() => void handleExecutePlan()}
+          />
+        )}
         {choiceReq && (
           <ChoiceDialog
             message={choiceReq.message}

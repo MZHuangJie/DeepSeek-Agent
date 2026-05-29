@@ -18,6 +18,14 @@ export interface SubAgentTask {
   targetPath: string;
   projectDir: string;
   waveIndex?: number;
+  /** Multi-Agent 角色名（用于展示与日志） */
+  roleName?: string;
+  /** 角色自定义 system prompt，覆盖按 type 生成的默认 prompt */
+  systemPromptOverride?: string;
+  /** 角色独立模型配置，覆盖协调者传入的 modelConfig */
+  modelConfigOverride?: ModelConfig;
+  /** 角色独立 API Key，覆盖协调者传入的 apiKey */
+  apiKeyOverride?: string;
 }
 
 export interface SubAgentResult {
@@ -93,29 +101,36 @@ export class SubAgentManager {
         type: 'sub-agent-start',
         taskId: task.id,
         subAgentType: task.type,
+        roleName: task.roleName,
         description: task.description,
         targetPath: task.targetPath,
         waveIndex: task.waveIndex ?? this.spawnWave,
       });
 
+      const effectiveModelConfig = task.modelConfigOverride ?? modelConfig;
+      const effectiveApiKey = task.apiKeyOverride ?? apiKey;
+      const systemPrompt = task.systemPromptOverride
+        ? this.buildRolePrompt(task.systemPromptOverride, task.projectDir)
+        : this.buildSubAgentPrompt(task.type, task.projectDir);
+
       const mustUseTools = `【重要】你必须使用工具来实际执行任务。不要只用文字描述，必须调用工具（list_files、read_file 等）去真正读取和操作文件。\n\n${task.description}`;
       const subMessages = [
-        { role: 'system', content: this.buildSubAgentPrompt(task.type, task.projectDir) },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: mustUseTools },
       ];
 
       const tools = getSubAgentTools(task.projectDir);
       const toolSchemas = getToolSchemas(tools);
 
-      const provider = selectProvider(modelConfig.model, modelConfig.baseUrl);
+      const provider = selectProvider(effectiveModelConfig.model, effectiveModelConfig.baseUrl);
 
       const result = await this.runSubAgentLoop(
         task,
         subMessages,
         tools,
         toolSchemas,
-        apiKey,
-        modelConfig,
+        effectiveApiKey,
+        effectiveModelConfig,
         contextMax,
         abortController.signal,
         provider,
@@ -205,6 +220,20 @@ export class SubAgentManager {
       controller.abort();
     }
     this.activeSubAgents.clear();
+  }
+
+  /** Multi-Agent 角色代理：使用用户配置的角色 prompt */
+  private buildRolePrompt(rolePrompt: string, projectDir?: string): string {
+    const dirHint = projectDir
+      ? `\n## 工作目录\n项目根目录: \`${projectDir}\`\n所有工具调用中的路径参数必须使用绝对路径（基于上述项目根目录拼接）。`
+      : '';
+    return `${rolePrompt}
+${dirHint}
+## 工作原则
+1. 专注于分配给你的子任务范围，不要偏离
+2. 使用工具高效收集信息并实际完成任务（read_file/write_file/edit_file 等）
+3. 每次工具调用都要有明确目的
+4. 完成后给出结构化总结：完成了什么、改动了哪些文件、关键决策、遗留问题`;
   }
 
   private buildSubAgentPrompt(type: SubAgentType, projectDir?: string): string {

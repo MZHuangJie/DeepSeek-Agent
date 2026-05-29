@@ -9,6 +9,9 @@ import { createGlobTool } from './tools/glob';
 import { createBashTool } from './tools/bash';
 import { createListFilesTool } from './tools/list-files';
 import { createSpawnSubAgentTool } from './tools/spawn-sub-agent';
+import { createSpawnRoleAgentsTool } from './tools/spawn-role-agents';
+import { createWritePlanTool } from './tools/write-plan';
+import { createWriteTodosTool } from './tools/write-todos';
 import { createAutoDecomposeTaskTool } from './tools/auto-decompose-task';
 import { createBrowseUrlTool } from './tools/browse-url';
 import { createWebSearchTool } from './tools/web-search';
@@ -32,6 +35,7 @@ import {
 const SUB_AGENT_EXCLUDED_TOOLS = new Set([
   'spawn_sub_agent',
   'auto_decompose_task',
+  'write_todos',
   'bash',
   'generate_image',
   'browse_url',
@@ -70,12 +74,37 @@ export function getAllTools(projectDir: string): ToolDef[] {
     createGitFetchTool(projectDir),
     createGitPullTool(projectDir),
     createGitPushTool(projectDir),
+    createWriteTodosTool(),
   ];
 }
 
 /** 子代理仅保留读/搜/改文件能力，避免嵌套派生与高风险工具 */
 export function getSubAgentTools(projectDir: string): ToolDef[] {
   return getAllTools(projectDir).filter(t => !SUB_AGENT_EXCLUDED_TOOLS.has(t.name));
+}
+
+/** Plan 模式：只读分析 + 仅能写计划文档，禁用改代码/bash/git 写/spawn */
+const PLAN_MODE_TOOLS = new Set([
+  'read_file', 'grep', 'glob', 'list_files',
+  'web_search', 'web_fetch', 'web_screenshot', 'describe_image',
+  'git_status', 'git_diff', 'git_log',
+  'write_todos',
+]);
+
+/** 按 Agent 模式返回可用工具集 */
+export function getToolsForMode(mode: string | undefined, projectDir: string): ToolDef[] {
+  if (mode === 'roleplay') return [];
+  if (mode === 'plan') {
+    return [
+      ...getAllTools(projectDir).filter(t => PLAN_MODE_TOOLS.has(t.name)),
+      createWritePlanTool(projectDir),
+    ];
+  }
+  if (mode === 'multi-agent') {
+    return [...getAllTools(projectDir), createSpawnRoleAgentsTool(projectDir)];
+  }
+  // agent / chat / 其它：全量工具
+  return getAllTools(projectDir);
 }
 
 export function getToolSchemas(tools: ToolDef[]) {

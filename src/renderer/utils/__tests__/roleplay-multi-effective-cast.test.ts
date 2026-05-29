@@ -17,8 +17,8 @@ describe('resolveEffectiveCast', () => {
     expect(cast.participantIds).toEqual(['session-char']);
   });
 
-  it('does not fallback in coding mode', () => {
-    const cast = resolveEffectiveCast(undefined, 'char-1', 'coding');
+  it('does not fallback in agent mode', () => {
+    const cast = resolveEffectiveCast(undefined, 'char-1', 'agent');
     expect(resolveSessionCast(undefined).participantIds).toEqual([]);
     expect(cast.participantIds).toEqual([]);
   });

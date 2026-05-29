@@ -2,7 +2,9 @@ import { ipcMain, BrowserWindow } from 'electron';
 import { streamChat } from '../agent/client';
 import { buildCachePrefix, buildMessages } from '../agent/cache';
 import type { ContentPart } from '../agent/types';
-import { getAllTools, getToolSchemas, ToolDef } from '../agent/tools';
+import { getToolsForMode, getToolSchemas, ToolDef } from '../agent/tools';
+import type { MultiAgentRole } from '../agent/tools/index';
+import { normalizePlanTodos } from '../agent/tools/write-todos';
 import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
@@ -55,6 +57,7 @@ export function setupAgentHandlers() {
     commandPrompt?: string;
     mode?: AgentMode;
     providerMultimodal?: boolean;
+    roles?: MultiAgentRole[];
   }) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window');
@@ -65,8 +68,10 @@ export function setupAgentHandlers() {
     infoLog('agent', 'send-start', { model: payload.model, mode: payload.mode, provider: (payload as any).provider, msgCount: payload.messages.length, newMsgLen: typeof payload.newMessage === 'string' ? payload.newMessage.length : payload.newMessage.length });
 
     try {
-      const tools = getAllTools(payload.projectDir);
+      const tools = getToolsForMode(payload.mode, payload.projectDir);
     const isCharacterMode = payload.mode === 'roleplay';
+    const isMultiAgent = payload.mode === 'multi-agent';
+    const multiAgentRoles = isMultiAgent ? (payload.roles ?? []) : [];
     const projectContext = isCharacterMode ? '' : buildProjectContext(payload.projectDir);
     const subAgentManager = new SubAgentManager(win);
     activeSubAgentManager = subAgentManager;
@@ -74,9 +79,16 @@ export function setupAgentHandlers() {
     // 根据模式选择 system prompt，命令 prompt 追加在后
     const baseSystemPrompt = getSystemPrompt(payload.mode);
     const pluginPrompts = isCharacterMode ? '' : pluginManager.getSystemPrompts();
+    // Multi-Agent 模式：把可分派的角色清单注入协调者 prompt
+    const rolesPrompt = isMultiAgent && multiAgentRoles.length > 0
+      ? `\n\n## 可分派的角色（用于 spawn_role_agents 的 role_id）\n${multiAgentRoles.map(r => `- role_id: \`${r.id}\` ｜ 名称: ${r.name}${r.description ? ` ｜ 职责: ${r.description}` : ''}`).join('\n')}`
+      : isMultiAgent
+        ? '\n\n## 角色清单\n当前没有配置任何角色，请提示用户前往「系统设置 → Multi-Agent 角色」中创建后再分派任务。'
+        : '';
+    const baseWithRoles = baseSystemPrompt + rolesPrompt;
     const fullSystemPrompt = payload.commandPrompt
-      ? `${baseSystemPrompt}\n\n${pluginPrompts}\n\n## 当前命令模式\n${payload.commandPrompt}`
-      : pluginPrompts ? `${baseSystemPrompt}\n\n${pluginPrompts}` : baseSystemPrompt;
+      ? `${baseWithRoles}\n\n${pluginPrompts}\n\n## 当前命令模式\n${payload.commandPrompt}`
+      : pluginPrompts ? `${baseWithRoles}\n\n${pluginPrompts}` : baseWithRoles;
 
     const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
 
@@ -108,7 +120,7 @@ export function setupAgentHandlers() {
 
     infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length, ctxLen: prefix.projectContext.length });
     const enableTools = payload.mode !== 'roleplay';
-    const toolSchemas = enableTools ? getToolSchemas(tools) : [];
+    const toolSchemas = getToolSchemas(tools);
 
     let totalPrompt = 0;
     let totalCompletion = 0;
@@ -447,6 +459,7 @@ export function setupAgentHandlers() {
               projectDir: payload.projectDir,
               imageModelConfig,
               visionModelConfig: buildVisionToolContext(modelConfig, payload.apiKey, payload.providerMultimodal),
+              multiAgentRoles,
             };
             toolResult = await tool.execute(args, toolContext);
           } catch (err: any) {
@@ -470,11 +483,26 @@ export function setupAgentHandlers() {
           content: truncatedResult,
         });
 
-        if (tc.name === 'spawn_sub_agent' || tc.name === 'auto_decompose_task') {
+        if (tc.name === 'spawn_sub_agent' || tc.name === 'auto_decompose_task' || tc.name === 'spawn_role_agents') {
           messages.push({
             role: 'user',
-            content: '子代理工具调用已结束。请阅读上方 tool 返回中的成功/失败详情，现在立刻向用户输出完整汇总（必须说明失败原因与后续计划），不要再调用 spawn_sub_agent 或 auto_decompose_task。',
+            content: '子代理/角色代理工具调用已结束。请阅读上方 tool 返回中的成功/失败详情，现在立刻向用户输出完整汇总（必须说明失败原因与后续计划），不要再次调用分派类工具。',
           });
+        }
+
+        // write_todos：把任务清单转发给前端渲染（Plan 计划清单 / 执行进度勾选）
+        if (tc.name === 'write_todos' && status === 'success') {
+          try {
+            const parsed = JSON.parse(tc.arguments || '{}');
+            const todos = normalizePlanTodos(parsed.todos);
+            if (todos.length > 0) {
+              win.webContents.send('agent:stream-chunk', {
+                type: 'plan-todos',
+                todos,
+                planDocPath: typeof parsed.plan_doc_path === 'string' ? parsed.plan_doc_path : undefined,
+              });
+            }
+          } catch { /* ignore malformed args */ }
         }
       }
       // 工具执行完毕，静默继续下一轮（不再往聊天里刷提示）

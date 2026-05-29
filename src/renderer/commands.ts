@@ -107,10 +107,10 @@ export const COMMANDS: Command[] = [
   },
   // ── 编码与修复 ──
   {
-    name: 'coding',
+    name: 'agent',
     description: '编码实现',
     detail: '遵循项目规范，先读后写，最小改动，安全第一',
-    systemPrompt: `你正在执行 /coding 命令。
+    systemPrompt: `你正在执行 /agent 命令。
 
 ## 编码原则
 1. 先读后写：修改前用 read_file 完整阅读目标文件

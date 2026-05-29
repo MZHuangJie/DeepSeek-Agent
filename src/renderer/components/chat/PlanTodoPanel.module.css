@@ -1,0 +1,125 @@
+.panel {
+  margin: 0 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.progress {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.docPath {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.execBtn {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.execBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.execBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.list {
+  border-top: 1px solid var(--border);
+  padding: 6px 10px 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.statusIcon {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.itemIndex {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.itemContent {
+  flex: 1;
+}
+
+.status_completed .statusIcon {
+  color: #3fb950;
+}
+
+.status_completed .itemContent {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
+.status_in_progress .statusIcon {
+  color: var(--accent);
+}
+
+.status_in_progress .itemContent {
+  font-weight: 600;
+}
+
+.status_cancelled .itemContent {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  opacity: 0.6;
+}

@@ -5,7 +5,7 @@ import { useModeStore } from '../../stores/mode';
 
 export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify' | 'git' | 'roleplay';
 
-export type SystemMenuAction = 'theme' | 'terminal' | 'model' | 'characters' | 'about';
+export type SystemMenuAction = 'theme' | 'terminal' | 'model' | 'characters' | 'agent-roles' | 'about';
 
 interface Props {
   openView: PanelView | null;
@@ -27,6 +27,7 @@ const SYSTEM_MENU: Array<{ id: SystemMenuAction; label: string }> = [
   { id: 'terminal', label: '打开终端' },
   { id: 'model', label: '模型设置' },
   { id: 'characters', label: '角色管理' },
+  { id: 'agent-roles', label: 'Multi-Agent 角色' },
   { id: 'about', label: '关于 DeepSeek-Agent' },
 ];
 

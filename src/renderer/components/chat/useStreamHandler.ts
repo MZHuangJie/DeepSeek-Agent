@@ -191,6 +191,10 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         progress: 100,
         endTime: Date.now(),
       });
+    } else if (chunk.type === 'plan-todos') {
+      if (Array.isArray(chunk.todos)) {
+        useChatStore.getState().setPlanTodos(chunk.todos, chunk.planDocPath);
+      }
     } else if (chunk.type === 'error') {
       setStreaming(false);
       setErrorMsg(chunk.message);

@@ -8,6 +8,7 @@ import { usePluginStore } from '../../stores/plugin';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore, MODES, AgentMode } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
+import { useAgentRolesStore } from '../../stores/agentRoles';
 import { getCharactersByIds, resolveSessionCast } from '../../utils/roleplay-multi';
 import { COMMANDS, matchCommand, getCommandList, Command } from '../../commands';
 import Dropdown, { DropdownItem, useDropdownNav, useFocusedItemRef } from './Dropdown';
@@ -43,7 +44,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const { openTabs } = useFilesStore();
   const showMention = value.includes('@') && openTabs.length > 0;
   const { models, activeModelId, setActiveModel } = useModelStore();
-  const { createSession } = useChatStore();
+  const { createSession, setSessionCharacter, setSessionCast: bindSessionCast } = useChatStore();
+  const setActiveCharacter = useRoleplayStore(s => s.setActiveCharacter);
+  const activeCharacterId = useRoleplayStore(s => s.activeCharacterId);
+  const draftParticipantIds = useRoleplayStore(s => s.draftParticipantIds);
+  const toggleDraftParticipant = useRoleplayStore(s => s.toggleDraftParticipant);
+  const setSessionCastRoleplay = useRoleplayStore(s => s.setSessionCast);
   const { installedPlugins, loadInstalled } = usePluginStore();
   const refs = useRefsStore();
 
@@ -59,11 +65,34 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     [characters, sessionCast.participantIds],
   );
   const npcNames = sessionCharacters.map(c => c.name);
+  const agentRoles = useAgentRolesStore(s => s.roles);
 
   useEffect(() => { loadInstalled(); }, []);
   useEffect(() => {
     if (mode === 'roleplay') void useRoleplayStore.getState().loadAll();
+    if (mode === 'multi-agent') void useAgentRolesStore.getState().loadRoles();
   }, [mode]);
+
+  const selectCharacter = useCallback(async (charId: string) => {
+    setMode('roleplay');
+    await setActiveCharacter(charId);
+    if (!useChatStore.getState().activeSessionId) createSession();
+    setSessionCharacter(charId, { sessionMode: 'roleplay', pendingOpening: true });
+    setShowModeSelect(false);
+  }, [setMode, setActiveCharacter, createSession, setSessionCharacter]);
+
+  const startGroupChat = useCallback(async () => {
+    const ids = useRoleplayStore.getState().draftParticipantIds;
+    if (ids.length < 2) return;
+    setMode('roleplay');
+    await setSessionCastRoleplay(ids);
+    if (!useChatStore.getState().activeSessionId) {
+      createSession();
+    } else {
+      bindSessionCast(ids);
+    }
+    setShowModeSelect(false);
+  }, [setMode, setSessionCastRoleplay, createSession, bindSessionCast]);
 
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -374,31 +403,71 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
               <img src="/assets/13.png" alt="new" className={styles.toolbarIcon} />
             </ToolbarBtn>
 
-            {/* Mode selector */}
+            {/* Mode / Character selector */}
             <div className={styles.modelTrigger}>
               <button
                 onClick={() => setShowModeSelect(!showModeSelect)}
-                title={activeMode.description}
+                title={mode === 'roleplay' ? '选择扮演角色' : activeMode.description}
                 className={`${styles.modelBtn} ${shared.hoverSubtle}`}
               >
-                <img src={activeMode.icon} alt="" className={styles.toolbarIcon} style={{ opacity: 1 }} />
-                <span>{activeMode.label}</span>
+                <img src={mode === 'roleplay' ? '/assets/role.png' : activeMode.icon} alt="" className={styles.toolbarIcon} style={{ opacity: 1 }} />
+                <span>{mode === 'roleplay'
+                  ? (sessionCast.isMulti ? `群聊 ${sessionCast.participantIds.length} 人` : (activeCharacter?.name ?? '选择角色'))
+                  : activeMode.label}</span>
                 <span className={styles.dropdownCaret}>▼</span>
               </button>
 
               {showModeSelect && (
                 <Dropdown minWidth={180}>
-                  {MODES.map(m => (
-                    <DropdownItem key={m.id} active={m.id === mode} onClick={() => { setMode(m.id as AgentMode); setShowModeSelect(false); }}>
-                      <div className={styles.modeRow}>
-                        <img src={m.icon} alt="" className={styles.modeIcon} />
-                        <div>
-                          <div className={styles.modeName}>{m.label}</div>
-                          <div className={styles.modeDesc}>{m.description}</div>
+                  {mode === 'roleplay' ? (
+                    characters.length > 0 ? (
+                      <>
+                        {characters.map(c => {
+                          const inDraft = draftParticipantIds.includes(c.id);
+                          const isActiveSingle = c.id === activeCharacterId && draftParticipantIds.length <= 1;
+                          return (
+                            <DropdownItem key={c.id} active={isActiveSingle} onClick={() => void selectCharacter(c.id)}>
+                              <div className={styles.modeRow}>
+                                <span
+                                  onClick={(e) => { e.stopPropagation(); toggleDraftParticipant(c.id); }}
+                                  title="勾选以加入群聊"
+                                  style={{ display: 'flex', alignItems: 'center' }}
+                                >
+                                  <input type="checkbox" checked={inDraft} onChange={() => { /* handled by span onClick */ }} />
+                                </span>
+                                <img src="/assets/role.png" alt="" className={styles.modeIcon} />
+                                <div>
+                                  <div className={styles.modeName}>{c.name}</div>
+                                  <div className={styles.modeDesc}>{c.background?.trim().slice(0, 24) || '点选 1v1，勾选加入群聊'}</div>
+                                </div>
+                              </div>
+                            </DropdownItem>
+                          );
+                        })}
+                        {draftParticipantIds.length >= 2 && (
+                          <DropdownItem onClick={() => void startGroupChat()}>
+                            <span className={styles.itemSub}>开始群聊（{draftParticipantIds.length} 人）</span>
+                          </DropdownItem>
+                        )}
+                      </>
+                    ) : (
+                      <DropdownItem onClick={() => setShowModeSelect(false)}>
+                        <span className={styles.itemSub}>暂无角色，请在「角色管理」中创建</span>
+                      </DropdownItem>
+                    )
+                  ) : (
+                    MODES.filter(m => m.id !== 'roleplay').map(m => (
+                      <DropdownItem key={m.id} active={m.id === mode} onClick={() => { setMode(m.id as AgentMode); setShowModeSelect(false); }}>
+                        <div className={styles.modeRow}>
+                          <img src={m.icon} alt="" className={styles.modeIcon} />
+                          <div>
+                            <div className={styles.modeName}>{m.label}</div>
+                            <div className={styles.modeDesc}>{m.description}</div>
+                          </div>
                         </div>
-                      </div>
-                    </DropdownItem>
-                  ))}
+                      </DropdownItem>
+                    ))
+                  )}
                 </Dropdown>
               )}
             </div>
@@ -408,9 +477,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                 群聊 · 你本人 · NPC: {npcNames.join('、') || '—'}
               </span>
             )}
-            {mode === 'roleplay' && !sessionCast.isMulti && activeCharacter && (
-              <span className={styles.characterChip} title="当前扮演角色">
-                {activeCharacter.name}
+            {mode === 'multi-agent' && (
+              <span
+                className={styles.characterChip}
+                title={agentRoles.length > 0 ? agentRoles.map(r => r.name).join('、') : '前往 系统设置 → Multi-Agent 角色 配置'}
+              >
+                {agentRoles.length > 0 ? `角色 ${agentRoles.length} 个` : '未配置角色'}
               </span>
             )}
           </div>

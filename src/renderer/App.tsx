@@ -17,6 +17,7 @@ import TerminalTabs from './components/terminal/TerminalTabs';
 import TerminalList from './components/terminal/TerminalList';
 import StatusBar from './components/statusbar/StatusBar';
 import ModelSettings from './components/settings/ModelSettings';
+import MultiAgentSettings from './components/settings/MultiAgentSettings';
 import ThemeSettings from './components/settings/ThemeSettings';
 import AboutDialog from './components/settings/AboutDialog';
 import CharacterSettings from './components/settings/CharacterSettings';
@@ -64,11 +65,13 @@ export default function App() {
   const [showThemeSettings, setShowThemeSettings] = React.useState(false);
   const [showAbout, setShowAbout] = React.useState(false);
   const [showCharacterSettings, setShowCharacterSettings] = React.useState(false);
+  const [showAgentRoles, setShowAgentRoles] = React.useState(false);
   const [showQuickOpen, setShowQuickOpen] = React.useState(false);
   const [sidebarResizing, setSidebarResizing] = React.useState(false);
   const [askpassRequest, setAskpassRequest] = React.useState<{ id: string; prompt: string; keyPath: string } | null>(null);
   const [openView, setOpenView] = React.useState<PanelView | null>(null);
   const mode = useModeStore(s => s.mode);
+  const setRoleplay = useModeStore(s => s.setRoleplay);
   const { url: browserUrl, open: browserOpen, setOpen: setBrowserOpen } = useBrowserStore();
 
   useEffect(() => {
@@ -160,6 +163,7 @@ export default function App() {
     else if (action === 'terminal') { setBottomClosed(false); setBottomExpanded(true); }
     else if (action === 'model') setShowModelSettings(true);
     else if (action === 'characters') setShowCharacterSettings(true);
+    else if (action === 'agent-roles') setShowAgentRoles(true);
     else if (action === 'about') setShowAbout(true);
   };
 
@@ -172,7 +176,30 @@ export default function App() {
         fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', position: 'relative',
         WebkitAppRegion: 'drag',
       }}>
-        <div style={{ width: 100 }} />
+        <div style={{ minWidth: 100, display: 'flex', alignItems: 'center', paddingLeft: 12, WebkitAppRegion: 'no-drag' }}>
+          <button
+            onClick={() => setRoleplay(mode !== 'roleplay')}
+            title={mode === 'roleplay' ? '关闭角色扮演，返回上次模式' : '开启角色扮演模式'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, background: 'transparent',
+              border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 12, padding: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{
+              width: 30, height: 16, borderRadius: 8, position: 'relative', flexShrink: 0,
+              background: mode === 'roleplay' ? 'var(--accent)' : 'var(--border)',
+              transition: 'background 0.2s',
+            }}>
+              <span style={{
+                position: 'absolute', top: 2, left: mode === 'roleplay' ? 16 : 2,
+                width: 12, height: 12, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s',
+              }} />
+            </span>
+            <span>角色扮演</span>
+          </button>
+        </div>
         <span style={{ flex: 1, textAlign: 'center' }}><img src="/assets/logo.png" alt="" style={{ width: 16, height: 14, marginRight: 6, verticalAlign: 'middle' }} />DeepSeek Agent</span>
         <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' }}>
           <WindowControlBtn onClick={() => window.api.window.minimize()}>
@@ -323,6 +350,7 @@ export default function App() {
 
       {/* Status Bar */}
       {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} />}
+      {showAgentRoles && <MultiAgentSettings onClose={() => setShowAgentRoles(false)} />}
       {showThemeSettings && <ThemeSettings onClose={() => setShowThemeSettings(false)} />}
       {showCharacterSettings && <CharacterSettings onClose={() => setShowCharacterSettings(false)} />}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}

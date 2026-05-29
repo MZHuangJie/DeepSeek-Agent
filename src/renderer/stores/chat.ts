@@ -27,6 +27,14 @@ export interface RoleplayMessageMeta {
   turns?: RoleplayTurnMeta[];
 }
 
+export type PlanTodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface PlanTodo {
+  id: string;
+  content: string;
+  status: PlanTodoStatus;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -57,6 +65,10 @@ export interface Session {
   pendingOpening?: boolean;
   /** 会话绑定的 Agent 模式（角色相关会话） */
   sessionMode?: 'roleplay';
+  /** Plan 模式产出的任务清单（用于一键执行计划） */
+  planTodos?: PlanTodo[];
+  /** Plan 模式写入的计划文档相对路径 */
+  planDocPath?: string;
 }
 
 interface ChatState {
@@ -78,6 +90,7 @@ interface ChatState {
     options?: { sessionMode?: 'roleplay'; pendingOpening?: boolean },
   ) => void;
   setSessionCast: (characterIds: string[]) => void;
+  setPlanTodos: (todos: PlanTodo[], planDocPath?: string) => void;
 }
 
 function parseSessionPayload(raw: string): {
@@ -87,6 +100,8 @@ function parseSessionPayload(raw: string): {
   userCharacterId?: string;
   pendingOpening?: boolean;
   sessionMode?: 'roleplay';
+  planTodos?: PlanTodo[];
+  planDocPath?: string;
 } {
   try {
     const parsed = JSON.parse(raw);
@@ -99,6 +114,8 @@ function parseSessionPayload(raw: string): {
         userCharacterId: parsed.userCharacterId,
         pendingOpening: parsed.pendingOpening,
         sessionMode: parsed.sessionMode === 'dzmm' ? 'roleplay' : parsed.sessionMode,
+        planTodos: Array.isArray(parsed.planTodos) ? parsed.planTodos : undefined,
+        planDocPath: parsed.planDocPath,
       };
     }
   } catch { /* fall through */ }
@@ -113,6 +130,8 @@ function serializeSessionPayload(session: Session): string {
     userCharacterId: session.userCharacterId,
     pendingOpening: session.pendingOpening,
     sessionMode: session.sessionMode,
+    planTodos: session.planTodos,
+    planDocPath: session.planDocPath,
   });
 }
 
@@ -144,6 +163,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             userCharacterId: payload.userCharacterId,
             pendingOpening: payload.pendingOpening,
             sessionMode: payload.sessionMode,
+            planTodos: payload.planTodos,
+            planDocPath: payload.planDocPath,
           };
         });
         if (sessions.length > 0) {
@@ -357,5 +378,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const session = newSessions.find(s => s.id === activeSessionId);
       if (session) persistSession(session);
     }
+  },
+
+  setPlanTodos: (todos, planDocPath) => {
+    const { activeSessionId, sessions } = get();
+    if (!activeSessionId) return;
+    const newSessions = sessions.map(s =>
+      s.id === activeSessionId
+        ? {
+            ...s,
+            planTodos: todos,
+            planDocPath: planDocPath ?? s.planDocPath,
+          }
+        : s,
+    );
+    set({ sessions: newSessions });
+    const session = newSessions.find(s => s.id === activeSessionId);
+    if (session) persistSession(session);
   },
 }));
