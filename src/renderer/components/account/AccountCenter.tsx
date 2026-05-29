@@ -621,7 +621,13 @@ export default function AccountCenter({ onClose }: Props) {
         </nav>
         {isLoggedIn && user && (
           <div className={styles.sidebarUser}>
-            <div className={styles.sidebarAvatar}>{user.username[0]?.toUpperCase()}</div>
+            <div className={styles.sidebarAvatar}>
+              {user.avatar ? (
+                <img src={user.avatar} alt="" className={styles.sidebarAvatarImg} />
+              ) : (
+                user.username[0]?.toUpperCase()
+              )}
+            </div>
             <div>
               <div className={styles.sidebarUserName}>{user.username}</div>
               <div className={styles.sidebarUserSub}>已登录</div>
