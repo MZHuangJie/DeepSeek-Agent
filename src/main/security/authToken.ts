@@ -36,18 +36,14 @@ function decryptWithCrypto(payload: string, key: Buffer): string | null {
 }
 
 export function getAuthApiBase(): string {
-  if (app.isPackaged) {
-    return DEFAULT_AUTH_API_BASE;
-  }
   return getSetting(AUTH_API_BASE_KEY) || DEFAULT_AUTH_API_BASE;
 }
 
 export function isAuthApiBaseEditable(): boolean {
-  return !app.isPackaged;
+  return true;
 }
 
 export function setAuthApiBase(baseUrl: string): void {
-  if (app.isPackaged) return;
   const trimmed = baseUrl.trim().replace(/\/+$/, '');
   setSetting(AUTH_API_BASE_KEY, trimmed || DEFAULT_AUTH_API_BASE);
 }

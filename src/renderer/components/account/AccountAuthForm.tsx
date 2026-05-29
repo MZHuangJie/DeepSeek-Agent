@@ -56,7 +56,7 @@ export default function AccountAuthForm() {
         {apiBaseEditable && (
           <>
             <button type="button" className={styles.linkBtn} onClick={() => setShowAdvanced(v => !v)}>
-              {showAdvanced ? '收起服务器地址' : '服务器地址（开发）'}
+              {showAdvanced ? '收起服务器地址' : '服务器地址'}
             </button>
             {showAdvanced && (
               <div className={styles.advancedRow}>
