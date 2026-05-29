@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { initDb } from './db';
 import authRouter from './routes/auth';
