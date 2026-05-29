@@ -17,7 +17,7 @@ cp .env.example .env
 npm run start:server
 ```
 
-默认监听 `8787`。用户数据写入 `server/data/users.json`（或 `WEB_DATA_DIR` 指定目录）。
+默认监听 `8787`。依赖 PostgreSQL，通过 `DATABASE_URL` 环境变量连接。
 
 ## 3. Nginx 反向代理
 

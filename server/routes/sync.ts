@@ -1,22 +1,11 @@
 import { Router } from 'express';
-import fs from 'fs';
-import path from 'path';
+import { getPool } from '../db';
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
+const pool = getPool();
 
 const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024; // 5MB
-
-function getSessionDir(userId: number): string {
-  const baseDir = process.env.WEB_DATA_DIR || path.join(process.cwd(), 'server', 'data');
-  const dir = path.join(baseDir, 'sessions', String(userId));
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
-function getSessionFile(userId: number, sessionId: string): string {
-  return path.join(getSessionDir(userId), `${sessionId}.json`);
-}
 
 interface SessionMeta {
   id: string;
@@ -25,66 +14,55 @@ interface SessionMeta {
   messageCount: number;
 }
 
-function safeParseInt(v: unknown): number | undefined {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const n = parseInt(v, 10);
-    if (!isNaN(n)) return n;
-  }
-  return undefined;
+interface CharacterMeta {
+  id: string;
+  name: string;
+  updatedAt: number;
 }
 
 // GET /sync/sessions — 列表
-router.get('/sessions', requireAuth, (req, res) => {
-  const userId = req.auth!.userId;
-  const dir = getSessionDir(userId);
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
-  const sessions: SessionMeta[] = files.map(f => {
-    const id = f.replace(/\.json$/, '');
-    try {
-      const raw = fs.readFileSync(path.join(dir, f), 'utf8');
-      const data = JSON.parse(raw);
-      const payload = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
-      const messages = Array.isArray(payload?.messages) ? payload.messages : [];
-      return {
-        id,
-        title: data.title || '未命名会话',
-        updatedAt: data.updatedAt || data.updated_at || 0,
-        messageCount: messages.length,
-      };
-    } catch {
-      return { id, title: '未命名会话', updatedAt: 0, messageCount: 0 };
-    }
-  });
-  sessions.sort((a, b) => b.updatedAt - a.updatedAt);
-  res.json({ sessions });
+router.get('/sessions', requireAuth, async (_req, res) => {
+  const userId = _req.auth!.userId;
+  try {
+    const result = await pool.query<SessionMeta>(
+      `SELECT id, title, updated_at as "updatedAt", message_count as "messageCount"
+       FROM cloud_sessions WHERE user_id = $1 ORDER BY updated_at DESC`,
+      [userId]
+    );
+    res.json({ sessions: result.rows });
+  } catch (err) {
+    console.error('[sync/sessions]', err);
+    res.status(500).json({ error: '读取会话列表失败' });
+  }
 });
 
 // GET /sync/sessions/:id — 获取完整 payload
-router.get('/sessions/:id', requireAuth, (req, res) => {
+router.get('/sessions/:id', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   const sessionId = req.params.id;
-  const filePath = getSessionFile(userId, sessionId);
-  if (!fs.existsSync(filePath)) {
-    res.status(404).json({ error: '会话不存在' });
-    return;
-  }
   try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const data = JSON.parse(raw);
+    const result = await pool.query(
+      'SELECT id, title, updated_at as "updatedAt", payload FROM cloud_sessions WHERE user_id = $1 AND id = $2',
+      [userId, sessionId]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: '会话不存在' });
+      return;
+    }
     res.json({
-      id: sessionId,
-      title: data.title || '未命名会话',
-      updatedAt: data.updatedAt || data.updated_at || 0,
-      payload: data.payload || '{}',
+      id: result.rows[0].id,
+      title: result.rows[0].title,
+      updatedAt: result.rows[0].updatedAt,
+      payload: result.rows[0].payload,
     });
-  } catch {
+  } catch (err) {
+    console.error('[sync/sessions/:id]', err);
     res.status(500).json({ error: '读取会话失败' });
   }
 });
 
 // PUT /sync/sessions/:id — 上传/覆盖
-router.put('/sessions/:id', requireAuth, (req, res) => {
+router.put('/sessions/:id', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   const sessionId = req.params.id;
   const { title, payload } = req.body || {};
@@ -102,114 +80,94 @@ router.put('/sessions/:id', requireAuth, (req, res) => {
     return;
   }
 
-  const filePath = getSessionFile(userId, sessionId);
-  const data = {
-    title: title.trim(),
-    payload,
-    updatedAt: Date.now(),
-  };
+  let messageCount = 0;
   try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-    let messageCount = 0;
-    try {
-      const parsed = JSON.parse(payload);
-      messageCount = Array.isArray(parsed.messages) ? parsed.messages.length : 0;
-    } catch { /* ignore */ }
-    res.json({
-      id: sessionId,
-      title: data.title,
-      updatedAt: data.updatedAt,
-      messageCount,
-    });
-  } catch {
+    const parsed = JSON.parse(payload);
+    messageCount = Array.isArray(parsed.messages) ? parsed.messages.length : 0;
+  } catch { /* ignore */ }
+
+  const updatedAt = Date.now();
+  try {
+    await pool.query(
+      `INSERT INTO cloud_sessions (id, user_id, title, payload, message_count, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id, id)
+       DO UPDATE SET title = EXCLUDED.title, payload = EXCLUDED.payload,
+                     message_count = EXCLUDED.message_count, updated_at = EXCLUDED.updated_at`,
+      [sessionId, userId, title.trim(), payload, messageCount, updatedAt]
+    );
+    res.json({ id: sessionId, title: title.trim(), updatedAt, messageCount });
+  } catch (err) {
+    console.error('[sync/sessions/:id put]', err);
     res.status(500).json({ error: '保存会话失败' });
   }
 });
 
 // DELETE /sync/sessions/:id — 删除
-router.delete('/sessions/:id', requireAuth, (req, res) => {
+router.delete('/sessions/:id', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   const sessionId = req.params.id;
-  const filePath = getSessionFile(userId, sessionId);
-  if (!fs.existsSync(filePath)) {
-    res.status(404).json({ error: '会话不存在' });
-    return;
-  }
   try {
-    fs.unlinkSync(filePath);
+    const result = await pool.query(
+      'DELETE FROM cloud_sessions WHERE user_id = $1 AND id = $2',
+      [userId, sessionId]
+    );
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: '会话不存在' });
+      return;
+    }
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error('[sync/sessions/:id delete]', err);
     res.status(500).json({ error: '删除会话失败' });
   }
 });
 
 // ---------- Characters ----------
 
-function getCharacterDir(userId: number): string {
-  const baseDir = process.env.WEB_DATA_DIR || path.join(process.cwd(), 'server', 'data');
-  const dir = path.join(baseDir, 'characters', String(userId));
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
-function getCharacterFile(userId: number, characterId: string): string {
-  return path.join(getCharacterDir(userId), `${characterId}.json`);
-}
-
-interface CharacterMeta {
-  id: string;
-  name: string;
-  updatedAt: number;
-}
-
 // GET /sync/characters
-router.get('/characters', requireAuth, (req, res) => {
+router.get('/characters', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
-  const dir = getCharacterDir(userId);
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
-  const characters: CharacterMeta[] = files.map(f => {
-    const id = f.replace(/\.json$/, '');
-    try {
-      const raw = fs.readFileSync(path.join(dir, f), 'utf8');
-      const data = JSON.parse(raw);
-      return {
-        id,
-        name: data.name || '未命名角色',
-        updatedAt: data.updatedAt || 0,
-      };
-    } catch {
-      return { id, name: '未命名角色', updatedAt: 0 };
-    }
-  });
-  characters.sort((a, b) => b.updatedAt - a.updatedAt);
-  res.json({ characters });
+  try {
+    const result = await pool.query<CharacterMeta>(
+      `SELECT id, name, updated_at as "updatedAt"
+       FROM cloud_characters WHERE user_id = $1 ORDER BY updated_at DESC`,
+      [userId]
+    );
+    res.json({ characters: result.rows });
+  } catch (err) {
+    console.error('[sync/characters]', err);
+    res.status(500).json({ error: '读取角色列表失败' });
+  }
 });
 
 // GET /sync/characters/:id
-router.get('/characters/:id', requireAuth, (req, res) => {
+router.get('/characters/:id', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   const characterId = req.params.id;
-  const filePath = getCharacterFile(userId, characterId);
-  if (!fs.existsSync(filePath)) {
-    res.status(404).json({ error: '角色不存在' });
-    return;
-  }
   try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const data = JSON.parse(raw);
+    const result = await pool.query(
+      'SELECT id, name, updated_at as "updatedAt", payload FROM cloud_characters WHERE user_id = $1 AND id = $2',
+      [userId, characterId]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: '角色不存在' });
+      return;
+    }
     res.json({
-      id: characterId,
-      name: data.name || '未命名角色',
-      updatedAt: data.updatedAt || 0,
-      payload: data.payload || '{}',
+      id: result.rows[0].id,
+      name: result.rows[0].name,
+      updatedAt: result.rows[0].updatedAt,
+      payload: result.rows[0].payload,
     });
-  } catch {
+  } catch (err) {
+    console.error('[sync/characters/:id]', err);
     res.status(500).json({ error: '读取角色失败' });
   }
 });
 
 // PUT /sync/characters/:id
-router.put('/characters/:id', requireAuth, (req, res) => {
+router.put('/characters/:id', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   const characterId = req.params.id;
   const { name, payload } = req.body || {};
@@ -227,37 +185,38 @@ router.put('/characters/:id', requireAuth, (req, res) => {
     return;
   }
 
-  const filePath = getCharacterFile(userId, characterId);
-  const data = {
-    name: name.trim(),
-    payload,
-    updatedAt: Date.now(),
-  };
+  const updatedAt = Date.now();
   try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-    res.json({
-      id: characterId,
-      name: data.name,
-      updatedAt: data.updatedAt,
-    });
-  } catch {
+    await pool.query(
+      `INSERT INTO cloud_characters (id, user_id, name, payload, updated_at)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id, id)
+       DO UPDATE SET name = EXCLUDED.name, payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at`,
+      [characterId, userId, name.trim(), payload, updatedAt]
+    );
+    res.json({ id: characterId, name: name.trim(), updatedAt });
+  } catch (err) {
+    console.error('[sync/characters/:id put]', err);
     res.status(500).json({ error: '保存角色失败' });
   }
 });
 
 // DELETE /sync/characters/:id
-router.delete('/characters/:id', requireAuth, (req, res) => {
+router.delete('/characters/:id', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   const characterId = req.params.id;
-  const filePath = getCharacterFile(userId, characterId);
-  if (!fs.existsSync(filePath)) {
-    res.status(404).json({ error: '角色不存在' });
-    return;
-  }
   try {
-    fs.unlinkSync(filePath);
+    const result = await pool.query(
+      'DELETE FROM cloud_characters WHERE user_id = $1 AND id = $2',
+      [userId, characterId]
+    );
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: '角色不存在' });
+      return;
+    }
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error('[sync/characters/:id delete]', err);
     res.status(500).json({ error: '删除角色失败' });
   }
 });

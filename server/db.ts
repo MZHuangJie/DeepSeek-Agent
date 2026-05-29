@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { Pool } from 'pg';
 
 export interface UserRow {
   id: number;
@@ -8,70 +7,91 @@ export interface UserRow {
   created_at: number;
 }
 
-interface UserStore {
-  nextId: number;
-  users: UserRow[];
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export function getPool(): Pool {
+  return pool;
 }
 
-let store: UserStore | null = null;
+export async function initDb(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(32) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000
+    );
+  `);
 
-function getStorePath(): string {
-  const dataDir = process.env.WEB_DATA_DIR || path.join(process.cwd(), 'server', 'data');
-  fs.mkdirSync(dataDir, { recursive: true });
-  return path.join(dataDir, 'users.json');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cloud_sessions (
+      id VARCHAR(64) NOT NULL,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(255) NOT NULL,
+      payload TEXT NOT NULL,
+      message_count INT NOT NULL DEFAULT 0,
+      updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+      PRIMARY KEY (user_id, id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cloud_characters (
+      id VARCHAR(64) NOT NULL,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      payload TEXT NOT NULL,
+      updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+      PRIMARY KEY (user_id, id)
+    );
+  `);
 }
 
-function saveStore(): void {
-  if (!store) return;
-  fs.writeFileSync(getStorePath(), JSON.stringify(store, null, 2), 'utf8');
+export async function findUserByUsername(username: string): Promise<UserRow | undefined> {
+  const result = await pool.query<UserRow>(
+    'SELECT id, username, password_hash, created_at FROM users WHERE LOWER(username) = LOWER($1)',
+    [username.trim()]
+  );
+  return result.rows[0];
 }
 
-export function resetStoreForTests(): void {
-  store = null;
+export async function findUserById(id: number): Promise<UserRow | undefined> {
+  const result = await pool.query<UserRow>(
+    'SELECT id, username, password_hash, created_at FROM users WHERE id = $1',
+    [id]
+  );
+  return result.rows[0];
 }
 
-/** 启动时加载用户数据 */
-export function loadStore(): UserStore {
-  if (store) return store;
-  const filePath = getStorePath();
-  if (fs.existsSync(filePath)) {
-    store = JSON.parse(fs.readFileSync(filePath, 'utf8')) as UserStore;
-    return store;
-  }
-  store = { nextId: 1, users: [] };
-  saveStore();
-  return store;
+export async function createUser(username: string, passwordHash: string): Promise<UserRow> {
+  const result = await pool.query<UserRow>(
+    `INSERT INTO users (username, password_hash, created_at)
+     VALUES ($1, $2, $3)
+     RETURNING id, username, password_hash, created_at`,
+    [username.trim(), passwordHash, Date.now()]
+  );
+  return result.rows[0];
 }
 
-export function findUserByUsername(username: string): UserRow | undefined {
-  const normalized = username.trim().toLowerCase();
-  return loadStore().users.find(u => u.username.toLowerCase() === normalized);
-}
-
-export function findUserById(id: number): UserRow | undefined {
-  return loadStore().users.find(u => u.id === id);
-}
-
-export function createUser(username: string, passwordHash: string): UserRow {
-  const s = loadStore();
-  const user: UserRow = {
-    id: s.nextId++,
-    username: username.trim(),
-    password_hash: passwordHash,
-    created_at: Date.now(),
-  };
-  s.users.push(user);
-  saveStore();
-  return user;
-}
-
-export function updateUser(id: number, updates: Partial<Pick<UserRow, 'username'>>): UserRow | null {
-  const s = loadStore();
-  const user = s.users.find(u => u.id === id);
-  if (!user) return null;
+export async function updateUser(
+  id: number,
+  updates: Partial<Pick<UserRow, 'username'>>,
+): Promise<UserRow | null> {
   if (updates.username !== undefined) {
-    user.username = updates.username.trim();
+    const result = await pool.query<UserRow>(
+      'UPDATE users SET username = $1 WHERE id = $2 RETURNING id, username, password_hash, created_at',
+      [updates.username.trim(), id]
+    );
+    return result.rows[0] || null;
   }
-  saveStore();
-  return user;
+  return findUserById(id) || null;
+}
+
+// For tests only
+export async function resetStoreForTests(): Promise<void> {
+  await pool.query('DELETE FROM cloud_characters');
+  await pool.query('DELETE FROM cloud_sessions');
+  await pool.query('DELETE FROM users');
 }
