@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { createUser, findUserById, findUserByUsername, updateUser } from '../db';
+import { createUser, findUserById, findUserByUsername, findUserByEmail, updateUser } from '../db';
 import { requireAuth, signToken, validateCredentials } from '../middleware/requireAuth';
 
 const router = Router();
 
-function publicUser(user: { id: number; username: string }) {
-  return { id: user.id, username: user.username };
+function publicUser(user: { id: number; username: string; email: string | null }) {
+  return { id: user.id, username: user.username, email: user.email };
 }
 
 router.post('/register', async (req, res) => {
@@ -14,7 +14,7 @@ router.post('/register', async (req, res) => {
     res.status(403).json({ error: '注册已关闭' });
     return;
   }
-  const { username, password } = req.body || {};
+  const { username, password, email } = req.body || {};
   if (typeof username !== 'string' || typeof password !== 'string') {
     res.status(400).json({ error: '请提供 username 与 password' });
     return;
@@ -31,7 +31,7 @@ router.post('/register', async (req, res) => {
   }
   try {
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await createUser(username, passwordHash);
+    const user = await createUser(username, passwordHash, typeof email === 'string' ? email : undefined);
     const token = signToken({ userId: user.id, username: user.username });
     res.json({ token, user: publicUser(user) });
   } catch (err) {
@@ -46,7 +46,10 @@ router.post('/login', async (req, res) => {
     res.status(400).json({ error: '请提供 username 与 password' });
     return;
   }
-  const user = await findUserByUsername(username);
+  let user = await findUserByUsername(username);
+  if (!user && username.includes('@')) {
+    user = await findUserByEmail(username);
+  }
   if (!user) {
     res.status(401).json({ error: '用户不存在' });
     return;

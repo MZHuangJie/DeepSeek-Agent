@@ -113,12 +113,14 @@ export async function authLogin(username: string, password: string): Promise<Aut
   }
 }
 
-export async function authRegister(username: string, password: string): Promise<AuthResult> {
+export async function authRegister(username: string, password: string, email?: string): Promise<AuthResult> {
   try {
+    const body: Record<string, string> = { username, password };
+    if (email) body.email = email;
     const { status, data } = await requestJson<{ token?: string; user?: AuthUser; error?: string }>(
       'POST',
       '/auth/register',
-      { username, password },
+      body,
     );
     if (status === 200 && data.token && data.user) {
       saveAuthToken(data.token);

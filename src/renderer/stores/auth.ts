@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface AuthUser {
   id: number;
   username: string;
+  email: string | null;
 }
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -15,7 +16,7 @@ interface AuthState {
   error: string | null;
   restore: () => Promise<void>;
   login: (username: string, password: string) => Promise<boolean>;
-  register: (username: string, password: string) => Promise<boolean>;
+  register: (username: string, password: string, email?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   loadApiBase: () => Promise<void>;
   setApiBase: (baseUrl: string) => Promise<void>;
@@ -64,9 +65,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     return false;
   },
 
-  register: async (username, password) => {
+  register: async (username, password, email) => {
     set({ error: null });
-    const result = await window.api.auth.register(username, password);
+    const result = await window.api.auth.register(username, password, email);
     if (result.success && result.user) {
       set({ status: 'authenticated', user: result.user, error: null });
       return true;

@@ -28,8 +28,8 @@ export function setupAuthHandlers() {
     return authLogin(username, password);
   });
 
-  ipcMain.handle('auth:register', async (_event, username: string, password: string) => {
-    return authRegister(username, password);
+  ipcMain.handle('auth:register', async (_event, username: string, password: string, email?: string) => {
+    return authRegister(username, password, typeof email === 'string' ? email : undefined);
   });
 
   ipcMain.handle('auth:restore', async () => authRestore());

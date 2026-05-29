@@ -9,6 +9,7 @@ export default function AccountAuthForm() {
   const [mode, setMode] = useState<Mode>('login');
 
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,6 +21,7 @@ export default function AccountAuthForm() {
   const switchMode = (m: Mode) => {
     setMode(m);
     clearError();
+    setEmail('');
     setPassword('');
     setConfirmPassword('');
     setShowPassword(false);
@@ -48,7 +50,7 @@ export default function AccountAuthForm() {
     if (mode === 'login') {
       await login(username.trim(), password);
     } else {
-      await register(username.trim(), password);
+      await register(username.trim(), password, email.trim() || undefined);
     }
     setSubmitting(false);
   };
@@ -78,32 +80,16 @@ export default function AccountAuthForm() {
           </label>
 
           {!isLogin && (
-            <>
-              <label className={styles.authFieldLabel}>
-                邮箱地址
-                <input
-                  className={styles.authFieldInput}
-                  type="email"
-                  placeholder="请输入有效的邮箱地址"
-                  disabled
-                  title="邮箱功能即将上线"
-                />
-              </label>
-              <label className={styles.authFieldLabel}>
-                邮箱验证码
-                <div className={styles.authCodeRow}>
-                  <input
-                    className={styles.authFieldInput}
-                    placeholder="请输入邮箱验证码"
-                    disabled
-                    title="邮箱功能即将上线"
-                  />
-                  <button type="button" className={styles.authCodeBtn} disabled>
-                    获取验证码
-                  </button>
-                </div>
-              </label>
-            </>
+            <label className={styles.authFieldLabel}>
+              邮箱地址
+              <input
+                className={styles.authFieldInput}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="请输入有效的邮箱地址"
+              />
+            </label>
           )}
 
           <label className={styles.authFieldLabel}>
