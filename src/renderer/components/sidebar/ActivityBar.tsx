@@ -13,6 +13,7 @@ interface Props {
   onSystemAction: (action: SystemMenuAction) => void;
   onOpenLogin: () => void;
   username: string | null;
+  avatar?: string | null;
 }
 
 const ITEMS: Array<{ id: PanelView; label: string; icon?: string; glyph?: string }> = [
@@ -48,7 +49,7 @@ function BarBtn({ icon, glyph, title, onClick, active }: { icon?: string; glyph?
   );
 }
 
-export default function ActivityBar({ openView, onToggle, onSystemAction, onOpenLogin, username }: Props) {
+export default function ActivityBar({ openView, onToggle, onSystemAction, onOpenLogin, username, avatar }: Props) {
   const mode = useModeStore(s => s.mode);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -113,7 +114,9 @@ export default function ActivityBar({ openView, onToggle, onSystemAction, onOpen
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenLogin(); }}
         >
-          {username ? (
+          {avatar ? (
+            <img src={avatar} className={barStyles.avatarImg} alt={username || ''} />
+          ) : username ? (
             <span className={barStyles.avatarLetter}>{username[0]?.toUpperCase()}</span>
           ) : (
             <img src="/assets/head.png" className={barStyles.avatarDefaultIcon} alt="user" />

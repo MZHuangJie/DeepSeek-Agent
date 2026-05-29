@@ -235,6 +235,7 @@ export default function App() {
           onSystemAction={handleSystemAction}
           onOpenLogin={() => setShowAccountCenter(true)}
           username={authUser?.username ?? null}
+          avatar={authUser?.avatar ?? null}
         />
 
         {/* Left Panel — files/sessions/browser 滑动面板 */}
