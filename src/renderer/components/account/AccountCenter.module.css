@@ -771,75 +771,190 @@
 
 .authCard {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 28px;
+  padding: 32px;
 }
 
 .authTitle {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .authDesc {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
-.tabs {
+.authFields {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.tabBtn {
-  flex: 1;
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.tabActive {
-  border-color: var(--accent);
-  color: var(--text-primary);
-  background: rgba(124, 58, 237, 0.12);
-}
-
-.fieldLabel {
+.authFieldLabel {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 12px;
 }
 
-.fieldInput {
-  padding: 9px 11px;
+.authFieldInput {
+  padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.fieldInput:focus {
+.authFieldInput:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.fieldError {
+.authFieldInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.authPasswordWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.authPasswordWrap .authFieldInput {
+  padding-right: 38px;
+}
+
+.authEyeBtn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.authEyeBtn:hover {
+  color: var(--text-primary);
+}
+
+.authCodeRow {
+  display: flex;
+  gap: 8px;
+}
+
+.authCodeRow .authFieldInput {
+  flex: 1;
+}
+
+.authCodeBtn {
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: not-allowed;
+  white-space: nowrap;
+}
+
+.authOptions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+.authCheckLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.authCheckLabel input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.authLinkBtn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.authLinkBtn:hover {
+  text-decoration: underline;
+}
+
+.authInlineLink {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.authInlineLink:hover {
+  text-decoration: underline;
+}
+
+.authFieldError {
   color: var(--error);
   font-size: 12px;
   margin-bottom: 10px;
+}
+
+.authSubmitBtn {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.authSubmitBtn:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.authSubmitBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.authFooter {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .primaryBtn {
