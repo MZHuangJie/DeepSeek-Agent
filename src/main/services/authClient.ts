@@ -46,19 +46,21 @@ function requestJson<T>(
   const lib = isHttps ? https : http;
 
   return new Promise((resolve, reject) => {
-    const req = lib.request(
-      {
-        hostname: url.hostname,
-        port: url.port || (isHttps ? 443 : 80),
-        path: url.pathname + url.search,
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+    const options: https.RequestOptions = {
+      hostname: url.hostname,
+      servername: url.hostname,
+      port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname + url.search,
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+    };
+    const req = lib.request(
+      options,
       (res) => {
         const chunks: Buffer[] = [];
         res.on('data', (c) => chunks.push(c));
@@ -77,7 +79,10 @@ function requestJson<T>(
         });
       },
     );
-    req.on('error', reject);
+    req.on('error', (err) => {
+      console.error('[authClient] request error:', err);
+      reject(err);
+    });
     if (payload) req.write(payload);
     req.end();
   });
@@ -101,8 +106,9 @@ export async function authLogin(username: string, password: string): Promise<Aut
     return { success: false, error: parseError(data, status === 401 ? '用户名或密码错误' : '登录失败') };
   } catch (err) {
     const msg = err instanceof Error ? err.message : '网络错误';
+    console.error('[authClient] login error:', msg);
     if (/TLS|ECONNREFUSED|ENOTFOUND|socket disconnected/i.test(msg)) {
-      return { success: false, error: `无法连接认证服务器（${getAuthApiBase()}）。本地调试请先运行 npm run start:server，并在面板填写 http://127.0.0.1:8787/ds/api` };
+      return { success: false, error: `无法连接认证服务器（${getAuthApiBase()}）。错误：${msg}` };
     }
     return { success: false, error: msg };
   }
@@ -122,8 +128,9 @@ export async function authRegister(username: string, password: string): Promise<
     return { success: false, error: parseError(data, status === 409 ? '用户名已存在' : '注册失败') };
   } catch (err) {
     const msg = err instanceof Error ? err.message : '网络错误';
+    console.error('[authClient] register error:', msg);
     if (/TLS|ECONNREFUSED|ENOTFOUND|socket disconnected/i.test(msg)) {
-      return { success: false, error: `无法连接认证服务器（${getAuthApiBase()}）。本地调试请先运行 npm run start:server，并在面板填写 http://127.0.0.1:8787/ds/api` };
+      return { success: false, error: `无法连接认证服务器（${getAuthApiBase()}）。错误：${msg}` };
     }
     return { success: false, error: msg };
   }
@@ -144,8 +151,10 @@ export async function authRestore(): Promise<AuthResult> {
     }
     clearAuthToken();
     return { success: false, error: status === 401 ? undefined : parseError(data, '会话已失效') };
-  } catch {
-    return { success: false, error: '无法连接服务器' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    console.error('[authClient] restore error:', msg);
+    return { success: false, error: `无法连接服务器：${msg}` };
   }
 }
 
@@ -197,7 +206,9 @@ export async function authHealthCheck(baseUrl?: string): Promise<boolean> {
   try {
     const { status, data } = await requestJson<{ ok?: boolean }>('GET', '/health', undefined, null, baseUrl);
     return status === 200 && data.ok === true;
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[authClient] health check error:', msg);
     return false;
   }
 }
