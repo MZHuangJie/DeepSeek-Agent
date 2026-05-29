@@ -88,7 +88,7 @@ export async function createUser(username: string, passwordHash: string, email?:
   const result = await pool.query<UserRow>(
     `INSERT INTO users (username, email, password_hash, created_at)
      VALUES ($1, $2, $3, $4)
-     RETURNING id, username, email, password_hash, created_at`,
+     RETURNING id, username, email, avatar, password_hash, created_at`,
     [username.trim(), email?.trim() || null, passwordHash, Date.now()]
   );
   return result.rows[0];
