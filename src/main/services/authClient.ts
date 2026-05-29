@@ -1,5 +1,4 @@
-import http from 'http';
-import https from 'https';
+import { net } from 'electron';
 import {
   clearAuthToken,
   getAuthApiBase,
@@ -27,10 +26,10 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/+$/, '');
 }
 
-function joinUrl(base: string, path: string): URL {
+function joinUrl(base: string, path: string): string {
   const normalized = normalizeBaseUrl(base);
   const suffix = path.startsWith('/') ? path : `/${path}`;
-  return new URL(`${normalized}${suffix}`);
+  return `${normalized}${suffix}`;
 }
 
 function requestJson<T>(
@@ -42,48 +41,48 @@ function requestJson<T>(
 ): Promise<{ status: number; data: T }> {
   const url = joinUrl(baseUrl || getAuthApiBase(), path);
   const payload = body !== undefined ? JSON.stringify(body) : undefined;
-  const isHttps = url.protocol === 'https:';
-  const lib = isHttps ? https : http;
 
   return new Promise((resolve, reject) => {
-    const options: https.RequestOptions = {
-      hostname: url.hostname,
-      servername: url.hostname,
-      port: url.port || (isHttps ? 443 : 80),
-      path: url.pathname + url.search,
+    const req = net.request({
+      url,
       method,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-    };
-    const req = lib.request(
-      options,
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => {
-          const text = Buffer.concat(chunks).toString('utf8');
-          let data: T = {} as T;
-          if (text) {
-            try {
-              data = JSON.parse(text) as T;
-            } catch {
-              reject(new Error(`无效 JSON 响应 (${res.statusCode})`));
-              return;
-            }
+    });
+
+    req.on('response', (response) => {
+      const chunks: Buffer[] = [];
+      response.on('data', (c: Buffer) => chunks.push(c));
+      response.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        let data: T = {} as T;
+        if (text) {
+          try {
+            data = JSON.parse(text) as T;
+          } catch {
+            reject(new Error(`无效 JSON 响应 (${response.statusCode})`));
+            return;
           }
-          resolve({ status: res.statusCode || 0, data });
-        });
-      },
-    );
-    req.on('error', (err) => {
+        }
+        resolve({ status: response.statusCode || 0, data });
+      });
+      response.on('error', (err: Error) => {
+        console.error('[authClient] response error:', err);
+        reject(err);
+      });
+    });
+
+    req.on('error', (err: Error) => {
       console.error('[authClient] request error:', err);
       reject(err);
     });
-    if (payload) req.write(payload);
+
+    if (payload) {
+      req.write(payload, 'utf-8');
+    }
     req.end();
   });
 }
