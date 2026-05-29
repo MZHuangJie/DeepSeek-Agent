@@ -83,7 +83,7 @@ function formatRelative(ts: number): string {
 }
 
 export default function AccountCenter({ onClose }: Props) {
-  const { user, status, logout, updateUser, error: authError, clearError } = useAuthStore();
+  const { user, status, logout, updateProfile, error: authError, clearError } = useAuthStore();
   const sessions = useChatStore(s => s.sessions);
   const {
     characters, templates, loadAll,
@@ -92,8 +92,11 @@ export default function AccountCenter({ onClose }: Props) {
   const [section, setSection] = useState<AccountSection>('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editUsername, setEditUsername] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [updatingField, setUpdatingField] = useState<string | null>(null);
   const [fullImageSrc, setFullImageSrc] = useState<string | null>(null);
   const [showFullImage, setShowFullImage] = useState(false);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
   const [editingCharacter, setEditingCharacter] = useState<{
     data: CharacterFormData;
@@ -129,6 +132,30 @@ export default function AccountCenter({ onClose }: Props) {
     </div>
   );
 
+  const handleAvatarPick = async (file: File) => {
+    if (!user) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      if (!base64.startsWith('data:image/')) return;
+      setUpdatingField('avatar');
+      await updateProfile({ avatar: base64 });
+      setUpdatingField(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFieldBlur = async (field: 'username' | 'email') => {
+    if (!user) return;
+    const newValue = field === 'username' ? editUsername.trim() : editEmail.trim();
+    const currentValue = field === 'username' ? user.username : (user.email || '');
+    if (!newValue || newValue === currentValue) return;
+    setUpdatingField(field);
+    clearError();
+    await updateProfile(field === 'username' ? { username: newValue } : { email: newValue });
+    setUpdatingField(null);
+  };
+
   const renderOverview = () => {
     if (!user) return null;
     const initial = user.username[0]?.toUpperCase() || '?';
@@ -142,69 +169,89 @@ export default function AccountCenter({ onClose }: Props) {
         <div className={styles.overviewScroll}>
           <section className={styles.profileHero}>
             <div className={styles.profileMain}>
-              <div className={styles.heroAvatar}>{initial}</div>
+              <div
+                className={styles.heroAvatar}
+                style={user.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : {}}
+                onClick={() => avatarInputRef.current?.click()}
+                title="点击更换头像"
+              >
+                {!user.avatar && initial}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleAvatarPick(file);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
               <div className={styles.profileInfo}>
-                <div className={styles.profileNameRow}>
-                  <h1 className={styles.profileName}>{user.username}</h1>
-                  <span className={styles.badge}>已登录</span>
-                </div>
-                <div className={styles.profileMeta}>{user.username.toLowerCase()}@example.com</div>
-                <div className={styles.profileBio}>DeepSeek Agent 账户 · 云端同步即将开放</div>
-                <div className={styles.profileJoin}>
-                  <span className={styles.joinIcon} aria-hidden>📅</span>
-                  用户 ID: {user.id}
-                </div>
-                <div className={styles.heroActions}>
-                  {isEditingProfile ? (
-                    <div className={styles.profileEditForm}>
+                {isEditingProfile ? (
+                  <>
+                    <div className={styles.profileNameRow}>
                       <input
                         type="text"
                         className={styles.profileEditInput}
                         value={editUsername}
-                        onChange={e => { setEditUsername(e.target.value); clearError(); }}
-                        placeholder="新用户名"
+                        onChange={(e) => { setEditUsername(e.target.value); clearError(); }}
+                        onBlur={() => void handleFieldBlur('username')}
+                        placeholder="用户名"
                         maxLength={32}
                         autoFocus
+                        disabled={updatingField === 'username'}
                       />
-                      {authError && <div className={styles.profileEditError}>{authError}</div>}
-                      <div className={styles.profileEditActions}>
-                        <button
-                          type="button"
-                          className={styles.primaryBtnSmall}
-                          onClick={async () => {
-                            if (!editUsername.trim() || editUsername.trim() === user.username) {
-                              setIsEditingProfile(false);
-                              return;
-                            }
-                            const ok = await updateUser(editUsername.trim());
-                            if (ok) setIsEditingProfile(false);
-                          }}
-                        >
-                          保存
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.ghostBtn}
-                          onClick={() => { setIsEditingProfile(false); clearError(); }}
-                        >
-                          取消
-                        </button>
-                      </div>
+                      {updatingField === 'username' && <span className={styles.profileUpdating}>保存中…</span>}
                     </div>
-                  ) : (
-                    <>
+                    <input
+                      type="text"
+                      className={styles.profileEditInput}
+                      value={editEmail}
+                      onChange={(e) => { setEditEmail(e.target.value); clearError(); }}
+                      onBlur={() => void handleFieldBlur('email')}
+                      placeholder="邮箱地址"
+                      disabled={updatingField === 'email'}
+                      style={{ marginTop: 8 }}
+                    />
+                    {updatingField === 'email' && <span className={styles.profileUpdating}>保存中…</span>}
+                    {authError && <div className={styles.profileEditError}>{authError}</div>}
+                    <div className={styles.heroActions} style={{ marginTop: 12 }}>
                       <button
                         type="button"
                         className={styles.editProfileBtn}
-                        onClick={() => { setEditUsername(user.username); setIsEditingProfile(true); clearError(); }}
+                        onClick={() => { setIsEditingProfile(false); clearError(); }}
+                      >
+                        完成编辑
+                      </button>
+                      <button type="button" className={styles.logoutLink} onClick={() => void logout()}>退出登录</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.profileNameRow}>
+                      <h1 className={styles.profileName}>{user.username}</h1>
+                    </div>
+                    <div className={styles.profileMeta}>{user.email || '未设置邮箱'}</div>
+                    <div className={styles.profileBio}>DeepSeek Agent 账户</div>
+                    <div className={styles.profileJoin}>
+                      <span className={styles.joinIcon} aria-hidden>📅</span>
+                      用户 ID: {user.id}
+                    </div>
+                    <div className={styles.heroActions}>
+                      <button
+                        type="button"
+                        className={styles.editProfileBtn}
+                        onClick={() => { setEditUsername(user.username); setEditEmail(user.email || ''); setIsEditingProfile(true); clearError(); }}
                       >
                         <span className={styles.editIcon} aria-hidden>✎</span>
                         编辑资料
                       </button>
                       <button type="button" className={styles.logoutLink} onClick={() => void logout()}>退出登录</button>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className={styles.statsPanel}>

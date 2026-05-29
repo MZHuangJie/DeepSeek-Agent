@@ -4,6 +4,7 @@ export interface AuthUser {
   id: number;
   username: string;
   email: string | null;
+  avatar: string | null;
 }
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -20,7 +21,7 @@ interface AuthState {
   logout: () => Promise<void>;
   loadApiBase: () => Promise<void>;
   setApiBase: (baseUrl: string) => Promise<void>;
-  updateUser: (username: string) => Promise<boolean>;
+  updateProfile: (updates: { username?: string; email?: string; avatar?: string }) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -87,9 +88,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ apiBase });
   },
 
-  updateUser: async (username) => {
+  updateProfile: async (updates) => {
     set({ error: null });
-    const result = await window.api.auth.updateProfile(username);
+    const result = await window.api.auth.updateProfile(updates);
     if (result.success && result.user) {
       set({ user: result.user, error: null });
       return true;

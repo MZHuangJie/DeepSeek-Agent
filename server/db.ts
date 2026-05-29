@@ -4,6 +4,7 @@ export interface UserRow {
   id: number;
   username: string;
   email: string | null;
+  avatar: string | null;
   password_hash: string;
   created_at: number;
 }
@@ -57,7 +58,7 @@ export async function initDb(): Promise<void> {
 
 export async function findUserByUsername(username: string): Promise<UserRow | undefined> {
   const result = await pool.query<UserRow>(
-    'SELECT id, username, email, password_hash, created_at FROM users WHERE LOWER(username) = LOWER($1)',
+    'SELECT id, username, email, avatar, password_hash, created_at FROM users WHERE LOWER(username) = LOWER($1)',
     [username.trim()]
   );
   return result.rows[0];
@@ -65,7 +66,7 @@ export async function findUserByUsername(username: string): Promise<UserRow | un
 
 export async function findUserByEmail(email: string): Promise<UserRow | undefined> {
   const result = await pool.query<UserRow>(
-    'SELECT id, username, email, password_hash, created_at FROM users WHERE LOWER(email) = LOWER($1)',
+    'SELECT id, username, email, avatar, password_hash, created_at FROM users WHERE LOWER(email) = LOWER($1)',
     [email.trim()]
   );
   return result.rows[0];
@@ -73,7 +74,7 @@ export async function findUserByEmail(email: string): Promise<UserRow | undefine
 
 export async function findUserById(id: number): Promise<UserRow | undefined> {
   const result = await pool.query<UserRow>(
-    'SELECT id, username, email, password_hash, created_at FROM users WHERE id = $1',
+    'SELECT id, username, email, avatar, password_hash, created_at FROM users WHERE id = $1',
     [id]
   );
   return result.rows[0];
@@ -91,7 +92,7 @@ export async function createUser(username: string, passwordHash: string, email?:
 
 export async function updateUser(
   id: number,
-  updates: Partial<Pick<UserRow, 'username' | 'email'>>,
+  updates: Partial<Pick<UserRow, 'username' | 'email' | 'avatar'>>,
 ): Promise<UserRow | null> {
   const sets: string[] = [];
   const values: (string | number | null)[] = [];
@@ -105,12 +106,16 @@ export async function updateUser(
     sets.push(`email = $${idx++}`);
     values.push(updates.email?.trim() || null);
   }
+  if (updates.avatar !== undefined) {
+    sets.push(`avatar = $${idx++}`);
+    values.push(updates.avatar || null);
+  }
 
   if (sets.length === 0) return findUserById(id) || null;
 
   values.push(id);
   const result = await pool.query<UserRow>(
-    `UPDATE users SET ${sets.join(', ')} WHERE id = $${idx} RETURNING id, username, email, password_hash, created_at`,
+    `UPDATE users SET ${sets.join(', ')} WHERE id = $${idx} RETURNING id, username, email, avatar, password_hash, created_at`,
     values
   );
   return result.rows[0] || null;

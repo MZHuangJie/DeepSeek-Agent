@@ -200,6 +200,14 @@
   font-size: 34px;
   font-weight: 700;
   flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.15s;
+}
+
+.heroAvatar:hover {
+  opacity: 0.85;
 }
 
 .profileInfo {

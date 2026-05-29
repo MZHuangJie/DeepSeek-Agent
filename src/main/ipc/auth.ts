@@ -44,7 +44,7 @@ export function setupAuthHandlers() {
     return { ok };
   });
 
-  ipcMain.handle('auth:updateProfile', async (_event, username: string) => {
-    return authUpdateProfile(username);
+  ipcMain.handle('auth:updateProfile', async (_event, updates: { username?: string; email?: string; avatar?: string }) => {
+    return authUpdateProfile(updates || {});
   });
 }

@@ -159,14 +159,18 @@ export async function authRestore(): Promise<AuthResult> {
   }
 }
 
-export async function authUpdateProfile(username: string): Promise<AuthResult> {
+export async function authUpdateProfile(updates: { username?: string; email?: string; avatar?: string }): Promise<AuthResult> {
   const token = getAuthToken();
   if (!token) return { success: false, error: '未登录' };
   try {
+    const body: Record<string, string> = {};
+    if (updates.username !== undefined) body.username = updates.username;
+    if (updates.email !== undefined) body.email = updates.email;
+    if (updates.avatar !== undefined) body.avatar = updates.avatar;
     const { status, data } = await requestJson<{ token?: string; user?: AuthUser; error?: string }>(
       'POST',
       '/auth/update-profile',
-      { username },
+      body,
       token,
     );
     if (status === 200 && data.token && data.user) {

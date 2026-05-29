@@ -5,8 +5,8 @@ import { requireAuth, signToken, validateCredentials } from '../middleware/requi
 
 const router = Router();
 
-function publicUser(user: { id: number; username: string; email: string | null }) {
-  return { id: user.id, username: user.username, email: user.email };
+function publicUser(user: { id: number; username: string; email: string | null; avatar: string | null }) {
+  return { id: user.id, username: user.username, email: user.email, avatar: user.avatar };
 }
 
 router.post('/register', async (req, res) => {
@@ -77,22 +77,42 @@ router.post('/logout', requireAuth, (_req, res) => {
 });
 
 router.post('/update-profile', requireAuth, async (req, res) => {
-  const { username } = req.body || {};
-  if (typeof username !== 'string' || !username.trim()) {
-    res.status(400).json({ error: '请提供 username' });
+  const { username, email, avatar } = req.body || {};
+
+  const updates: Partial<{ username: string; email: string; avatar: string }> = {};
+
+  if (typeof username === 'string' && username.trim()) {
+    const name = username.trim();
+    if (!/^[a-zA-Z0-9_]{3,32}$/.test(name)) {
+      res.status(400).json({ error: '用户名需为 3–32 位字母、数字或下划线' });
+      return;
+    }
+    const existing = await findUserByUsername(name);
+    if (existing && existing.id !== req.auth!.userId) {
+      res.status(409).json({ error: '用户名已存在' });
+      return;
+    }
+    updates.username = name;
+  }
+
+  if (typeof email === 'string') {
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      res.status(400).json({ error: '邮箱格式不正确' });
+      return;
+    }
+    updates.email = email.trim();
+  }
+
+  if (typeof avatar === 'string') {
+    updates.avatar = avatar.trim() || null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: '没有要更新的内容' });
     return;
   }
-  const name = username.trim();
-  if (!/^[a-zA-Z0-9_]{3,32}$/.test(name)) {
-    res.status(400).json({ error: '用户名需为 3–32 位字母、数字或下划线' });
-    return;
-  }
-  const existing = await findUserByUsername(name);
-  if (existing && existing.id !== req.auth!.userId) {
-    res.status(409).json({ error: '用户名已存在' });
-    return;
-  }
-  const user = await updateUser(req.auth!.userId, { username: name });
+
+  const user = await updateUser(req.auth!.userId, updates);
   if (!user) {
     res.status(404).json({ error: '用户不存在' });
     return;

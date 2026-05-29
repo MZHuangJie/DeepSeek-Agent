@@ -129,7 +129,7 @@ const api = {
     register: (username: string, password: string, email?: string) => ipcRenderer.invoke('auth:register', username, password, email),
     restore: () => ipcRenderer.invoke('auth:restore'),
     logout: () => ipcRenderer.invoke('auth:logout'),
-    updateProfile: (username: string) => ipcRenderer.invoke('auth:updateProfile', username),
+    updateProfile: (updates: { username?: string; email?: string; avatar?: string }) => ipcRenderer.invoke('auth:updateProfile', updates),
     healthCheck: (baseUrl?: string) => ipcRenderer.invoke('auth:healthCheck', baseUrl),
   },
   sessions: {
