@@ -161,6 +161,48 @@
   color: #fca5a5;
 }
 
+.playerNameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(124, 58, 237, 0.04);
+}
+
+.playerNameLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.playerNameInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 11px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.playerNameInput:focus {
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+.playerNameInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.playerNameValue {
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 .empty,
 .hint,
 .error {

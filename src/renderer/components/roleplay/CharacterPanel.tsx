@@ -102,7 +102,31 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
     | null
   >(null);
 
+  const [playerName, setPlayerName] = useState('');
   useEffect(() => { void loadAll(); }, [loadAll]);
+
+  // 加载玩家名称
+  useEffect(() => {
+    const user = useAuthStore.getState().user;
+    if (user) {
+      setPlayerName(user.username);
+      return;
+    }
+    void window.api.settings.get('roleplayPlayerName').then(name => {
+      if (name) setPlayerName(name);
+    });
+  }, [authStatus]);
+
+  const handleSavePlayerName = async (name: string) => {
+    if (isLoggedIn) return; // 已登录时由账号系统管理
+    const trimmed = name.trim();
+    setPlayerName(trimmed);
+    if (trimmed) {
+      await window.api.settings.set('roleplayPlayerName', trimmed);
+    } else {
+      await window.api.settings.set('roleplayPlayerName', '');
+    }
+  };
 
   const selectCharacter = async (character: RoleplayCharacter) => {
     setMode('roleplay');
@@ -146,6 +170,24 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
       <div className={styles.tabs}>
         <button type="button" className={tab === 'characters' ? styles.tabActive : styles.tab} onClick={() => setTab('characters')}>我的角色</button>
         <button type="button" className={tab === 'templates' ? styles.tabActive : styles.tab} onClick={() => setTab('templates')}>模板</button>
+      </div>
+
+      <div className={styles.playerNameRow}>
+        <span className={styles.playerNameLabel}>🎭 玩家名称</span>
+        {isLoggedIn ? (
+          <span className={styles.playerNameValue}>{playerName || '未登录'}</span>
+        ) : (
+          <input
+            type="text"
+            className={styles.playerNameInput}
+            placeholder="输入你的名字…"
+            value={playerName}
+            maxLength={16}
+            onChange={(e) => setPlayerName(e.target.value)}
+            onBlur={(e) => void handleSavePlayerName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+          />
+        )}
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
