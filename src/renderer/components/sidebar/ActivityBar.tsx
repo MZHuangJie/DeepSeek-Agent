@@ -119,7 +119,24 @@ export default function ActivityBar({ openView, onToggle, onSystemAction, onOpen
           ) : username ? (
             <span className={barStyles.avatarLetter}>{username[0]?.toUpperCase()}</span>
           ) : (
-            <img src="/assets/head.png" className={barStyles.avatarDefaultIcon} alt="user" />
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ color: 'var(--text-muted, #9ca3af)' }}
+            >
+              {/* 圆形外框 */}
+              <circle cx="12" cy="12" r="10" />
+              {/* 头部 */}
+              <circle cx="12" cy="9.5" r="3" />
+              {/* 肩膀 */}
+              <path d="M6 19.5c0-2.5 2.5-4.5 6-4.5s6 2 6 4.5" />
+            </svg>
           )}
         </div>
         <div ref={menuRef} className={barStyles.menuAnchor}>
