@@ -37,20 +37,70 @@ export type AccountSection =
   | 'favorites'
   | 'square';
 
+/* ── Sidebar SVG icons (stroke style) ── */
+function IconOverview({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+function IconCharacter({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+    </svg>
+  );
+}
+function IconTemplate({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M9 3v18" />
+    </svg>
+  );
+}
+function IconChat({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7A8.38 8.38 0 0 1 4 11.5a8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
+function IconStar({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+function IconSquare({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  );
+}
+
 interface NavItem {
   id: AccountSection;
   label: string;
-  icon: string;
+  icon: React.FC<{ className?: string }>;
   group?: 'main' | 'footer';
 }
 
 const NAV: NavItem[] = [
-  { id: 'overview', label: '账户概览', icon: '\u25EB', group: 'main' },
-  { id: 'characters', label: '角色卡片', icon: '\uD83D\uDC64', group: 'main' },
-  { id: 'templates', label: '我的模板', icon: '\u25A6', group: 'main' },
-  { id: 'history', label: '对话历史', icon: '\uD83D\uDCAC', group: 'main' },
-  { id: 'favorites', label: '收藏夹', icon: '\u2605', group: 'main' },
-  { id: 'square', label: '角色广场', icon: '\uD83C\uDFEA', group: 'main' },
+  { id: 'overview', label: '账户概览', icon: IconOverview, group: 'main' },
+  { id: 'characters', label: '角色卡片', icon: IconCharacter, group: 'main' },
+  { id: 'templates', label: '我的模板', icon: IconTemplate, group: 'main' },
+  { id: 'history', label: '对话历史', icon: IconChat, group: 'main' },
+  { id: 'favorites', label: '收藏夹', icon: IconStar, group: 'main' },
+  { id: 'square', label: '角色广场', icon: IconSquare, group: 'main' },
 ];
 
 interface Props {
@@ -657,7 +707,7 @@ export default function AccountCenter({ onClose }: Props) {
               className={`${styles.navItem} ${section === item.id ? styles.navActive : ''}`}
               onClick={() => setSection(item.id)}
             >
-              <span className={styles.navIcon}>{item.icon}</span>
+              <item.icon className={styles.navIcon} />
               {item.label}
             </button>
           ))}
