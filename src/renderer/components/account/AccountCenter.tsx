@@ -272,12 +272,21 @@ export default function AccountCenter({ onClose }: Props) {
             <h2>云端角色</h2>
             <button type="button" className={styles.linkBtn} onClick={() => setSection('characters')}>查看全部 →</button>
           </div>
-          <div className={styles.cloudList}>
+          <div className={styles.cardGridCharacters}>
             {cloudCharacters.slice(0, 3).map(cc => (
-              <div key={cc.id} className={styles.cloudItem}>
-                <div className={styles.cloudItemInfo}>
-                  <div className={styles.cloudItemTitle}>{cc.name}</div>
-                  <div className={styles.cloudItemMeta}>{new Date(cc.updatedAt).toLocaleString('zh-CN')}</div>
+              <div key={cc.id} className={`${styles.featureCard} ${styles.characterCard}`}>
+                <div className={styles.portraitBgEmpty}>
+                  <span className={styles.portraitPlaceholder}>{cc.name.charAt(0) || '?'}</span>
+                </div>
+                <div className={styles.featureCardOverlay}>
+                  <div className={styles.featureCardInfo}>
+                    <div className={styles.featureTitle}>{cc.name}</div>
+                    <div className={styles.featureDesc}>
+                      {cc.updatedAt && !isNaN(Number(cc.updatedAt))
+                        ? new Date(Number(cc.updatedAt)).toLocaleDateString('zh-CN')
+                        : ''}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -319,7 +328,7 @@ export default function AccountCenter({ onClose }: Props) {
               <div key={cs.id} className={styles.cloudItem}>
                 <div className={styles.cloudItemInfo}>
                   <div className={styles.cloudItemTitle}>{cs.title}</div>
-                  <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {new Date(cs.updatedAt).toLocaleString('zh-CN')}</div>
+                  <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {cs.updatedAt && !isNaN(Number(cs.updatedAt)) ? new Date(Number(cs.updatedAt)).toLocaleString('zh-CN') : ''}</div>
                 </div>
               </div>
             ))}
@@ -375,18 +384,28 @@ export default function AccountCenter({ onClose }: Props) {
             {cloudError && (
               <div style={{ padding: '0 16px', fontSize: 12, color: '#fca5a5' }}>⚠ {cloudError}</div>
             )}
-            <div className={styles.cloudList}>
+            <div className={styles.cardGridCharacters}>
               {cloudCharacters.map(cc => {
                 const alreadyLocal = characters.some(c => c.id === cc.id);
                 return (
-                  <div key={cc.id} className={styles.cloudItem}>
-                    <div className={styles.cloudItemInfo}>
-                      <div className={styles.cloudItemTitle}>{cc.name}</div>
-                      <div className={styles.cloudItemMeta}>{new Date(cc.updatedAt).toLocaleString('zh-CN')}</div>
+                  <div key={cc.id} className={`${styles.featureCard} ${styles.characterCard}`}>
+                    <div className={styles.portraitBgEmpty}>
+                      <span className={styles.portraitPlaceholder}>{cc.name.charAt(0) || '?'}</span>
+                    </div>
+                    <div className={styles.featureCardOverlay}>
+                      <div className={styles.featureCardInfo}>
+                        <div className={styles.featureTitle}>{cc.name}</div>
+                        <div className={styles.featureDesc}>
+                          {cc.updatedAt && !isNaN(Number(cc.updatedAt))
+                            ? new Date(Number(cc.updatedAt)).toLocaleDateString('zh-CN')
+                            : ''}
+                        </div>
+                      </div>
                     </div>
                     <button
                       type="button"
-                      className={styles.cloudItemAction}
+                      className={`${styles.cardActionIcon} ${styles.cloudItemAction}`}
+                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
                       disabled={alreadyLocal}
                       onClick={async () => {
                         const data = await pullCharacter(cc.id);
@@ -436,7 +455,7 @@ export default function AccountCenter({ onClose }: Props) {
                         }
                       }}
                     >
-                      {alreadyLocal ? '已存在' : '恢复到本地'}
+                      {alreadyLocal ? '已存在' : '☁ 恢复'}
                     </button>
                   </div>
                 );
@@ -490,7 +509,7 @@ export default function AccountCenter({ onClose }: Props) {
                   <div key={cs.id} className={styles.cloudItem}>
                     <div className={styles.cloudItemInfo}>
                       <div className={styles.cloudItemTitle}>{cs.title}</div>
-                      <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {new Date(cs.updatedAt).toLocaleString('zh-CN')}</div>
+                      <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {cs.updatedAt && !isNaN(Number(cs.updatedAt)) ? new Date(Number(cs.updatedAt)).toLocaleString('zh-CN') : ''}</div>
                     </div>
                     <button
                       type="button"
