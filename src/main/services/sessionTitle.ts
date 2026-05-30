@@ -1,12 +1,34 @@
 import { completeChat, ModelConfig } from '../agent/client';
 
+const INVALID_TITLE_PATTERNS = [
+  /我们被要求/i,
+  /会话标题/i,
+  /标题生成/i,
+  /8[-~]18字/i,
+  /概括用户核心诉求/i,
+  /只输出标题/i,
+  /不要引号/i,
+  /根据对话内容/i,
+  /^用户[:：]/i,
+  /^助手[:：]/i,
+];
+
+function looksLikeInstructionEcho(raw: string): boolean {
+  return INVALID_TITLE_PATTERNS.some(p => p.test(raw));
+}
+
 export function sanitizeSessionTitle(raw: string): string {
-  return raw
+  let text = raw
     .replace(/^[\s"'「『【]+|[\s"'」』】]+$/g, '')
     .replace(/^标题[:：]\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 32);
+
+  // 如果清理后看起来像指令复述，视为无效
+  if (looksLikeInstructionEcho(text)) return '';
+
+  return text;
 }
 
 export function deriveFallbackSessionTitle(raw: string): string {
@@ -46,7 +68,7 @@ export async function generateSessionTitle(
       {
         role: 'system',
         content:
-          '你是会话标题生成器。根据对话内容输出一句简短中文标题（8-18字），概括用户核心诉求。只输出标题本身，不要引号、句号或 markdown。',
+          '你是对话标题助手。阅读下面用户和助手的对话，生成一个8-18字的中文标题，概括用户核心诉求。\n\n规则：\n1. 直接输出标题文本，不要加任何前缀、解释或引号\n2. 不要复述本指令内容\n3. 不要输出 markdown',
       },
       { role: 'user', content: prompt },
     ],
@@ -55,5 +77,9 @@ export async function generateSessionTitle(
   );
 
   const sanitized = sanitizeSessionTitle(content);
-  return sanitized || deriveFallbackSessionTitle(userMessage);
+  // 如果模型返回了指令复述或空内容，回退到 fallback
+  if (!sanitized) {
+    return deriveFallbackSessionTitle(userMessage);
+  }
+  return sanitized;
 }
