@@ -6,6 +6,27 @@ import { useRoleplayStore } from '../../stores/roleplay';
 import AccountAuthForm from './AccountAuthForm';
 import styles from './AccountCenter.module.css';
 
+function PortraitBg({ src, path }: { src?: string; path?: string }) {
+  const [imgSrc, setImgSrc] = useState<string | null>(src || null);
+  useEffect(() => {
+    if (src) { setImgSrc(src); return; }
+    if (!path) { setImgSrc(null); return; }
+    let cancelled = false;
+    void window.api.files.readBinary(path).then(url => {
+      if (!cancelled) setImgSrc(url);
+    }).catch(() => { if (!cancelled) setImgSrc(null); });
+    return () => { cancelled = true; };
+  }, [src, path]);
+  if (imgSrc) {
+    return <div className={styles.portraitBg} style={{ backgroundImage: `url(${imgSrc})` }} />;
+  }
+  return (
+    <div className={styles.portraitBgEmpty}>
+      <span className={styles.portraitPlaceholder}>?</span>
+    </div>
+  );
+}
+
 export type AccountSection =
   | 'overview'
   | 'characters'
@@ -274,18 +295,20 @@ export default function AccountCenter({ onClose }: Props) {
           </div>
           <div className={styles.cardGridCharacters}>
             {cloudCharacters.slice(0, 3).map(cc => (
-              <div key={cc.id} className={`${styles.featureCard} ${styles.characterCard}`}>
-                <div className={styles.portraitBgEmpty}>
-                  <span className={styles.portraitPlaceholder}>{cc.name.charAt(0) || '?'}</span>
-                </div>
+              <div
+                key={cc.id}
+                className={`${styles.featureCard} ${styles.characterCard}`}
+                onClick={() => {
+                  const full = cc.portraitFullBase64 || cc.portraitBase64;
+                  if (full) { setFullImageSrc(full); setShowFullImage(true); }
+                }}
+              >
+                <PortraitBg src={cc.portraitBase64} />
                 <div className={styles.featureCardOverlay}>
                   <div className={styles.featureCardInfo}>
                     <div className={styles.featureTitle}>{cc.name}</div>
-                    <div className={styles.featureDesc}>
-                      {cc.updatedAt && !isNaN(Number(cc.updatedAt))
-                        ? new Date(Number(cc.updatedAt)).toLocaleDateString('zh-CN')
-                        : ''}
-                    </div>
+                    <div className={styles.featurePersonality}>{cc.personality || cc.background || '角色'}</div>
+                    <div className={styles.featureDesc}>{cc.background || '暂无背景故事'}</div>
                   </div>
                 </div>
               </div>
@@ -388,18 +411,20 @@ export default function AccountCenter({ onClose }: Props) {
               {cloudCharacters.map(cc => {
                 const alreadyLocal = characters.some(c => c.id === cc.id);
                 return (
-                  <div key={cc.id} className={`${styles.featureCard} ${styles.characterCard}`}>
-                    <div className={styles.portraitBgEmpty}>
-                      <span className={styles.portraitPlaceholder}>{cc.name.charAt(0) || '?'}</span>
-                    </div>
+                  <div
+                    key={cc.id}
+                    className={`${styles.featureCard} ${styles.characterCard}`}
+                    onClick={() => {
+                      const full = cc.portraitFullBase64 || cc.portraitBase64;
+                      if (full) { setFullImageSrc(full); setShowFullImage(true); }
+                    }}
+                  >
+                    <PortraitBg src={cc.portraitBase64} />
                     <div className={styles.featureCardOverlay}>
                       <div className={styles.featureCardInfo}>
                         <div className={styles.featureTitle}>{cc.name}</div>
-                        <div className={styles.featureDesc}>
-                          {cc.updatedAt && !isNaN(Number(cc.updatedAt))
-                            ? new Date(Number(cc.updatedAt)).toLocaleDateString('zh-CN')
-                            : ''}
-                        </div>
+                        <div className={styles.featurePersonality}>{cc.personality || cc.background || '角色'}</div>
+                        <div className={styles.featureDesc}>{cc.background || '暂无背景故事'}</div>
                       </div>
                     </div>
                     <button
@@ -407,7 +432,8 @@ export default function AccountCenter({ onClose }: Props) {
                       className={`${styles.cardActionIcon} ${styles.cloudItemAction}`}
                       style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
                       disabled={alreadyLocal}
-                      onClick={async () => {
+                      onClick={async (e) => {
+                        e.stopPropagation();
                         const data = await pullCharacter(cc.id);
                         if (!data) { alert('拉取失败'); return; }
                         try {

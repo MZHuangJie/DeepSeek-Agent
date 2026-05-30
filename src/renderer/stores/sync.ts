@@ -11,6 +11,10 @@ export interface CloudCharacterMeta {
   id: string;
   name: string;
   updatedAt: number;
+  portraitBase64?: string;
+  portraitFullBase64?: string;
+  personality?: string;
+  background?: string;
 }
 
 interface SyncState {
@@ -56,7 +60,29 @@ export const useSyncStore = create<SyncState>((set) => ({
     try {
       const res = await window.api.sync.listCharacters();
       if (res.success && res.characters) {
-        set({ cloudCharacters: res.characters, loading: false, lastSyncAt: Date.now() });
+        const list = res.characters;
+        // 并行拉取每个角色的完整 payload，提取 portrait + personality + background
+        const enriched = await Promise.all(
+          list.map(async (meta: CloudCharacterMeta) => {
+            try {
+              const detail = await window.api.sync.getCharacter(meta.id);
+              if (detail.success && detail.character) {
+                const parsed = JSON.parse(detail.character.payload);
+                return {
+                  ...meta,
+                  portraitBase64: parsed.portraitBase64 as string | undefined,
+                  portraitFullBase64: parsed.portraitFullBase64 as string | undefined,
+                  personality: parsed.personality as string | undefined,
+                  background: parsed.background as string | undefined,
+                };
+              }
+            } catch (e) {
+              console.warn('[sync] enrich character failed:', meta.id, e);
+            }
+            return meta;
+          }),
+        );
+        set({ cloudCharacters: enriched, loading: false, lastSyncAt: Date.now() });
       } else {
         set({ error: res.error || '获取失败', loading: false });
       }
