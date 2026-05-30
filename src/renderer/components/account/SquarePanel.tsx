@@ -82,7 +82,7 @@ function CharacterCard({ item, onToggleFav, onRestore, alreadyLocal, restoringId
           disabled={alreadyLocal || isRestoring}
           onClick={(e) => { e.stopPropagation(); onRestore(item); }}
         >
-          {isRestoring ? '恢复中…' : alreadyLocal ? '已恢复' : '⬇ 恢复到本地'}
+          {isRestoring ? '恢复中…' : alreadyLocal ? '已在本地' : '⬇ 恢复到本地'}
         </button>
       </div>
     </div>

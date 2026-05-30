@@ -802,7 +802,7 @@ export default function AccountCenter({ onClose }: Props) {
                             }
                           }}
                         >
-                          {alreadyLocal ? '已恢复' : '⬇ 恢复'}
+                          {alreadyLocal ? '已在本地' : '⬇ 恢复'}
                         </button>
                       )}
                       {/* bottom-right: remove favorite */}
