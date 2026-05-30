@@ -201,7 +201,7 @@ function ModelItem({ item }: { item: SquareModel }) {
   );
 }
 
-export default function SquarePanel() {
+export default function SquarePanel({ onClose }: { onClose: () => void }) {
   const {
     characters, favorites, models, loading, error,
     loadCharacters, loadFavorites, loadModels, toggleFavorite, clearError,
@@ -209,6 +209,7 @@ export default function SquarePanel() {
   const { pullCharacter } = useSyncStore();
   const { characters: localChars, saveCharacter, loadAll, setActiveCharacter } = useRoleplayStore();
   const setMode = useModeStore(s => s.setMode);
+  const createSession = useChatStore(s => s.createSession);
   const bindSessionCharacter = useChatStore(s => s.setSessionCharacter);
   const toast = useToastStore();
   const [tab, setTab] = useState<'characters' | 'models'>('characters');
@@ -323,11 +324,13 @@ export default function SquarePanel() {
   const handleStartChat = async (item: SquareCharacter) => {
     const local = localChars.find(c => c.id === item.id);
     if (!local) return;
-    setMode('roleplay');
     await setActiveCharacter(item.id);
+    setMode('roleplay');
+    createSession();
     bindSessionCharacter(item.id);
     setSelectedChar(null);
-    toast.show(`已切换到角色「${item.name}」`, 'success');
+    onClose();
+    toast.show(`已为「${item.name}」创建新会话`, 'success');
   };
 
   return (

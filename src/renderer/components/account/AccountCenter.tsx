@@ -739,7 +739,7 @@ export default function AccountCenter({ onClose }: Props) {
           </div>
         );
       case 'square':
-        return <SquarePanel />;
+        return <SquarePanel onClose={onClose} />;
       case 'favorites':
         return (
           <div className={styles.pageScroll}>
