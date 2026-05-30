@@ -62,9 +62,10 @@ function CopyButton({ text }: { text: string }) {
 }
 
 function isLocalImagePath(url: string): boolean {
-  const trimmed = url.trim();
+  const trimmed = decodeURIComponent(url).trim();
   if (/^[A-Za-z]:[\\/]/.test(trimmed)) return true;
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
+  if (/^\/[A-Za-z]:[\\/]/.test(trimmed)) return true;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//') && !/^\/[A-Za-z]:/.test(trimmed)) return true;
   if (trimmed.startsWith('file://')) return true;
   if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith('data:') && /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(trimmed)) {
     return true;
@@ -73,10 +74,18 @@ function isLocalImagePath(url: string): boolean {
 }
 
 function normalizeLocalImagePath(url: string): string {
-  if (url.startsWith('file://')) {
-    return decodeURIComponent(url.replace(/^file:\/\//i, '').replace(/^\/([A-Za-z]:)/, '$1'));
+  let cleaned = decodeURIComponent(url).trim();
+  // file:// 协议
+  if (/^file:\/\/\//i.test(cleaned)) {
+    cleaned = cleaned.replace(/^file:\/\/\//i, '');
+  } else if (/^file:\/\//i.test(cleaned)) {
+    cleaned = cleaned.replace(/^file:\/\//i, '');
   }
-  return url;
+  // 统一为正斜杠再转 Windows 反斜杠
+  cleaned = cleaned.replace(/\\/g, '/');
+  // 处理 /C:/xxx → C:/xxx
+  cleaned = cleaned.replace(/^\/([A-Za-z]:)\//, '$1/');
+  return cleaned.replace(/\//g, '\\');
 }
 
 function isImageUrl(url: string): boolean {
