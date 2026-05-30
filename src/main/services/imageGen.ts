@@ -86,7 +86,27 @@ export function parseImageGenerationResponse(parsed: unknown): GenerateImageResu
   }
   const root = parsed as Record<string, unknown>;
 
-  // Gemini chat completions 响应：choices[0].message.content 可能含 base64 图片
+  // Gemini 原生响应：candidates[].content.parts[].inlineData
+  if (Array.isArray(root.candidates)) {
+    for (const candidate of root.candidates) {
+      if (!candidate || typeof candidate !== 'object') continue;
+      const content = (candidate as Record<string, unknown>).content;
+      if (!content || typeof content !== 'object') continue;
+      const parts = (content as Record<string, unknown>).parts;
+      if (!Array.isArray(parts)) continue;
+      for (const part of parts) {
+        if (!part || typeof part !== 'object') continue;
+        const p = part as Record<string, unknown>;
+        if (p.inlineData && typeof p.inlineData === 'object') {
+          const inline = p.inlineData as Record<string, unknown>;
+          const mime = typeof inline.mimeType === 'string' ? inline.mimeType : 'image/png';
+          pushBase64(urls, inline.data, mime);
+        }
+      }
+    }
+  }
+
+  // OpenAI 中转响应：choices[0].message.content 可能含 base64 图片
   if (Array.isArray(root.choices)) {
     for (const choice of root.choices) {
       if (!choice || typeof choice !== 'object') continue;
@@ -94,12 +114,10 @@ export function parseImageGenerationResponse(parsed: unknown): GenerateImageResu
       if (!msg || typeof msg !== 'object') continue;
       const content = (msg as Record<string, unknown>).content;
       if (typeof content === 'string') {
-        // 提取 base64 data URL
         const m = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g);
         if (m) m.forEach(u => urls.push(u));
       }
       if (Array.isArray(content)) {
-        // Gemini 原生多模态 parts
         for (const part of content) {
           if (!part || typeof part !== 'object') continue;
           const p = part as Record<string, unknown>;
@@ -194,7 +212,7 @@ export async function generateImage(
   const payload: Record<string, unknown> = {
     model: config.model || 'gpt-image-1',
     ...(useChatApi
-      ? { messages: [{ role: 'user', content: args.prompt }] }
+      ? { contents: [{ parts: [{ text: args.prompt }] }] }
       : {
           prompt: args.prompt,
           n: Math.min(Math.max(args.n ?? 1, 1), 4),
