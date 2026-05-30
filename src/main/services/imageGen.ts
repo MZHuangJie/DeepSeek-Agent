@@ -80,6 +80,33 @@ export function parseImageGenerationResponse(parsed: unknown): GenerateImageResu
   }
   const root = parsed as Record<string, unknown>;
 
+  // Gemini chat completions 响应：choices[0].message.content 可能含 base64 图片
+  if (Array.isArray(root.choices)) {
+    for (const choice of root.choices) {
+      if (!choice || typeof choice !== 'object') continue;
+      const msg = (choice as Record<string, unknown>).message;
+      if (!msg || typeof msg !== 'object') continue;
+      const content = (msg as Record<string, unknown>).content;
+      if (typeof content === 'string') {
+        // 提取 base64 data URL
+        const m = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g);
+        if (m) m.forEach(u => urls.push(u));
+      }
+      if (Array.isArray(content)) {
+        // Gemini 原生多模态 parts
+        for (const part of content) {
+          if (!part || typeof part !== 'object') continue;
+          const p = part as Record<string, unknown>;
+          if (p.inlineData && typeof p.inlineData === 'object') {
+            const inline = p.inlineData as Record<string, unknown>;
+            const mime = typeof inline.mimeType === 'string' ? inline.mimeType : 'image/png';
+            pushBase64(urls, inline.data, mime);
+          }
+        }
+      }
+    }
+  }
+
   collectFromItems(urls, root.data);
   collectFromItems(urls, root.images);
   collectFromItems(urls, root.output);
@@ -149,17 +176,26 @@ export async function generateImage(
   signal?: AbortSignal,
   logContext = 'imageGen',
 ): Promise<GenerateImageResult> {
-  // 修复：使用字符串拼接替代 new URL(path, base) 避免路径段被替换
-  const url = new URL(buildImageGenerationUrl(config.baseUrl));
+  const isGemini = config.model.toLowerCase().includes('gemini');
+  const base = config.baseUrl.replace(/\/+$/, '');
+  const path = isGemini ? '/v1/chat/completions' : buildImageGenerationUrl(base).replace(base, '');
+
+  const url = new URL(base + path);
   const isHttps = url.protocol === 'https:';
 
-  const payload = {
-    model: config.model || 'gpt-image-1',
-    prompt: args.prompt,
-    n: Math.min(Math.max(args.n ?? 1, 1), 4),
-    size: args.size || '1024x1024',
-    quality: args.quality || 'high',
-  };
+  const payload: Record<string, unknown> = isGemini
+    ? {
+        model: config.model,
+        messages: [{ role: 'user', content: args.prompt }],
+        max_tokens: 4096,
+      }
+    : {
+        model: config.model || 'gpt-image-1',
+        prompt: args.prompt,
+        n: Math.min(Math.max(args.n ?? 1, 1), 4),
+        size: args.size || '1024x1024',
+        quality: args.quality || 'high',
+      };
   const body = JSON.stringify(payload);
 
   infoLog('imageGen', 'request', {
