@@ -420,7 +420,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 16px;
-  max-width: 720px;
+  max-width: 85vw;
   width: 100%;
   max-height: 85vh;
   display: flex;
@@ -431,11 +431,11 @@
 
 .detailClose {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 14px;
+  right: 14px;
   z-index: 2;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.45);
@@ -453,8 +453,8 @@
 }
 
 .detailPortrait {
-  width: 280px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   background: linear-gradient(145deg, #1a1528, #12101e);
   display: flex;
   align-items: center;
@@ -476,10 +476,10 @@
 
 .detailBody {
   flex: 1;
-  min-width: 0;
+  min-width: 320px;
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding: 28px;
   overflow-y: auto;
 }
 
