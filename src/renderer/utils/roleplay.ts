@@ -395,7 +395,7 @@ export const ROLEPLAY_STATUS_RETRY_MESSAGE =
 export function buildCharacterPrompt(
   character: RoleplayCharacter,
   template?: RoleplayTemplate | null,
-  options?: { forOpening?: boolean },
+  options?: { forOpening?: boolean; playerName?: string },
 ): string {
   const lines: string[] = [`## 当前扮演角色：${character.name}`];
   if (character.gender) lines.push(`性别：${character.gender}`);
@@ -412,16 +412,32 @@ export function buildCharacterPrompt(
   const statusPrompt = buildStatusOutputPrompt(getEffectiveStatusFields(character, template));
   if (statusPrompt) lines.push(statusPrompt);
 
+  if (options?.playerName) {
+    lines.push(`\n## 用户信息\n与你对话的用户叫「${options.playerName}」，请在对话中自然地称呼他/她。`);
+  }
+
   if (options?.forOpening) {
     if (character.openingStory?.trim()) {
       lines.push(`\n## 开场情境\n${character.openingStory.trim()}`);
-      lines.push('请立即发送第一条消息：以此情境自然开场。用户还没有发言。');
+      if (!options?.playerName) {
+        lines.push('你还不清楚用户的名字，请在开场白中自然地询问用户叫什么名字。');
+      } else {
+        lines.push('请立即发送第一条消息：以此情境自然开场。用户还没有发言。');
+      }
     } else if (character.background?.trim()) {
       lines.push('\n## 开场');
-      lines.push('请立即发送第一条消息：根据故事背景自行生成合适开场白。用户还没有发言。');
+      if (!options?.playerName) {
+        lines.push('请立即发送第一条消息：根据故事背景自行生成合适开场白，并在开场中自然地询问用户叫什么名字。');
+      } else {
+        lines.push('请立即发送第一条消息：根据故事背景自行生成合适开场白。用户还没有发言。');
+      }
     } else {
       lines.push('\n## 开场');
-      lines.push('请立即发送第一条消息：以第三人称小说体自然开场，含场景描写与剧情铺垫。用户还没有发言。');
+      if (!options?.playerName) {
+        lines.push('请立即发送第一条消息：以第三人称小说体自然开场，含场景描写与剧情铺垫，并在开场中自然地询问用户叫什么名字。');
+      } else {
+        lines.push('请立即发送第一条消息：以第三人称小说体自然开场，含场景描写与剧情铺垫。用户还没有发言。');
+      }
     }
   }
 

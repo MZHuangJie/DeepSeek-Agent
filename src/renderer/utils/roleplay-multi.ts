@@ -209,7 +209,7 @@ export function buildSessionRoleplayPrompt(
   } | null | undefined,
   characters: RoleplayCharacter[],
   templates: RoleplayTemplate[],
-  options?: { forOpening?: boolean },
+  options?: { forOpening?: boolean; playerName?: string },
 ): string | undefined {
   const cast = resolveSessionCast(session);
   if (cast.participantIds.length === 0) return undefined;

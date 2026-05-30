@@ -6,6 +6,7 @@ import { useLayoutStore } from '../../stores/layout';
 import { useFilesStore } from '../../stores/files';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
+import { useAuthStore } from '../../stores/auth';
 import { useAgentRolesStore, resolveSendableRoles } from '../../stores/agentRoles';
 import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
 import {
@@ -366,7 +367,10 @@ export default function ChatPanel() {
     setStreaming(true);
 
     const templates = useRoleplayStore.getState().templates;
-    const commandPrompt = buildSessionRoleplayPrompt(target, participants, templates, { forOpening: true });
+    const authUser = useAuthStore.getState().user;
+    const savedName = authUser ? authUser.username : (await window.api.settings.get('roleplayPlayerName'));
+    const playerName = savedName || undefined;
+    const commandPrompt = buildSessionRoleplayPrompt(target, participants, templates, { forOpening: true, playerName });
 
     try {
       await invokeAgent({
@@ -429,10 +433,14 @@ export default function ChatPanel() {
 
     let commandPrompt = command?.systemPrompt;
     if (sendMode === 'roleplay' && participants.length > 0) {
+      const authUser = useAuthStore.getState().user;
+      const savedName = authUser ? authUser.username : (await window.api.settings.get('roleplayPlayerName'));
+      const playerName = savedName || undefined;
       const sessionPrompt = buildSessionRoleplayPrompt(
         currentSession,
         participants,
         useRoleplayStore.getState().templates,
+        { playerName },
       );
       commandPrompt = sessionPrompt
         ? (commandPrompt ? `${sessionPrompt}\n\n${commandPrompt}` : sessionPrompt)
