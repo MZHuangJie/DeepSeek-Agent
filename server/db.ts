@@ -54,10 +54,15 @@ export async function initDb(): Promise<void> {
       user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name VARCHAR(255) NOT NULL,
       payload TEXT NOT NULL,
+      shared BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
       PRIMARY KEY (user_id, id)
     );
   `);
+  // 兼容已有表
+  try {
+    await pool.query(`ALTER TABLE cloud_characters ADD COLUMN IF NOT EXISTS shared BOOLEAN NOT NULL DEFAULT FALSE`);
+  } catch { /* ignore */ }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS cloud_templates (
@@ -65,6 +70,21 @@ export async function initDb(): Promise<void> {
       user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name VARCHAR(255) NOT NULL,
       payload TEXT NOT NULL,
+      updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+      PRIMARY KEY (user_id, id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cloud_models (
+      id VARCHAR(64) NOT NULL,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      provider VARCHAR(64) NOT NULL,
+      base_url VARCHAR(512) NOT NULL DEFAULT '',
+      model_id VARCHAR(128) NOT NULL DEFAULT '',
+      context_window INT NOT NULL DEFAULT 64000,
+      shared BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
       PRIMARY KEY (user_id, id)
     );
