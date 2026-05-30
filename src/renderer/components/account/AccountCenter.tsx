@@ -79,6 +79,18 @@ function IconStar({ className }: { className?: string }) {
     </svg>
   );
 }
+function IconShare({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+  );
+}
+
 function IconSquare({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -543,8 +555,7 @@ export default function AccountCenter({ onClose }: Props) {
                     </button>
                     <button
                       type="button"
-                      className={styles.cardStatusTag}
-                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, background: 'rgba(59,130,246,0.9)' }}
+                      className={`${styles.shareBtn} ${cc.shared ? styles.shareBtnActive : ''}`}
                       title={cc.shared ? '已分享到广场，点击取消' : '分享到广场'}
                       onClick={async (e) => {
                         e.stopPropagation();
@@ -558,7 +569,7 @@ export default function AccountCenter({ onClose }: Props) {
                         }
                       }}
                     >
-                      {cc.shared ? '🏪 已分享' : '🏪 分享'}
+                      <IconShare />
                     </button>
                   </div>
                 );
@@ -656,8 +667,7 @@ export default function AccountCenter({ onClose }: Props) {
                     </button>
                     <button
                       type="button"
-                      className={styles.cardStatusTag}
-                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, background: 'rgba(59,130,246,0.9)' }}
+                      className={`${styles.shareBtn} ${ct.shared ? styles.shareBtnActive : ''}`}
                       title={ct.shared ? '已分享到广场，点击取消' : '分享到广场'}
                       onClick={async (e) => {
                         e.stopPropagation();
@@ -671,7 +681,7 @@ export default function AccountCenter({ onClose }: Props) {
                         }
                       }}
                     >
-                      {ct.shared ? '🏪 已分享' : '🏪 分享'}
+                      <IconShare />
                     </button>
                   </div>
                 );

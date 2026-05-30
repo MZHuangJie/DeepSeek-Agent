@@ -1311,6 +1311,40 @@
   color: #fff;
 }
 
+.shareBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s, color 0.15s;
+}
+
+.shareBtn:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+.shareBtnActive {
+  background: rgba(124, 58, 237, 0.55);
+  color: #c4b5fd;
+}
+
+.shareBtnActive:hover {
+  background: rgba(124, 58, 237, 0.75);
+  color: #e9d5ff;
+}
+
 .refreshBtn {
   display: inline-flex;
   align-items: center;
