@@ -1,38 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../../stores/auth';
 import { useSyncStore } from '../../stores/sync';
 import { useChatStore } from '../../stores/chat';
 import { useRoleplayStore } from '../../stores/roleplay';
 import AccountAuthForm from './AccountAuthForm';
-import CharacterEditor from '../roleplay/CharacterEditor';
-import {
-  buildCharacterStatusEnabledMap,
-  getTemplateById,
-  type CharacterFormData,
-  type RoleplayCharacter,
-  type RoleplayTemplate,
-} from '../../utils/roleplay';
 import styles from './AccountCenter.module.css';
-
-function PortraitBg({ path }: { path?: string }) {
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    if (!path) { setSrc(null); return; }
-    let cancelled = false;
-    void window.api.files.readBinary(path).then(url => {
-      if (!cancelled) setSrc(url);
-    }).catch(() => { if (!cancelled) setSrc(null); });
-    return () => { cancelled = true; };
-  }, [path]);
-  if (src) {
-    return <div className={styles.portraitBg} style={{ backgroundImage: `url(${src})` }} />;
-  }
-  return (
-    <div className={styles.portraitBgEmpty}>
-      <span className={styles.portraitPlaceholder}>{path ? '…' : '?'}</span>
-    </div>
-  );
-}
 
 export type AccountSection =
   | 'overview'
@@ -70,24 +42,11 @@ interface Props {
   onClose: () => void;
 }
 
-function formatRelative(ts: number): string {
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return '刚刚';
-  if (mins < 60) return `${mins} 分钟前`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return '昨天';
-  return `${days} 天前`;
-}
-
 export default function AccountCenter({ onClose }: Props) {
   const { user, status, logout, updateProfile, error: authError, clearError } = useAuthStore();
   const sessions = useChatStore(s => s.sessions);
   const {
-    characters, templates, loadAll,
-    saveCharacter, pickPortrait, generatePortrait,
+    characters, templates, loadAll, saveCharacter,
   } = useRoleplayStore();
   const {
     cloudSessions, cloudCharacters, loadCloudSessions, loadCloudCharacters, pullCharacter, pullSession,
@@ -101,13 +60,6 @@ export default function AccountCenter({ onClose }: Props) {
   const [showFullImage, setShowFullImage] = useState(false);
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
-  const [editingCharacter, setEditingCharacter] = useState<{
-    data: CharacterFormData;
-    template: RoleplayTemplate | null;
-  } | null>(null);
-  const [dirtyCharacterIds, setDirtyCharacterIds] = useState<Set<string>>(new Set());
-  const [syncingId, setSyncingId] = useState<string | null>(null);
-
   const isLoggedIn = status === 'authenticated' && user;
 
   useEffect(() => {
@@ -115,17 +67,6 @@ export default function AccountCenter({ onClose }: Props) {
     void loadCloudSessions();
     void loadCloudCharacters();
   }, [loadAll, loadCloudSessions, loadCloudCharacters]);
-
-  const recentSessions = useMemo(
-    () => [...sessions]
-      .sort((a, b) => {
-        const ta = a.messages[a.messages.length - 1]?.timestamp ?? 0;
-        const tb = b.messages[b.messages.length - 1]?.timestamp ?? 0;
-        return tb - ta;
-      })
-      .slice(0, 5),
-    [sessions],
-  );
 
   const mainNav = NAV.filter(n => n.group === 'main');
   const footerNav = NAV.filter(n => n.group === 'footer');
@@ -315,44 +256,6 @@ export default function AccountCenter({ onClose }: Props) {
 
         <section className={styles.sectionBlock}>
           <div className={styles.sectionHead}>
-            <h2>角色卡片</h2>
-            <button type="button" className={styles.linkBtn} onClick={() => setSection('characters')}>查看全部 →</button>
-          </div>
-          <div className={styles.cardGridCharacters}>
-            {characters.slice(0, 3).map(c => (
-              <div
-                key={c.id}
-                className={`${styles.featureCard} ${styles.characterCard}`}
-                onClick={async () => {
-                  const targetPath = c.portraitFullPath || c.portraitPath;
-                  if (!targetPath) return;
-                  try {
-                    const url = await window.api.files.readBinary(targetPath);
-                    setFullImageSrc(url);
-                    setShowFullImage(true);
-                  } catch {
-                    // ignore
-                  }
-                }}
-              >
-                <PortraitBg path={c.portraitPath} />
-                <div className={styles.featureCardOverlay}>
-                  <div className={styles.featureCardInfo}>
-                    <div className={styles.featureTitle}>{c.name}</div>
-                    <div className={styles.featurePersonality}>{c.personality || c.occupation || '角色'}</div>
-                    <div className={styles.featureDesc}>{c.background || '暂无背景故事'}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {characters.length === 0 && (
-              <div className={styles.emptyCard}>暂无角色，可在角色扮演模式中创建</div>
-            )}
-          </div>
-        </section>
-
-        <section className={styles.sectionBlock}>
-          <div className={styles.sectionHead}>
             <h2>我的模板</h2>
             <button type="button" className={styles.linkBtn} onClick={() => setSection('templates')}>查看全部 →</button>
           </div>
@@ -376,21 +279,20 @@ export default function AccountCenter({ onClose }: Props) {
         </section>
 
         <section className={styles.sectionBlock}>
-          <div className={styles.sectionHead}><h2>对话历史</h2></div>
-          <div className={styles.historyList}>
-            {recentSessions.map(s => {
-              const ts = s.messages[s.messages.length - 1]?.timestamp ?? Date.now();
-              return (
-                <div key={s.id} className={styles.historyItem}>
-                  <div className={styles.historyTitle}>{s.title || '未命名会话'}</div>
-                  <div className={styles.historyMeta}>
-                    <span className={styles.tagMuted}>{s.sessionMode === 'roleplay' ? '角色扮演' : 'Agent'}</span>
-                    <span>{formatRelative(ts)}</span>
-                  </div>
+          <div className={styles.sectionHead}>
+            <h2>云端会话</h2>
+            <button type="button" className={styles.linkBtn} onClick={() => setSection('history')}>查看全部 →</button>
+          </div>
+          <div className={styles.cloudList}>
+            {cloudSessions.slice(0, 3).map(cs => (
+              <div key={cs.id} className={styles.cloudItem}>
+                <div className={styles.cloudItemInfo}>
+                  <div className={styles.cloudItemTitle}>{cs.title}</div>
+                  <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {new Date(cs.updatedAt).toLocaleString('zh-CN')}</div>
                 </div>
-              );
-            })}
-            {recentSessions.length === 0 && <div className={styles.emptyCard}>暂无对话记录</div>}
+              </div>
+            ))}
+            {cloudSessions.length === 0 && <div className={styles.emptyCard}>暂无云端会话</div>}
           </div>
         </section>
         </div>
@@ -424,154 +326,77 @@ export default function AccountCenter({ onClose }: Props) {
         return (
           <div className={styles.pageScroll}>
             <div className={styles.pageHeader}>
-              <h2>角色卡片</h2>
-              <span className={styles.pageSub}>共 {characters.length} 个角色</span>
+              <h2>☁ 云端角色</h2>
+              <span className={styles.pageSub}>共 {cloudCharacters.length} 个，可恢复到本地</span>
             </div>
-            <div className={styles.cardGridCharacters}>
-              {characters.map(c => {
-                const isDirty = dirtyCharacterIds.has(c.id);
-                const isSyncing = syncingId === c.id;
+            <div className={styles.cloudList}>
+              {cloudCharacters.map(cc => {
+                const alreadyLocal = characters.some(c => c.id === cc.id);
                 return (
-                  <div
-                    key={c.id}
-                    className={`${styles.featureCard} ${styles.characterCard}`}
-                    onClick={async () => {
-                      const targetPath = c.portraitFullPath || c.portraitPath;
-                      if (!targetPath) return;
-                      try {
-                        const url = await window.api.files.readBinary(targetPath);
-                        setFullImageSrc(url);
-                        setShowFullImage(true);
-                      } catch { /* ignore */ }
-                    }}
-                  >
-                    <div className={styles.cardTopActions}>
-                      <button
-                        type="button"
-                        className={styles.cardActionIcon}
-                        title="编辑角色"
-                        onClick={e => {
-                          e.stopPropagation();
-                          const tpl = getTemplateById(templates, c.templateId);
-                          setEditingCharacter({
-                            data: { ...c, statusFieldEnabled: buildCharacterStatusEnabledMap(c, tpl) },
-                            template: tpl,
-                          });
-                        }}
-                      >
-                        ✎
-                      </button>
-                      {isDirty && (
-                        <button
-                          type="button"
-                          className={`${styles.cardActionIcon} ${styles.cardActionSync}`}
-                          title="同步到云端"
-                          disabled={isSyncing}
-                          onClick={async e => {
-                            e.stopPropagation();
-                            setSyncingId(c.id);
+                  <div key={cc.id} className={styles.cloudItem}>
+                    <div className={styles.cloudItemInfo}>
+                      <div className={styles.cloudItemTitle}>{cc.name}</div>
+                      <div className={styles.cloudItemMeta}>{new Date(cc.updatedAt).toLocaleString('zh-CN')}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.cloudItemAction}
+                      disabled={alreadyLocal}
+                      onClick={async () => {
+                        const data = await pullCharacter(cc.id);
+                        if (!data) { alert('拉取失败'); return; }
+                        try {
+                          const parsed = JSON.parse(data.payload);
+                          const characterId = parsed.id || cc.id;
+                          let portraitPath = parsed.portraitPath;
+                          let portraitFullPath = parsed.portraitFullPath;
+                          if (parsed.portraitBase64) {
                             try {
-                              const payload = JSON.stringify({
-                                name: c.name,
-                                gender: c.gender,
-                                occupation: c.occupation,
-                                personality: c.personality,
-                                background: c.background,
-                                body: c.body,
-                                openingStory: c.openingStory,
-                                portraitPath: c.portraitPath,
-                                portraitFullPath: c.portraitFullPath,
-                                statusFieldEnabled: c.statusFieldEnabled,
-                              });
-                              const res = await window.api.sync.pushCharacter(c.id, c.name, payload);
-                              if (res.success) {
-                                setDirtyCharacterIds(prev => {
-                                  const next = new Set(prev);
-                                  next.delete(c.id);
-                                  return next;
-                                });
-                              } else {
-                                alert(`同步失败：${res.error}`);
-                              }
-                            } finally {
-                              setSyncingId(null);
-                            }
-                          }}
-                        >
-                          {isSyncing ? '⋯' : '☁'}
-                        </button>
-                      )}
-                    </div>
-                    <PortraitBg path={c.portraitPath} />
-                    <div className={styles.featureCardOverlay}>
-                      <div className={styles.featureCardInfo}>
-                        <div className={styles.featureTitle}>{c.name}</div>
-                        <div className={styles.featurePersonality}>{c.personality || c.occupation || '角色'}</div>
-                        <div className={styles.featureDesc}>{c.background || '暂无背景故事'}</div>
-                      </div>
-                    </div>
+                              portraitPath = await window.api.files.saveBase64Image(
+                                parsed.portraitBase64,
+                                `portraits/${characterId}`
+                              );
+                            } catch (e) { console.warn('保存头像失败', e); }
+                          }
+                          if (parsed.portraitFullBase64) {
+                            try {
+                              portraitFullPath = await window.api.files.saveBase64Image(
+                                parsed.portraitFullBase64,
+                                `portraits/${characterId}-full`
+                              );
+                            } catch (e) { console.warn('保存全身像失败', e); }
+                          }
+                          await saveCharacter({
+                            id: characterId,
+                            name: parsed.name || cc.name,
+                            gender: parsed.gender,
+                            occupation: parsed.occupation,
+                            personality: parsed.personality,
+                            background: parsed.background,
+                            body: parsed.body,
+                            openingStory: parsed.openingStory,
+                            portraitPath,
+                            portraitFullPath,
+                            statusFieldEnabled: parsed.statusFieldEnabled,
+                            statusFields: parsed.statusFields,
+                          });
+                          await loadAll();
+                          alert(`「${cc.name}」已恢复到本地，可在角色扮演模式中使用`);
+                        } catch (e) {
+                          alert('解析角色数据失败');
+                          console.error(e);
+                        }
+                      }}
+                    >
+                      {alreadyLocal ? '已存在' : '恢复到本地'}
+                    </button>
                   </div>
                 );
               })}
-              {characters.length === 0 && (
-                <div className={styles.emptyCard}>暂无角色，可在角色扮演模式中创建</div>
+              {cloudCharacters.length === 0 && (
+                <div className={styles.emptyCard}>暂无云端角色，可在角色扮演模式中上传</div>
               )}
             </div>
-
-            {cloudCharacters.length > 0 && (
-              <>
-                <div className={styles.pageHeader} style={{ marginTop: 24 }}>
-                  <h2>☁ 云端角色</h2>
-                  <span className={styles.pageSub}>共 {cloudCharacters.length} 个，可恢复到本地</span>
-                </div>
-                <div className={styles.cloudList}>
-                  {cloudCharacters.map(cc => {
-                    const alreadyLocal = characters.some(c => c.id === cc.id);
-                    return (
-                      <div key={cc.id} className={styles.cloudItem}>
-                        <div className={styles.cloudItemInfo}>
-                          <div className={styles.cloudItemTitle}>{cc.name}</div>
-                          <div className={styles.cloudItemMeta}>{new Date(cc.updatedAt).toLocaleString('zh-CN')}</div>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.cloudItemAction}
-                          disabled={alreadyLocal}
-                          onClick={async () => {
-                            const data = await pullCharacter(cc.id);
-                            if (!data) { alert('拉取失败'); return; }
-                            try {
-                              const parsed = JSON.parse(data.payload);
-                              await saveCharacter({
-                                id: parsed.id || cc.id,
-                                name: parsed.name || cc.name,
-                                gender: parsed.gender,
-                                occupation: parsed.occupation,
-                                personality: parsed.personality,
-                                background: parsed.background,
-                                body: parsed.body,
-                                openingStory: parsed.openingStory,
-                                portraitPath: parsed.portraitPath,
-                                portraitFullPath: parsed.portraitFullPath,
-                                statusFieldEnabled: parsed.statusFieldEnabled,
-                                statusFields: parsed.statusFields,
-                              });
-                              await loadAll();
-                              alert(`「${cc.name}」已恢复到本地`);
-                            } catch (e) {
-                              alert('解析角色数据失败');
-                              console.error(e);
-                            }
-                          }}
-                        >
-                          {alreadyLocal ? '已存在' : '恢复到本地'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
           </div>
         );
       case 'templates':
@@ -604,68 +429,43 @@ export default function AccountCenter({ onClose }: Props) {
         return (
           <div className={styles.pageScroll}>
             <div className={styles.pageHeader}>
-              <h2>对话历史</h2>
-              <span className={styles.pageSub}>共 {sessions.length} 个本地会话</span>
+              <h2>☁ 云端会话</h2>
+              <span className={styles.pageSub}>共 {cloudSessions.length} 个，可恢复到本地</span>
             </div>
-            <div className={styles.historyListFull}>
-              {sessions.map(s => {
-                const lastMsg = s.messages[s.messages.length - 1];
-                const ts = lastMsg?.timestamp ?? 0;
+            <div className={styles.cloudList}>
+              {cloudSessions.map(cs => {
+                const alreadyLocal = sessions.some(s => s.id === cs.id);
                 return (
-                  <div key={s.id} className={styles.historyItem}>
-                    <div className={styles.historyTitle}>{s.title || '未命名会话'}</div>
-                    <div className={styles.historyMeta}>
-                      <span className={styles.tagMuted}>{s.sessionMode === 'roleplay' ? '角色扮演' : 'Agent'}</span>
-                      <span>{s.messages.length} 条消息</span>
-                      <span>{ts ? formatRelative(ts) : '—'}</span>
+                  <div key={cs.id} className={styles.cloudItem}>
+                    <div className={styles.cloudItemInfo}>
+                      <div className={styles.cloudItemTitle}>{cs.title}</div>
+                      <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {new Date(cs.updatedAt).toLocaleString('zh-CN')}</div>
                     </div>
+                    <button
+                      type="button"
+                      className={styles.cloudItemAction}
+                      disabled={alreadyLocal}
+                      onClick={async () => {
+                        const data = await pullSession(cs.id);
+                        if (!data) { alert('拉取失败'); return; }
+                        try {
+                          await window.api.sessions.save(cs.id, cs.title || '恢复会话', data.payload);
+                          await useChatStore.getState().loadSessions();
+                          alert(`「${cs.title}」已恢复到本地，可在聊天面板中查看`);
+                        } catch {
+                          alert('解析会话数据失败');
+                        }
+                      }}
+                    >
+                      {alreadyLocal ? '已存在' : '恢复到本地'}
+                    </button>
                   </div>
                 );
               })}
-              {sessions.length === 0 && (
-                <div className={styles.emptyCard}>暂无对话记录</div>
+              {cloudSessions.length === 0 && (
+                <div className={styles.emptyCard}>暂无云端会话，可在聊天面板中上传</div>
               )}
             </div>
-
-            {cloudSessions.length > 0 && (
-              <>
-                <div className={styles.pageHeader} style={{ marginTop: 24 }}>
-                  <h2>☁ 云端会话</h2>
-                  <span className={styles.pageSub}>共 {cloudSessions.length} 个，可恢复到本地</span>
-                </div>
-                <div className={styles.cloudList}>
-                  {cloudSessions.map(cs => {
-                    const alreadyLocal = sessions.some(s => s.id === cs.id);
-                    return (
-                      <div key={cs.id} className={styles.cloudItem}>
-                        <div className={styles.cloudItemInfo}>
-                          <div className={styles.cloudItemTitle}>{cs.title}</div>
-                          <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {new Date(cs.updatedAt).toLocaleString('zh-CN')}</div>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.cloudItemAction}
-                          disabled={alreadyLocal}
-                          onClick={async () => {
-                            const data = await pullSession(cs.id);
-                            if (!data) { alert('拉取失败'); return; }
-                            try {
-                              await window.api.sessions.save(cs.id, cs.title || '恢复会话', data.payload);
-                              await useChatStore.getState().loadSessions();
-                              alert(`「${cs.title}」已恢复到本地`);
-                            } catch {
-                              alert('解析会话数据失败');
-                            }
-                          }}
-                        >
-                          {alreadyLocal ? '已存在' : '恢复到本地'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
           </div>
         );
       case 'favorites':
@@ -760,29 +560,7 @@ export default function AccountCenter({ onClose }: Props) {
         </div>
       )}
 
-      {editingCharacter && (
-        <CharacterEditor
-          title="编辑角色"
-          editorMode="character"
-          template={editingCharacter.template}
-          initial={editingCharacter.data}
-          draftId={editingCharacter.data.id || `draft-${Date.now()}`}
-          onPickPortrait={pickPortrait}
-          onGeneratePortrait={generatePortrait}
-          onCancel={() => setEditingCharacter(null)}
-          onSave={async (data) => {
-            const saved = await saveCharacter(data);
-            if (saved) {
-              setEditingCharacter(null);
-              setDirtyCharacterIds(prev => {
-                const next = new Set(prev);
-                next.add(saved.id);
-                return next;
-              });
-            }
-          }}
-        />
-      )}
+
     </div>
   );
 }

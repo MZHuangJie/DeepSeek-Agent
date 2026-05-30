@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useRoleplayStore } from '../../stores/roleplay';
 import { useModeStore } from '../../stores/mode';
 import { useChatStore } from '../../stores/chat';
+import { useSyncStore } from '../../stores/sync';
+import { useAuthStore } from '../../stores/auth';
 import CharacterEditor from './CharacterEditor';
 import {
   buildCharacterStatusEnabledMap,
@@ -56,8 +58,12 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
   } = useRoleplayStore();
   const setMode = useModeStore(s => s.setMode);
   const bindSessionCharacter = useChatStore(s => s.setSessionCharacter);
+  const { pushCharacter } = useSyncStore();
+  const { status: authStatus } = useAuthStore();
+  const isLoggedIn = authStatus === 'authenticated';
 
   const [tab, setTab] = useState<'characters' | 'templates'>('characters');
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   const [editor, setEditor] = useState<
     | { kind: 'character'; data: CharacterFormData; template?: RoleplayTemplate | null }
     | { kind: 'template'; data: CharacterFormData & { id?: string } }
@@ -133,6 +139,52 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                       {c.id === activeCharacterId ? '已选中' : '选择聊天'}
                     </button>
                     <button type="button" className={styles.actionBtn} onClick={() => openEditCharacter(c)}>编辑</button>
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      title={isLoggedIn ? '同步到云端' : '登录后可同步到云端'}
+                      disabled={!isLoggedIn || syncingId === c.id}
+                      onClick={async () => {
+                        if (!isLoggedIn) { alert('请先登录'); return; }
+                        setSyncingId(c.id);
+                        try {
+                          let portraitBase64: string | undefined;
+                          let portraitFullBase64: string | undefined;
+                          if (c.portraitPath) {
+                            try {
+                              portraitBase64 = await window.api.files.readBinary(c.portraitPath);
+                            } catch (e) { console.warn('读取头像失败', e); }
+                          }
+                          if (c.portraitFullPath) {
+                            try {
+                              portraitFullBase64 = await window.api.files.readBinary(c.portraitFullPath);
+                            } catch (e) { console.warn('读取全身像失败', e); }
+                          }
+                          const payload = JSON.stringify({
+                            name: c.name,
+                            gender: c.gender,
+                            occupation: c.occupation,
+                            personality: c.personality,
+                            background: c.background,
+                            body: c.body,
+                            openingStory: c.openingStory,
+                            portraitBase64,
+                            portraitFullBase64,
+                            statusFieldEnabled: c.statusFieldEnabled,
+                          });
+                          const res = await pushCharacter(c.id, c.name, payload);
+                          if (res) {
+                            alert('角色已同步到云端 ✓');
+                          } else {
+                            alert('同步失败');
+                          }
+                        } finally {
+                          setSyncingId(null);
+                        }
+                      }}
+                    >
+                      {syncingId === c.id ? '⋯' : '☁'}
+                    </button>
                     <button type="button" className={styles.actionBtnDanger} onClick={() => void deleteCharacter(c.id)}>删除</button>
                   </div>
                 </div>

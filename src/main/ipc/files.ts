@@ -198,6 +198,20 @@ export function setupFileHandlers() {
     return filePath;
   });
 
+  ipcMain.handle('files:saveBase64Image', async (_event, base64DataUrl: string, targetPath: string) => {
+    const safePath = safeResolve(currentWorkspace, targetPath);
+    const match = base64DataUrl.match(/^data:(.+?);base64,(.+)$/);
+    if (!match) throw new Error('Invalid base64 data URL');
+    const [, mimeType, base64] = match;
+    const ext = (mimeType.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
+    const destPath = safePath.endsWith(`.${ext}`) ? safePath : `${safePath}.${ext}`;
+    const dir = path.dirname(destPath);
+    fs.mkdirSync(dir, { recursive: true });
+    const buffer = Buffer.from(base64, 'base64');
+    fs.writeFileSync(destPath, buffer);
+    return destPath;
+  });
+
   const activeContentSearches = new Map<string, AbortController>();
 
   ipcMain.handle(
