@@ -441,6 +441,7 @@ export interface SquareCharacterMeta {
   background?: string;
   gender?: string;
   occupation?: string;
+  openingStory?: string;
   heat: number;
   isFavorited: boolean;
   shared: boolean;

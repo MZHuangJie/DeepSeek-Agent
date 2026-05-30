@@ -46,6 +46,7 @@ router.get('/characters', async (req, res) => {
       let background: string | undefined;
       let gender: string | undefined;
       let occupation: string | undefined;
+      let openingStory: string | undefined;
       try {
         const p = JSON.parse(r.payload);
         portraitBase64 = p.portraitBase64;
@@ -54,6 +55,7 @@ router.get('/characters', async (req, res) => {
         background = p.background;
         gender = p.gender;
         occupation = p.occupation;
+        openingStory = p.openingStory;
       } catch { /* ignore */ }
       return {
         id: r.id,
@@ -65,6 +67,7 @@ router.get('/characters', async (req, res) => {
         background,
         gender,
         occupation,
+        openingStory,
         heat: r.heat || 0,
         isFavorited: favIds.has(r.id),
         updatedAt: r.updated_at,
@@ -157,6 +160,7 @@ router.get('/favorites', requireAuth, async (req, res) => {
       let background: string | undefined;
       let gender: string | undefined;
       let occupation: string | undefined;
+      let openingStory: string | undefined;
       try {
         const p = JSON.parse(r.payload);
         portraitBase64 = p.portraitBase64;
@@ -165,6 +169,7 @@ router.get('/favorites', requireAuth, async (req, res) => {
         background = p.background;
         gender = p.gender;
         occupation = p.occupation;
+        openingStory = p.openingStory;
       } catch { /* ignore */ }
       return {
         id: r.id,
@@ -176,6 +181,7 @@ router.get('/favorites', requireAuth, async (req, res) => {
         background,
         gender,
         occupation,
+        openingStory,
         heat: r.heat || 0,
         isFavorited: true,
         shared: r.shared,

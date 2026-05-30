@@ -142,6 +142,12 @@ function CharacterDetail({ item, alreadyLocal, restoringId, onClose, onToggleFav
                 <div className={styles.detailText}>{item.background}</div>
               </div>
             )}
+            {item.openingStory && (
+              <div className={styles.detailSection}>
+                <div className={styles.detailLabel}>开场故事</div>
+                <div className={styles.detailText}>{item.openingStory}</div>
+              </div>
+            )}
           </div>
 
           <div className={styles.detailActions}>
