@@ -395,6 +395,7 @@ export default function AccountCenter({ onClose }: Props) {
                           }
                           await saveCharacter({
                             id: characterId,
+                            templateId: parsed.templateId,
                             name: parsed.name || cc.name,
                             gender: parsed.gender,
                             occupation: parsed.occupation,
@@ -410,7 +411,8 @@ export default function AccountCenter({ onClose }: Props) {
                           await loadAll();
                           alert(`「${cc.name}」已恢复到本地，可在角色扮演模式中使用`);
                         } catch (e) {
-                          alert('解析角色数据失败');
+                          const msg = e instanceof Error ? e.message : '解析角色数据失败';
+                          alert(`恢复角色失败: ${msg}`);
                           console.error(e);
                         }
                       }}

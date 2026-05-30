@@ -170,6 +170,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                             openingStory: c.openingStory,
                             portraitBase64,
                             portraitFullBase64,
+                            templateId: c.templateId,
                             statusFieldEnabled: c.statusFieldEnabled,
                           });
                           const res = await pushCharacter(c.id, c.name, payload);

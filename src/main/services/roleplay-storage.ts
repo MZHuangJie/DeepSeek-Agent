@@ -243,7 +243,7 @@ export function saveCharacter(input: Omit<RoleplayCharacter, 'id' | 'createdAt' 
     updatedAt: now,
   };
   if (!saved.name) throw new Error('角色姓名不能为空');
-  if (!input.templateId && !existing) throw new Error('角色必须从模板创建');
+  if (!input.templateId && !existing && !input.statusFieldEnabled) throw new Error('角色必须从模板创建');
   const next = existing
     ? all.map(c => (c.id === saved.id ? saved : c))
     : [saved, ...all];
