@@ -17,6 +17,34 @@ import {
 } from '../../utils/roleplay';
 import styles from './CharacterPanel.module.css';
 
+function compressPortrait(dataUrl: string, maxPx: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width;
+      let h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) {
+          h = Math.round(h * maxPx / w);
+          w = maxPx;
+        } else {
+          w = Math.round(w * maxPx / h);
+          h = maxPx;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('canvas error')); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => reject(new Error('image load error'));
+    img.src = dataUrl;
+  });
+}
+
 function PortraitThumb({ path }: { path?: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
@@ -152,12 +180,14 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                           let portraitFullBase64: string | undefined;
                           if (c.portraitPath) {
                             try {
-                              portraitBase64 = await window.api.files.readBinary(c.portraitPath);
+                              const raw = await window.api.files.readBinary(c.portraitPath);
+                              portraitBase64 = await compressPortrait(raw, 512);
                             } catch (e) { console.warn('读取头像失败', e); }
                           }
                           if (c.portraitFullPath) {
                             try {
-                              portraitFullBase64 = await window.api.files.readBinary(c.portraitFullPath);
+                              const raw = await window.api.files.readBinary(c.portraitFullPath);
+                              portraitFullBase64 = await compressPortrait(raw, 1024);
                             } catch (e) { console.warn('读取全身像失败', e); }
                           }
                           const payload = JSON.stringify({
