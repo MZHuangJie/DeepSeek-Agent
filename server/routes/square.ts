@@ -12,6 +12,7 @@ interface SquareCharacterRow {
   name: string;
   payload: string;
   shared: boolean;
+  heat: number;
   updated_at: number;
   user_id: number;
   username: string;
@@ -21,7 +22,7 @@ interface SquareCharacterRow {
 router.get('/characters', async (_req, res) => {
   try {
     const result = await pool.query<SquareCharacterRow>(
-      `SELECT cc.id, cc.name, cc.payload, cc.shared, cc.updated_at, cc.user_id, u.username
+      `SELECT cc.id, cc.name, cc.payload, cc.shared, cc.heat, cc.updated_at, cc.user_id, u.username
        FROM cloud_characters cc
        JOIN users u ON u.id = cc.user_id
        WHERE cc.shared = TRUE
@@ -54,6 +55,7 @@ router.get('/characters', async (_req, res) => {
         background,
         gender,
         occupation,
+        heat: r.heat || 0,
         updatedAt: r.updated_at,
       };
     });

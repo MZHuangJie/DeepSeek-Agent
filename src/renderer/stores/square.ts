@@ -10,6 +10,7 @@ export interface SquareCharacter {
   background?: string;
   gender?: string;
   occupation?: string;
+  heat: number;
   updatedAt: number;
 }
 

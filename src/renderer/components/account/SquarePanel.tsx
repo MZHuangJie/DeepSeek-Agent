@@ -40,7 +40,7 @@ function getTags(c: SquareCharacter): string[] {
 }
 
 function CharacterCard({ item, fav, onToggleFav }: { item: SquareCharacter; fav: boolean; onToggleFav: () => void }) {
-  const heat = getHeat(item.id);
+  const heat = item.heat || getHeat(item.id);
   const tags = getTags(item);
   return (
     <div className={styles.characterCard}>
@@ -153,7 +153,7 @@ export default function SquarePanel() {
 
     // sort
     if (sortBy === 'hottest') {
-      list.sort((a, b) => getHeat(b.id) - getHeat(a.id));
+      list.sort((a, b) => (b.heat || getHeat(b.id)) - (a.heat || getHeat(a.id)));
     } else {
       list.sort((a, b) => b.updatedAt - a.updatedAt);
     }
