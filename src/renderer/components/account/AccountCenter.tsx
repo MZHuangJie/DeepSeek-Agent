@@ -276,9 +276,9 @@ export default function AccountCenter({ onClose }: Props) {
                 <div className={styles.statSub}>已同步</div>
               </div>
               <div className={styles.statCol}>
-                <div className={styles.statLabel}>本地模板</div>
-                <div className={styles.statValue}>{templates.length}</div>
-                <div className={styles.statSub}>已创建</div>
+                <div className={styles.statLabel}>云端模板</div>
+                <div className={styles.statValue}>{cloudTemplates.length}</div>
+                <div className={styles.statSub}>已同步</div>
               </div>
               <div className={styles.statCol}>
                 <div className={styles.statLabel}>云端会话</div>
@@ -441,7 +441,7 @@ export default function AccountCenter({ onClose }: Props) {
                     </div>
                     <button
                       type="button"
-                      className={`${styles.cardActionIcon} ${styles.cloudItemAction}`}
+                      className={styles.cardStatusTag}
                       style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
                       disabled={alreadyLocal}
                       onClick={async (e) => {
@@ -536,7 +536,7 @@ export default function AccountCenter({ onClose }: Props) {
                     </div>
                     <button
                       type="button"
-                      className={`${styles.cardActionIcon} ${styles.cloudItemAction}`}
+                      className={styles.cardStatusTag}
                       style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
                       disabled={alreadyLocal}
                       onClick={async (e) => {

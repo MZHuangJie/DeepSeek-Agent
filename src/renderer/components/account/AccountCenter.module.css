@@ -1199,6 +1199,29 @@
   background: rgba(124, 58, 237, 0.85);
 }
 
+.cardStatusTag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.4;
+  transition: background 0.15s;
+}
+
+.cardStatusTag:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.cardStatusTag:disabled {
+  background: rgba(59, 130, 246, 0.3);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: default;
+}
+
 
 /* Cloud restore list */
 .cloudList {
