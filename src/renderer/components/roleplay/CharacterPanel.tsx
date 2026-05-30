@@ -3,6 +3,7 @@ import { useRoleplayStore } from '../../stores/roleplay';
 import { useModeStore } from '../../stores/mode';
 import { useChatStore } from '../../stores/chat';
 import { useSyncStore } from '../../stores/sync';
+import { useToastStore } from '../../stores/toast';
 import { useAuthStore } from '../../stores/auth';
 import CharacterEditor from './CharacterEditor';
 import {
@@ -174,7 +175,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                       title={isLoggedIn ? '同步到云端' : '登录后可同步到云端'}
                       disabled={!isLoggedIn || syncingId === c.id}
                       onClick={async () => {
-                        if (!isLoggedIn) { alert('请先登录'); return; }
+                        if (!isLoggedIn) { useToastStore.getState().show('请先登录', 'info'); return; }
                         setSyncingId(c.id);
                         try {
                           let portraitBase64: string | undefined;
@@ -206,9 +207,9 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                           });
                           const res = await pushCharacter(c.id, c.name, payload);
                           if (res) {
-                            alert('角色已同步到云端 ✓');
+                            useToastStore.getState().show('角色已同步到云端', 'success');
                           } else {
-                            alert('同步失败');
+                            useToastStore.getState().show('同步失败', 'error');
                           }
                         } finally {
                           setSyncingId(null);
@@ -253,7 +254,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                       title={isLoggedIn ? '同步到云端' : '登录后可同步到云端'}
                       disabled={!isLoggedIn || syncingTemplateId === t.id}
                       onClick={async () => {
-                        if (!isLoggedIn) { alert('请先登录'); return; }
+                        if (!isLoggedIn) { useToastStore.getState().show('请先登录', 'info'); return; }
                         setSyncingTemplateId(t.id);
                         try {
                           let portraitBase64: string | undefined;
@@ -284,9 +285,9 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                           });
                           const res = await pushTemplate(t.id, t.name, payload);
                           if (res) {
-                            alert('模板已同步到云端 ✓');
+                            useToastStore.getState().show('模板已同步到云端', 'success');
                           } else {
-                            alert('同步失败');
+                            useToastStore.getState().show('同步失败', 'error');
                           }
                         } finally {
                           setSyncingTemplateId(null);

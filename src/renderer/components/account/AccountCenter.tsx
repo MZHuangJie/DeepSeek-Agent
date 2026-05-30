@@ -4,6 +4,7 @@ import { useSyncStore } from '../../stores/sync';
 import { useChatStore } from '../../stores/chat';
 import { useRoleplayStore } from '../../stores/roleplay';
 import AccountAuthForm from './AccountAuthForm';
+import { useToastStore } from '../../stores/toast';
 import styles from './AccountCenter.module.css';
 
 function PortraitBg({ src, path }: { src?: string; path?: string }) {
@@ -447,7 +448,7 @@ export default function AccountCenter({ onClose }: Props) {
                       onClick={async (e) => {
                         e.stopPropagation();
                         const data = await pullCharacter(cc.id);
-                        if (!data) { alert('拉取失败'); return; }
+                        if (!data) { useToastStore.getState().show('拉取失败', 'error'); return; }
                         try {
                           const parsed = JSON.parse(data.payload);
                           const characterId = parsed.id || cc.id;
@@ -485,10 +486,10 @@ export default function AccountCenter({ onClose }: Props) {
                             statusFields: parsed.statusFields,
                           });
                           await loadAll();
-                          alert(`「${cc.name}」已恢复到本地，可在角色扮演模式中使用`);
+                          useToastStore.getState().show(`「${cc.name}」已恢复到本地，可在角色扮演模式中使用`, 'success');
                         } catch (e) {
                           const msg = e instanceof Error ? e.message : '解析角色数据失败';
-                          alert(`恢复角色失败: ${msg}`);
+                          useToastStore.getState().show(`恢复角色失败: ${msg}`, 'error');
                           console.error(e);
                         }
                       }}
@@ -542,7 +543,7 @@ export default function AccountCenter({ onClose }: Props) {
                       onClick={async (e) => {
                         e.stopPropagation();
                         const data = await pullTemplate(ct.id);
-                        if (!data) { alert('拉取失败'); return; }
+                        if (!data) { useToastStore.getState().show('拉取失败', 'error'); return; }
                         try {
                           const parsed = JSON.parse(data.payload);
                           const templateId = parsed.id || ct.id;
@@ -579,10 +580,10 @@ export default function AccountCenter({ onClose }: Props) {
                             statusFields: parsed.statusFields,
                           });
                           await loadAll();
-                          alert(`「${ct.name}」已恢复到本地，可在角色扮演模式中使用`);
+                          useToastStore.getState().show(`「${ct.name}」已恢复到本地，可在角色扮演模式中使用`, 'success');
                         } catch (e) {
                           const msg = e instanceof Error ? e.message : '解析模板数据失败';
-                          alert(`恢复模板失败: ${msg}`);
+                          useToastStore.getState().show(`恢复模板失败: ${msg}`, 'error');
                           console.error(e);
                         }
                       }}
@@ -623,13 +624,13 @@ export default function AccountCenter({ onClose }: Props) {
                       disabled={alreadyLocal}
                       onClick={async () => {
                         const data = await pullSession(cs.id);
-                        if (!data) { alert('拉取失败'); return; }
+                        if (!data) { useToastStore.getState().show('拉取失败', 'error'); return; }
                         try {
                           await window.api.sessions.save(cs.id, cs.title || '恢复会话', data.payload);
                           await useChatStore.getState().loadSessions();
-                          alert(`「${cs.title}」已恢复到本地，可在聊天面板中查看`);
+                          useToastStore.getState().show(`「${cs.title}」已恢复到本地，可在聊天面板中查看`, 'success');
                         } catch {
-                          alert('解析会话数据失败');
+                          useToastStore.getState().show('解析会话数据失败', 'error');
                         }
                       }}
                     >
