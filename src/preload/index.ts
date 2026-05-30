@@ -154,6 +154,10 @@ const api = {
     getCharacter: (characterId: string) => ipcRenderer.invoke('sync:getCharacter', characterId),
     pushCharacter: (characterId: string, name: string, payload: string) => ipcRenderer.invoke('sync:pushCharacter', characterId, name, payload),
     deleteCharacter: (characterId: string) => ipcRenderer.invoke('sync:deleteCharacter', characterId),
+    listTemplates: () => ipcRenderer.invoke('sync:listTemplates'),
+    getTemplate: (templateId: string) => ipcRenderer.invoke('sync:getTemplate', templateId),
+    pushTemplate: (templateId: string, name: string, payload: string) => ipcRenderer.invoke('sync:pushTemplate', templateId, name, payload),
+    deleteTemplate: (templateId: string) => ipcRenderer.invoke('sync:deleteTemplate', templateId),
   },
   marketplace: {
     add: (url: string) => ipcRenderer.invoke('marketplace:add', url),

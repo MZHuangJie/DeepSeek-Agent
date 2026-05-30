@@ -67,11 +67,11 @@ export default function AccountCenter({ onClose }: Props) {
   const { user, status, logout, updateProfile, error: authError, clearError } = useAuthStore();
   const sessions = useChatStore(s => s.sessions);
   const {
-    characters, templates, loadAll, saveCharacter,
+    characters, templates, loadAll, saveCharacter, saveTemplate,
   } = useRoleplayStore();
   const {
-    cloudSessions, cloudCharacters, loading: cloudLoading, error: cloudError,
-    loadCloudSessions, loadCloudCharacters, pullCharacter, pullSession,
+    cloudSessions, cloudCharacters, cloudTemplates, loading: cloudLoading, error: cloudError,
+    loadCloudSessions, loadCloudCharacters, loadCloudTemplates, pullCharacter, pullSession, pullTemplate, pushTemplate, deleteCloudTemplate,
   } = useSyncStore();
   const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<AccountSection>('overview');
@@ -99,8 +99,13 @@ export default function AccountCenter({ onClose }: Props) {
       } catch (e) {
         console.error('[AccountCenter] loadCloudCharacters failed:', e);
       }
+      try {
+        await loadCloudTemplates();
+      } catch (e) {
+        console.error('[AccountCenter] loadCloudTemplates failed:', e);
+      }
     })();
-  }, [loadAll, loadCloudSessions, loadCloudCharacters, isLoggedIn]);
+  }, [loadAll, loadCloudSessions, loadCloudCharacters, loadCloudTemplates, isLoggedIn]);
 
   const mainNav = NAV.filter(n => n.group === 'main');
   const footerNav = NAV.filter(n => n.group === 'footer');
@@ -319,24 +324,31 @@ export default function AccountCenter({ onClose }: Props) {
 
         <section className={styles.sectionBlock}>
           <div className={styles.sectionHead}>
-            <h2>我的模板</h2>
+            <h2>云端模板</h2>
             <button type="button" className={styles.linkBtn} onClick={() => setSection('templates')}>查看全部 →</button>
           </div>
-          <div className={styles.cardGridTemplates}>
-            {templates.slice(0, 3).map(t => (
-              <div key={t.id} className={styles.templateCard}>
-                <div className={styles.templateLeft}>
-                  <div className={styles.templateIconBox}>▦</div>
-                </div>
-                <div className={styles.templateRight}>
-                  <div className={styles.templateTitle}>{t.name}</div>
-                  <div className={styles.templateDesc}>{t.personality || t.background || '角色模板'}</div>
-                  <span className={styles.templateTag}>角色模板</span>
+          <div className={styles.cardGridCharacters}>
+            {cloudTemplates.slice(0, 3).map(ct => (
+              <div
+                key={ct.id}
+                className={`${styles.featureCard} ${styles.characterCard}`}
+                onClick={() => {
+                  const full = ct.portraitFullBase64 || ct.portraitBase64;
+                  if (full) { setFullImageSrc(full); setShowFullImage(true); }
+                }}
+              >
+                <PortraitBg src={ct.portraitBase64} />
+                <div className={styles.featureCardOverlay}>
+                  <div className={styles.featureCardInfo}>
+                    <div className={styles.featureTitle}>{ct.name}</div>
+                    <div className={styles.featurePersonality}>{ct.personality || ct.background || '角色模板'}</div>
+                    <div className={styles.featureDesc}>{ct.background || '暂无背景故事'}</div>
+                  </div>
                 </div>
               </div>
             ))}
-            {templates.length === 0 && (
-              <div className={styles.emptyCard}>暂无模板</div>
+            {cloudTemplates.length === 0 && (
+              <div className={styles.emptyCard}>暂无云端模板，可在角色扮演模式中上传</div>
             )}
           </div>
         </section>
@@ -363,7 +375,7 @@ export default function AccountCenter({ onClose }: Props) {
         <div className={styles.floatingSync}>
           <section className={styles.widgetCard}>
             <div className={styles.widgetHead}><span>↻</span><h3>云端同步</h3></div>
-            <div className={styles.syncOk}>☁ {cloudCharacters.length} 个角色 · {cloudSessions.length} 个会话</div>
+            <div className={styles.syncOk}>☁ {cloudCharacters.length} 个角色 · {cloudTemplates.length} 个模板 · {cloudSessions.length} 个会话</div>
             <div className={styles.widgetSub}>点击刷新查看云端最新数据</div>
             {cloudError && (
               <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 6, wordBreak: 'break-all' }}>
@@ -377,7 +389,7 @@ export default function AccountCenter({ onClose }: Props) {
               onClick={async () => {
                 setRefreshing(true);
                 try {
-                  await Promise.all([loadCloudSessions(), loadCloudCharacters()]);
+                  await Promise.all([loadCloudSessions(), loadCloudCharacters(), loadCloudTemplates()]);
                 } catch (e) {
                   console.error('[AccountCenter] refresh failed:', e);
                 } finally {
@@ -496,24 +508,92 @@ export default function AccountCenter({ onClose }: Props) {
         return (
           <div className={styles.pageScroll}>
             <div className={styles.pageHeader}>
-              <h2>我的模板</h2>
-              <span className={styles.pageSub}>共 {templates.length} 个模板</span>
+              <h2>☁ 云端模板</h2>
+              <span className={styles.pageSub}>共 {cloudTemplates.length} 个，可恢复到本地</span>
             </div>
-            <div className={styles.cardGridTemplates}>
-              {templates.map(t => (
-                <div key={t.id} className={styles.templateCard}>
-                  <div className={styles.templateLeft}>
-                    <div className={styles.templateIconBox}>▦</div>
+            {cloudError && (
+              <div style={{ padding: '0 16px', fontSize: 12, color: '#fca5a5' }}>⚠ {cloudError}</div>
+            )}
+            <div className={styles.cardGridCharacters}>
+              {cloudTemplates.map(ct => {
+                const alreadyLocal = templates.some(t => t.id === ct.id);
+                return (
+                  <div
+                    key={ct.id}
+                    className={`${styles.featureCard} ${styles.characterCard}`}
+                    onClick={() => {
+                      const full = ct.portraitFullBase64 || ct.portraitBase64;
+                      if (full) { setFullImageSrc(full); setShowFullImage(true); }
+                    }}
+                  >
+                    <PortraitBg src={ct.portraitBase64} />
+                    <div className={styles.featureCardOverlay}>
+                      <div className={styles.featureCardInfo}>
+                        <div className={styles.featureTitle}>{ct.name}</div>
+                        <div className={styles.featurePersonality}>{ct.personality || ct.background || '角色模板'}</div>
+                        <div className={styles.featureDesc}>{ct.background || '暂无背景故事'}</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={`${styles.cardActionIcon} ${styles.cloudItemAction}`}
+                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+                      disabled={alreadyLocal}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const data = await pullTemplate(ct.id);
+                        if (!data) { alert('拉取失败'); return; }
+                        try {
+                          const parsed = JSON.parse(data.payload);
+                          const templateId = parsed.id || ct.id;
+                          let portraitPath = parsed.portraitPath;
+                          let portraitFullPath = parsed.portraitFullPath;
+                          if (parsed.portraitBase64) {
+                            try {
+                              portraitPath = await window.api.files.saveBase64Image(
+                                parsed.portraitBase64,
+                                `portraits/${templateId}`
+                              );
+                            } catch (e) { console.warn('保存头像失败', e); }
+                          }
+                          if (parsed.portraitFullBase64) {
+                            try {
+                              portraitFullPath = await window.api.files.saveBase64Image(
+                                parsed.portraitFullBase64,
+                                `portraits/${templateId}-full`
+                              );
+                            } catch (e) { console.warn('保存全身像失败', e); }
+                          }
+                          await saveTemplate({
+                            id: templateId,
+                            name: parsed.name || ct.name,
+                            gender: parsed.gender,
+                            occupation: parsed.occupation,
+                            personality: parsed.personality,
+                            background: parsed.background,
+                            body: parsed.body,
+                            openingStory: parsed.openingStory,
+                            portraitPath,
+                            portraitFullPath,
+                            statusFieldEnabled: parsed.statusFieldEnabled,
+                            statusFields: parsed.statusFields,
+                          });
+                          await loadAll();
+                          alert(`「${ct.name}」已恢复到本地，可在角色扮演模式中使用`);
+                        } catch (e) {
+                          const msg = e instanceof Error ? e.message : '解析模板数据失败';
+                          alert(`恢复模板失败: ${msg}`);
+                          console.error(e);
+                        }
+                      }}
+                    >
+                      {alreadyLocal ? '已存在' : '☁ 恢复'}
+                    </button>
                   </div>
-                  <div className={styles.templateRight}>
-                    <div className={styles.templateTitle}>{t.name}</div>
-                    <div className={styles.templateDesc}>{t.personality || t.background || '角色模板'}</div>
-                    <span className={styles.templateTag}>角色模板</span>
-                  </div>
-                </div>
-              ))}
-              {templates.length === 0 && (
-                <div className={styles.emptyCard}>暂无模板</div>
+                );
+              })}
+              {cloudTemplates.length === 0 && (
+                <div className={styles.emptyCard}>暂无云端模板，可在角色扮演模式中上传</div>
               )}
             </div>
           </div>

@@ -86,12 +86,13 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
   } = useRoleplayStore();
   const setMode = useModeStore(s => s.setMode);
   const bindSessionCharacter = useChatStore(s => s.setSessionCharacter);
-  const { pushCharacter } = useSyncStore();
+  const { pushCharacter, pushTemplate } = useSyncStore();
   const { status: authStatus } = useAuthStore();
   const isLoggedIn = authStatus === 'authenticated';
 
   const [tab, setTab] = useState<'characters' | 'templates'>('characters');
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncingTemplateId, setSyncingTemplateId] = useState<string | null>(null);
   const [editor, setEditor] = useState<
     | { kind: 'character'; data: CharacterFormData; template?: RoleplayTemplate | null }
     | { kind: 'template'; data: CharacterFormData & { id?: string } }
@@ -246,6 +247,54 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                     </button>
                     <button type="button" className={styles.actionBtn} onClick={() => openEditTemplate(t)}>编辑</button>
                     <button type="button" className={styles.actionBtn} onClick={() => openDuplicateTemplate(t)}>复制</button>
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      title={isLoggedIn ? '同步到云端' : '登录后可同步到云端'}
+                      disabled={!isLoggedIn || syncingTemplateId === t.id}
+                      onClick={async () => {
+                        if (!isLoggedIn) { alert('请先登录'); return; }
+                        setSyncingTemplateId(t.id);
+                        try {
+                          let portraitBase64: string | undefined;
+                          let portraitFullBase64: string | undefined;
+                          if (t.portraitPath) {
+                            try {
+                              const raw = await window.api.files.readBinary(t.portraitPath);
+                              portraitBase64 = await compressPortrait(raw, 512);
+                            } catch (e) { console.warn('读取头像失败', e); }
+                          }
+                          if (t.portraitFullPath) {
+                            try {
+                              const raw = await window.api.files.readBinary(t.portraitFullPath);
+                              portraitFullBase64 = await compressPortrait(raw, 512);
+                            } catch (e) { console.warn('读取全身像失败', e); }
+                          }
+                          const payload = JSON.stringify({
+                            name: t.name,
+                            gender: t.gender,
+                            occupation: t.occupation,
+                            personality: t.personality,
+                            background: t.background,
+                            body: t.body,
+                            openingStory: t.openingStory,
+                            portraitBase64,
+                            portraitFullBase64,
+                            statusFields: t.statusFields,
+                          });
+                          const res = await pushTemplate(t.id, t.name, payload);
+                          if (res) {
+                            alert('模板已同步到云端 ✓');
+                          } else {
+                            alert('同步失败');
+                          }
+                        } finally {
+                          setSyncingTemplateId(null);
+                        }
+                      }}
+                    >
+                      {syncingTemplateId === t.id ? '⋯' : '☁'}
+                    </button>
                     <button type="button" className={styles.actionBtnDanger} onClick={() => void deleteTemplate(t.id)}>删除</button>
                   </div>
                 </div>

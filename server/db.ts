@@ -58,6 +58,17 @@ export async function initDb(): Promise<void> {
       PRIMARY KEY (user_id, id)
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cloud_templates (
+      id VARCHAR(64) NOT NULL,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      payload TEXT NOT NULL,
+      updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+      PRIMARY KEY (user_id, id)
+    );
+  `);
 }
 
 export async function findUserByUsername(username: string): Promise<UserRow | undefined> {
@@ -127,6 +138,7 @@ export async function updateUser(
 
 // For tests only
 export async function resetStoreForTests(): Promise<void> {
+  await pool.query('DELETE FROM cloud_templates');
   await pool.query('DELETE FROM cloud_characters');
   await pool.query('DELETE FROM cloud_sessions');
   await pool.query('DELETE FROM users');

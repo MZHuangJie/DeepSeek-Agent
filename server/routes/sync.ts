@@ -221,4 +221,108 @@ router.delete('/characters/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ---------- Templates ----------
+
+interface TemplateMeta {
+  id: string;
+  name: string;
+  updatedAt: number;
+}
+
+// GET /sync/templates
+router.get('/templates', requireAuth, async (req, res) => {
+  const userId = req.auth!.userId;
+  try {
+    const result = await pool.query<TemplateMeta>(
+      `SELECT id, name, updated_at as "updatedAt"
+       FROM cloud_templates WHERE user_id = $1 ORDER BY updated_at DESC`,
+      [userId]
+    );
+    res.json({ templates: result.rows });
+  } catch (err) {
+    console.error('[sync/templates]', err);
+    res.status(500).json({ error: '读取模板列表失败' });
+  }
+});
+
+// GET /sync/templates/:id
+router.get('/templates/:id', requireAuth, async (req, res) => {
+  const userId = req.auth!.userId;
+  const templateId = req.params.id;
+  try {
+    const result = await pool.query(
+      'SELECT id, name, updated_at as "updatedAt", payload FROM cloud_templates WHERE user_id = $1 AND id = $2',
+      [userId, templateId]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: '模板不存在' });
+      return;
+    }
+    res.json({
+      id: result.rows[0].id,
+      name: result.rows[0].name,
+      updatedAt: result.rows[0].updatedAt,
+      payload: result.rows[0].payload,
+    });
+  } catch (err) {
+    console.error('[sync/templates/:id]', err);
+    res.status(500).json({ error: '读取模板失败' });
+  }
+});
+
+// PUT /sync/templates/:id
+router.put('/templates/:id', requireAuth, async (req, res) => {
+  const userId = req.auth!.userId;
+  const templateId = req.params.id;
+  const { name, payload } = req.body || {};
+
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    res.status(400).json({ error: 'name 不能为空' });
+    return;
+  }
+  if (typeof payload !== 'string') {
+    res.status(400).json({ error: 'payload 必须是字符串' });
+    return;
+  }
+  if (Buffer.byteLength(payload, 'utf8') > MAX_PAYLOAD_BYTES) {
+    res.status(413).json({ error: '模板数据超过 5MB 上限' });
+    return;
+  }
+
+  const updatedAt = Date.now();
+  try {
+    await pool.query(
+      `INSERT INTO cloud_templates (id, user_id, name, payload, updated_at)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id, id)
+       DO UPDATE SET name = EXCLUDED.name, payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at`,
+      [templateId, userId, name.trim(), payload, updatedAt]
+    );
+    res.json({ id: templateId, name: name.trim(), updatedAt });
+  } catch (err) {
+    console.error('[sync/templates/:id put]', err);
+    res.status(500).json({ error: '保存模板失败' });
+  }
+});
+
+// DELETE /sync/templates/:id
+router.delete('/templates/:id', requireAuth, async (req, res) => {
+  const userId = req.auth!.userId;
+  const templateId = req.params.id;
+  try {
+    const result = await pool.query(
+      'DELETE FROM cloud_templates WHERE user_id = $1 AND id = $2',
+      [userId, templateId]
+    );
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: '模板不存在' });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[sync/templates/:id delete]', err);
+    res.status(500).json({ error: '删除模板失败' });
+  }
+});
+
 export default router;

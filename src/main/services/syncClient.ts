@@ -309,3 +309,122 @@ export async function cloudDeleteCharacter(characterId: string): Promise<{ succe
     return { success: false, error: msg };
   }
 }
+
+// ---------- Templates ----------
+
+export interface CloudTemplateMeta {
+  id: string;
+  name: string;
+  updatedAt: number;
+}
+
+export interface CloudTemplatePayload {
+  id: string;
+  name: string;
+  updatedAt: number;
+  payload: string;
+}
+
+export interface CloudTemplateListResult {
+  success: boolean;
+  templates?: CloudTemplateMeta[];
+  error?: string;
+}
+
+export interface CloudTemplateGetResult {
+  success: boolean;
+  template?: CloudTemplatePayload;
+  error?: string;
+}
+
+export interface CloudTemplatePushResult {
+  success: boolean;
+  template?: CloudTemplateMeta;
+  error?: string;
+}
+
+export async function cloudListTemplates(): Promise<CloudTemplateListResult> {
+  try {
+    const { status, data } = await requestJson<{ templates?: CloudTemplateMeta[]; error?: string }>(
+      'GET',
+      '/sync/templates',
+    );
+    if (status === 200 && Array.isArray(data.templates)) {
+      return { success: true, templates: data.templates };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '获取云端模板失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function cloudGetTemplate(templateId: string): Promise<CloudTemplateGetResult> {
+  try {
+    const { status, data } = await requestJson<CloudTemplatePayload & { error?: string }>(
+      'GET',
+      `/sync/templates/${encodeURIComponent(templateId)}`,
+    );
+    if (status === 200 && data.payload) {
+      return { success: true, template: data };
+    }
+    if (status === 404) {
+      return { success: false, error: '云端模板不存在' };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '获取云端模板失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function cloudPushTemplate(templateId: string, name: string, payload: string): Promise<CloudTemplatePushResult> {
+  try {
+    const { status, data } = await requestJson<CloudTemplateMeta & { error?: string }>(
+      'PUT',
+      `/sync/templates/${encodeURIComponent(templateId)}`,
+      { name, payload },
+    );
+    if (status === 200) {
+      return { success: true, template: data };
+    }
+    if (status === 413) {
+      return { success: false, error: '模板数据超过 5MB 上限' };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '上传模板失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function cloudDeleteTemplate(templateId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { status, data } = await requestJson<{ success?: boolean; error?: string }>(
+      'DELETE',
+      `/sync/templates/${encodeURIComponent(templateId)}`,
+    );
+    if (status === 200) {
+      return { success: true };
+    }
+    if (status === 404) {
+      return { success: false, error: '云端模板不存在' };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: (data as any).error || '删除模板失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}

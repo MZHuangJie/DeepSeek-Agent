@@ -8,6 +8,10 @@ import {
   cloudGetCharacter,
   cloudPushCharacter,
   cloudDeleteCharacter,
+  cloudListTemplates,
+  cloudGetTemplate,
+  cloudPushTemplate,
+  cloudDeleteTemplate,
 } from '../services/syncClient';
 
 export function setupSyncHandlers() {
@@ -41,5 +45,21 @@ export function setupSyncHandlers() {
 
   ipcMain.handle('sync:deleteCharacter', async (_event, characterId: string) => {
     return cloudDeleteCharacter(characterId);
+  });
+
+  ipcMain.handle('sync:listTemplates', async () => {
+    return cloudListTemplates();
+  });
+
+  ipcMain.handle('sync:getTemplate', async (_event, templateId: string) => {
+    return cloudGetTemplate(templateId);
+  });
+
+  ipcMain.handle('sync:pushTemplate', async (_event, templateId: string, name: string, payload: string) => {
+    return cloudPushTemplate(templateId, name, payload);
+  });
+
+  ipcMain.handle('sync:deleteTemplate', async (_event, templateId: string) => {
+    return cloudDeleteTemplate(templateId);
   });
 }
