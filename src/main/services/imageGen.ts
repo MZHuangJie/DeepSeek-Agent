@@ -23,6 +23,8 @@ export interface ImageModelConfig {
   apiKey: string;
   /** 'images' = /v1/images/generations (OpenAI 格式), 'chat' = /v1/chat/completions (Gemini 等) */
   apiType?: 'images' | 'chat';
+  /** 透传给 API 的额外参数，优先级高于默认值 */
+  extraParams?: Record<string, unknown>;
 }
 
 export interface GenerateImageArgs {
@@ -185,19 +187,18 @@ export async function generateImage(
   const url = new URL(base + path);
   const isHttps = url.protocol === 'https:';
 
-  const payload: Record<string, unknown> = useChatApi
-    ? {
-        model: config.model,
-        messages: [{ role: 'user', content: args.prompt }],
-        max_tokens: 4096,
-      }
-    : {
-        model: config.model || 'gpt-image-1',
-        prompt: args.prompt,
-        n: Math.min(Math.max(args.n ?? 1, 1), 4),
-        size: args.size || '1024x1024',
-        quality: args.quality || 'high',
-      };
+  const payload: Record<string, unknown> = {
+    model: config.model || 'gpt-image-1',
+    ...(useChatApi
+      ? { messages: [{ role: 'user', content: args.prompt }] }
+      : {
+          prompt: args.prompt,
+          n: Math.min(Math.max(args.n ?? 1, 1), 4),
+          size: args.size || '1024x1024',
+          quality: args.quality || 'high',
+        }),
+    ...(config.extraParams || {}),
+  };
   const body = JSON.stringify(payload);
 
   infoLog('imageGen', 'request', {

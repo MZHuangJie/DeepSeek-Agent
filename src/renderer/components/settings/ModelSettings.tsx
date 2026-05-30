@@ -191,6 +191,17 @@ export default function ModelSettings({ onClose }: Props) {
               <option value="chat">/v1/chat/completions（Gemini 等）</option>
             </select>
           </div>
+          <div className={styles.fieldGroup}>
+            <div className={styles.fieldLabel}>扩展参数（JSON，可选）</div>
+            <textarea
+              className={styles.input}
+              rows={3}
+              placeholder='{&quot;max_tokens&quot;: 4096}'
+              value={imageConfig.extraParams || ''}
+              onChange={e => setImageConfig(c => ({ ...c, extraParams: e.target.value }))}
+              style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+            />
+          </div>
           {activeProvider.multimodal && (
             <div className={styles.hintText}>
               当前对话模型（{activeProvider.label}）已支持多模态，可直接在对话中生成图片。

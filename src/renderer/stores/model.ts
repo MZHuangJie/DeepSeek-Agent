@@ -38,6 +38,7 @@ export interface ImageModelConfig {
   model: string;
   apiKey: string;
   apiType: 'images' | 'chat';
+  extraParams: string;
 }
 
 const DEFAULT_MODELS: ModelConfig[] = [
@@ -120,6 +121,7 @@ const DEFAULT_IMAGE_MODEL: ImageModelConfig = {
   model: 'gpt-image-1',
   apiKey: '',
   apiType: 'images',
+  extraParams: '',
 };
 
 const DEFAULT_VISION_MODEL: VisionModelConfig = {

@@ -6,6 +6,7 @@ export interface StoredImageModelConfig {
   model?: string;
   apiKey?: string;
   apiType?: 'images' | 'chat';
+  extraParams?: string | Record<string, unknown>;
 }
 
 /** 与聊天 generate_image 工具保持一致：必须启用生图模型，API Key 可回退到全局 Key */
@@ -25,11 +26,19 @@ export function resolveImageModelConfig(
   const apiKey = cfg.apiKey?.trim() || fallbackApiKey?.trim() || '';
   if (!apiKey) return undefined;
 
+  let extraParams: Record<string, unknown> | undefined;
+  if (typeof cfg.extraParams === 'string' && cfg.extraParams.trim()) {
+    try { extraParams = JSON.parse(cfg.extraParams); } catch { /* ignore */ }
+  } else if (cfg.extraParams && typeof cfg.extraParams === 'object') {
+    extraParams = cfg.extraParams as Record<string, unknown>;
+  }
+
   return {
     baseUrl: cfg.baseUrl.trim(),
     model: cfg.model.trim(),
     apiKey,
     apiType: cfg.apiType || 'images',
+    extraParams,
   };
 }
 
