@@ -89,6 +89,9 @@ export default function AccountCenter({ onClose }: Props) {
     characters, templates, loadAll,
     saveCharacter, pickPortrait, generatePortrait,
   } = useRoleplayStore();
+  const {
+    cloudSessions, cloudCharacters, loadCloudSessions, loadCloudCharacters, pullCharacter, pullSession,
+  } = useSyncStore();
   const [section, setSection] = useState<AccountSection>('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editUsername, setEditUsername] = useState('');
@@ -109,7 +112,9 @@ export default function AccountCenter({ onClose }: Props) {
 
   useEffect(() => {
     void loadAll();
-  }, [loadAll]);
+    void loadCloudSessions();
+    void loadCloudCharacters();
+  }, [loadAll, loadCloudSessions, loadCloudCharacters]);
 
   const recentSessions = useMemo(
     () => [...sessions]
@@ -286,24 +291,24 @@ export default function AccountCenter({ onClose }: Props) {
             </div>
             <div className={styles.statsPanel}>
               <div className={styles.statCol}>
-                <div className={styles.statLabel}>角色卡片</div>
-                <div className={styles.statValue}>{characters.length}</div>
-                <div className={styles.statSub}>已创建</div>
+                <div className={styles.statLabel}>云端角色</div>
+                <div className={styles.statValue}>{cloudCharacters.length}</div>
+                <div className={styles.statSub}>已同步</div>
               </div>
               <div className={styles.statCol}>
-                <div className={styles.statLabel}>模板</div>
+                <div className={styles.statLabel}>本地模板</div>
                 <div className={styles.statValue}>{templates.length}</div>
                 <div className={styles.statSub}>已创建</div>
               </div>
               <div className={styles.statCol}>
-                <div className={styles.statLabel}>对话</div>
-                <div className={styles.statValue}>{sessions.length}</div>
-                <div className={styles.statSub}>本地会话</div>
+                <div className={styles.statLabel}>云端会话</div>
+                <div className={styles.statValue}>{cloudSessions.length}</div>
+                <div className={styles.statSub}>已同步</div>
               </div>
               <div className={styles.statCol}>
-                <div className={styles.statLabel}>收藏</div>
-                <div className={styles.statValue}>0</div>
-                <div className={styles.statSub}>即将推出</div>
+                <div className={styles.statLabel}>本地会话</div>
+                <div className={styles.statValue}>{sessions.length}</div>
+                <div className={styles.statSub}>当前设备</div>
               </div>
             </div>
           </section>
@@ -392,17 +397,15 @@ export default function AccountCenter({ onClose }: Props) {
 
         <div className={styles.floatingSync}>
           <section className={styles.widgetCard}>
-            <div className={styles.widgetHead}><span>↻</span><h3>同步状态</h3></div>
-            <div className={styles.syncOk}>○ 本地数据就绪</div>
-            <div className={styles.widgetSub}>云端会话同步已就绪</div>
-            <div className={styles.widgetSub}>最后活动 {lastMsgTs ? formatRelative(lastMsgTs) : '—'}</div>
+            <div className={styles.widgetHead}><span>↻</span><h3>云端同步</h3></div>
+            <div className={styles.syncOk}>☁ {cloudCharacters.length} 个角色 · {cloudSessions.length} 个会话</div>
+            <div className={styles.widgetSub}>点击刷新查看云端最新数据</div>
             <button
               type="button"
               className={styles.primaryBtnSmall}
               onClick={() => {
-                const { loadCloudSessions } = useSyncStore.getState();
                 void loadCloudSessions();
-                alert('已刷新云端会话列表。\n\n上传数据请去：\n• 对话历史侧栏的 ☁ 按钮 → 上传会话\n• 角色卡片编辑后 → 点击 ☁ 同步按钮');
+                void loadCloudCharacters();
               }}
             >
               刷新云端列表
@@ -514,6 +517,61 @@ export default function AccountCenter({ onClose }: Props) {
                 <div className={styles.emptyCard}>暂无角色，可在角色扮演模式中创建</div>
               )}
             </div>
+
+            {cloudCharacters.length > 0 && (
+              <>
+                <div className={styles.pageHeader} style={{ marginTop: 24 }}>
+                  <h2>☁ 云端角色</h2>
+                  <span className={styles.pageSub}>共 {cloudCharacters.length} 个，可恢复到本地</span>
+                </div>
+                <div className={styles.cloudList}>
+                  {cloudCharacters.map(cc => {
+                    const alreadyLocal = characters.some(c => c.id === cc.id);
+                    return (
+                      <div key={cc.id} className={styles.cloudItem}>
+                        <div className={styles.cloudItemInfo}>
+                          <div className={styles.cloudItemTitle}>{cc.name}</div>
+                          <div className={styles.cloudItemMeta}>{new Date(cc.updatedAt).toLocaleString('zh-CN')}</div>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.cloudItemAction}
+                          disabled={alreadyLocal}
+                          onClick={async () => {
+                            const data = await pullCharacter(cc.id);
+                            if (!data) { alert('拉取失败'); return; }
+                            try {
+                              const parsed = JSON.parse(data.payload);
+                              await saveCharacter({
+                                id: parsed.id || cc.id,
+                                name: parsed.name || cc.name,
+                                gender: parsed.gender,
+                                occupation: parsed.occupation,
+                                personality: parsed.personality,
+                                background: parsed.background,
+                                body: parsed.body,
+                                openingStory: parsed.openingStory,
+                                portraitPath: parsed.portraitPath,
+                                portraitFullPath: parsed.portraitFullPath,
+                                statusFieldEnabled: parsed.statusFieldEnabled,
+                                statusFields: parsed.statusFields,
+                              });
+                              await loadAll();
+                              alert(`「${cc.name}」已恢复到本地`);
+                            } catch (e) {
+                              alert('解析角色数据失败');
+                              console.error(e);
+                            }
+                          }}
+                        >
+                          {alreadyLocal ? '已存在' : '恢复到本地'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         );
       case 'templates':
@@ -568,6 +626,46 @@ export default function AccountCenter({ onClose }: Props) {
                 <div className={styles.emptyCard}>暂无对话记录</div>
               )}
             </div>
+
+            {cloudSessions.length > 0 && (
+              <>
+                <div className={styles.pageHeader} style={{ marginTop: 24 }}>
+                  <h2>☁ 云端会话</h2>
+                  <span className={styles.pageSub}>共 {cloudSessions.length} 个，可恢复到本地</span>
+                </div>
+                <div className={styles.cloudList}>
+                  {cloudSessions.map(cs => {
+                    const alreadyLocal = sessions.some(s => s.id === cs.id);
+                    return (
+                      <div key={cs.id} className={styles.cloudItem}>
+                        <div className={styles.cloudItemInfo}>
+                          <div className={styles.cloudItemTitle}>{cs.title}</div>
+                          <div className={styles.cloudItemMeta}>{cs.messageCount} 条消息 · {new Date(cs.updatedAt).toLocaleString('zh-CN')}</div>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.cloudItemAction}
+                          disabled={alreadyLocal}
+                          onClick={async () => {
+                            const data = await pullSession(cs.id);
+                            if (!data) { alert('拉取失败'); return; }
+                            try {
+                              await window.api.sessions.save(cs.id, cs.title || '恢复会话', data.payload);
+                              await useChatStore.getState().loadSessions();
+                              alert(`「${cs.title}」已恢复到本地`);
+                            } catch {
+                              alert('解析会话数据失败');
+                            }
+                          }}
+                        >
+                          {alreadyLocal ? '已存在' : '恢复到本地'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         );
       case 'favorites':
