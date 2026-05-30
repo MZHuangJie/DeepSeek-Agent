@@ -269,6 +269,24 @@ export default function AccountCenter({ onClose }: Props) {
 
         <section className={styles.sectionBlock}>
           <div className={styles.sectionHead}>
+            <h2>云端角色</h2>
+            <button type="button" className={styles.linkBtn} onClick={() => setSection('characters')}>查看全部 →</button>
+          </div>
+          <div className={styles.cloudList}>
+            {cloudCharacters.slice(0, 3).map(cc => (
+              <div key={cc.id} className={styles.cloudItem}>
+                <div className={styles.cloudItemInfo}>
+                  <div className={styles.cloudItemTitle}>{cc.name}</div>
+                  <div className={styles.cloudItemMeta}>{new Date(cc.updatedAt).toLocaleString('zh-CN')}</div>
+                </div>
+              </div>
+            ))}
+            {cloudCharacters.length === 0 && <div className={styles.emptyCard}>暂无云端角色，可在角色扮演模式中上传</div>}
+          </div>
+        </section>
+
+        <section className={styles.sectionBlock}>
+          <div className={styles.sectionHead}>
             <h2>我的模板</h2>
             <button type="button" className={styles.linkBtn} onClick={() => setSection('templates')}>查看全部 →</button>
           </div>
