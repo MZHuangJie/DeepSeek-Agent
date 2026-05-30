@@ -209,17 +209,22 @@ export async function generateImage(
   const url = new URL(base + path);
   const isHttps = url.protocol === 'https:';
 
+  const extra = config.extraParams || {};
   const payload: Record<string, unknown> = {
     model: config.model || 'gpt-image-1',
     ...(useChatApi
-      ? { messages: [{ role: 'user', content: args.prompt }] }
-      : {
-          prompt: args.prompt,
-          n: Math.min(Math.max(args.n ?? 1, 1), 4),
-          size: args.size || '1024x1024',
-          quality: args.quality || 'high',
-        }),
-    ...(config.extraParams || {}),
+      ? (extra.messages || extra.contents
+          ? {}  // extraParams 已提供 messages/contents，不重复设置
+          : { messages: [{ role: 'user', content: args.prompt }] })
+      : (extra.prompt
+          ? {}  // extraParams 已提供 prompt，不重复设置
+          : {
+              prompt: args.prompt,
+              n: Math.min(Math.max(args.n ?? 1, 1), 4),
+              size: args.size || '1024x1024',
+              quality: args.quality || 'high',
+            })),
+    ...extra,
   };
   const body = JSON.stringify(payload);
 
