@@ -153,7 +153,7 @@ export const useSquareStore = create<SquareState>((set) => ({
         if (favorited) {
           const char = useSquareStore.getState().characters.find(c => c.id === id);
           if (char) {
-            set((s) => ({ favorites: [{ ...char, isFavorited: true }, ...s.favorites.filter(f => f.id !== id)] }));
+            set((s) => ({ favorites: [{ ...char, isFavorited: true, shared: true }, ...s.favorites.filter(f => f.id !== id)] }));
           }
         } else {
           set((s) => ({ favorites: s.favorites.filter(f => f.id !== id) }));
