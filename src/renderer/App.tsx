@@ -32,6 +32,7 @@ import { useBrowserStore } from './stores/browser';
 import { useModeStore } from './stores/mode';
 import AccountCenter from './components/account/AccountCenter';
 import Toast from './components/Toast';
+import Confirm from './components/Confirm';
 import { useAuthStore } from './stores/auth';
 import ResizeHandle from './components/layout/ResizeHandle';
 import SidebarResizeHandle from './components/layout/SidebarResizeHandle';
@@ -390,6 +391,7 @@ export default function App() {
       )}
       <StatusBar language={showAccountCenter ? '' : (activeFile ? (activeFile.kind === 'diff' ? activeFile.language || '' : getLanguage(activeFile.name)) : '')} />
       <Toast />
+      <Confirm />
     </div>
   );
 }

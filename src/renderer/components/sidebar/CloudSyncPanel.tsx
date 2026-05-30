@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSyncStore } from '../../stores/sync';
 import { useAuthStore } from '../../stores/auth';
 import { useChatStore } from '../../stores/chat';
+import { useConfirmStore } from '../../stores/confirm';
 import styles from './CloudSyncPanel.module.css';
 
 interface Props {
@@ -59,11 +60,15 @@ export default function CloudSyncPanel({ onClose, onOpenLogin }: Props) {
     setPullingId(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('确定删除云端会话？')) return;
-    setDeletingId(id);
-    const ok = await deleteCloudSession(id);
-    setDeletingId(null);
+  const handleDelete = (id: string) => {
+    useConfirmStore.getState().show({
+      message: '确定删除云端会话？',
+      onConfirm: async () => {
+        setDeletingId(id);
+        const ok = await deleteCloudSession(id);
+        setDeletingId(null);
+      },
+    });
   };
 
   if (!isLoggedIn) {

@@ -7,6 +7,7 @@ import { useSquareStore } from '../../stores/square';
 import AccountAuthForm from './AccountAuthForm';
 import SquarePanel from './SquarePanel';
 import { useToastStore } from '../../stores/toast';
+import { useConfirmStore } from '../../stores/confirm';
 import styles from './AccountCenter.module.css';
 
 function PortraitBg({ src, path }: { src?: string; path?: string }) {
@@ -576,16 +577,20 @@ export default function AccountCenter({ onClose }: Props) {
                       type="button"
                       className={styles.cloudDeleteBtn}
                       title="删除云端角色"
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        if (!confirm(`确定删除云端角色「${cc.name}」？`)) return;
-                        const ok = await deleteCloudCharacter(cc.id);
-                        if (ok) {
-                          useToastStore.getState().show(`已删除「${cc.name}」`, 'success');
-                          void loadCloudCharacters();
-                        } else {
-                          useToastStore.getState().show('删除失败', 'error');
-                        }
+                        useConfirmStore.getState().show({
+                          message: `确定删除云端角色「${cc.name}」？`,
+                          onConfirm: async () => {
+                            const ok = await deleteCloudCharacter(cc.id);
+                            if (ok) {
+                              useToastStore.getState().show(`已删除「${cc.name}」`, 'success');
+                              void loadCloudCharacters();
+                            } else {
+                              useToastStore.getState().show('删除失败', 'error');
+                            }
+                          },
+                        });
                       }}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -711,16 +716,20 @@ export default function AccountCenter({ onClose }: Props) {
                       type="button"
                       className={styles.cloudDeleteBtn}
                       title="删除云端模板"
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        if (!confirm(`确定删除云端模板「${ct.name}」？`)) return;
-                        const ok = await deleteCloudTemplate(ct.id);
-                        if (ok) {
-                          useToastStore.getState().show(`已删除「${ct.name}」`, 'success');
-                          void loadCloudTemplates();
-                        } else {
-                          useToastStore.getState().show('删除失败', 'error');
-                        }
+                        useConfirmStore.getState().show({
+                          message: `确定删除云端模板「${ct.name}」？`,
+                          onConfirm: async () => {
+                            const ok = await deleteCloudTemplate(ct.id);
+                            if (ok) {
+                              useToastStore.getState().show(`已删除「${ct.name}」`, 'success');
+                              void loadCloudTemplates();
+                            } else {
+                              useToastStore.getState().show('删除失败', 'error');
+                            }
+                          },
+                        });
                       }}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -781,16 +790,20 @@ export default function AccountCenter({ onClose }: Props) {
                       className={styles.cloudDeleteBtn}
                       style={{ position: 'static', marginLeft: 8 }}
                       title="删除云端会话"
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        if (!confirm(`确定删除云端会话「${cs.title}」？`)) return;
-                        const ok = await deleteCloudSession(cs.id);
-                        if (ok) {
-                          useToastStore.getState().show(`已删除「${cs.title}」`, 'success');
-                          void loadCloudSessions();
-                        } else {
-                          useToastStore.getState().show('删除失败', 'error');
-                        }
+                        useConfirmStore.getState().show({
+                          message: `确定删除云端会话「${cs.title}」？`,
+                          onConfirm: async () => {
+                            const ok = await deleteCloudSession(cs.id);
+                            if (ok) {
+                              useToastStore.getState().show(`已删除「${cs.title}」`, 'success');
+                              void loadCloudSessions();
+                            } else {
+                              useToastStore.getState().show('删除失败', 'error');
+                            }
+                          },
+                        });
                       }}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
