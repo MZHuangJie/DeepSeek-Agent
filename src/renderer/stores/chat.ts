@@ -264,7 +264,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const newMessages = [...s.messages, msg];
       let title = s.title;
       let titlePending = s.titlePending;
-      if (s.messages.length === 0 && msg.role === 'user') {
+      if (!s.messages.some(m => m.role === 'user') && msg.role === 'user') {
         title = deriveFallbackSessionTitle(extractPlainUserText(msg));
         titlePending = true;
       }
