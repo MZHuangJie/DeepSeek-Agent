@@ -12,22 +12,33 @@ interface SquareCharacterRow {
   name: string;
   payload: string;
   shared: boolean;
+  heat: number;
   updated_at: number;
   user_id: number;
   username: string;
 }
 
 // GET /square/characters — 广场角色列表（跨用户，仅 shared=true，无需登录）
-router.get('/characters', async (_req, res) => {
+router.get('/characters', async (req, res) => {
+  const userId = (req as any).auth?.userId as number | undefined;
   try {
     const result = await pool.query<SquareCharacterRow>(
-      `SELECT cc.id, cc.name, cc.payload, cc.shared, cc.updated_at, cc.user_id, u.username
+      `SELECT cc.id, cc.name, cc.payload, cc.shared, cc.heat, cc.updated_at, cc.user_id, u.username
        FROM cloud_characters cc
        JOIN users u ON u.id = cc.user_id
        WHERE cc.shared = TRUE
-       ORDER BY cc.updated_at DESC
+       ORDER BY cc.heat DESC, cc.updated_at DESC
        LIMIT 100`
     );
+    // 如果登录了，查该用户的收藏列表
+    let favIds = new Set<string>();
+    if (userId) {
+      const favRes = await pool.query<{ character_id: string }>(
+        'SELECT character_id FROM favorites WHERE user_id = $1',
+        [userId]
+      );
+      favIds = new Set(favRes.rows.map(r => r.character_id));
+    }
     const characters = result.rows.map(r => {
       let portraitBase64: string | undefined;
       let portraitFullBase64: string | undefined;
@@ -54,6 +65,8 @@ router.get('/characters', async (_req, res) => {
         background,
         gender,
         occupation,
+        heat: r.heat || 0,
+        isFavorited: favIds.has(r.id),
         updatedAt: r.updated_at,
       };
     });
@@ -83,6 +96,95 @@ router.post('/characters/:id/toggle', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[square/characters/toggle]', err);
     res.status(500).json({ error: '切换分享状态失败' });
+  }
+});
+
+// POST /square/characters/:id/favorite — 收藏/取消收藏（需登录）
+router.post('/characters/:id/favorite', requireAuth, async (req, res) => {
+  const userId = req.auth!.userId;
+  const characterId = req.params.id;
+  try {
+    const existing = await pool.query(
+      'SELECT 1 FROM favorites WHERE user_id = $1 AND character_id = $2',
+      [userId, characterId]
+    );
+    if (existing.rows.length > 0) {
+      // 取消收藏
+      await pool.query(
+        'DELETE FROM favorites WHERE user_id = $1 AND character_id = $2',
+        [userId, characterId]
+      );
+      await pool.query(
+        'UPDATE cloud_characters SET heat = GREATEST(0, heat - 1) WHERE id = $1',
+        [characterId]
+      );
+      res.json({ favorited: false });
+    } else {
+      // 添加收藏
+      await pool.query(
+        'INSERT INTO favorites (user_id, character_id, created_at) VALUES ($1, $2, $3)',
+        [userId, characterId, Date.now()]
+      );
+      await pool.query(
+        'UPDATE cloud_characters SET heat = heat + 1 WHERE id = $1',
+        [characterId]
+      );
+      res.json({ favorited: true });
+    }
+  } catch (err) {
+    console.error('[square/characters/favorite]', err);
+    res.status(500).json({ error: '收藏操作失败' });
+  }
+});
+
+// GET /square/favorites — 当前用户收藏的角色列表（需登录）
+router.get('/favorites', requireAuth, async (req, res) => {
+  const userId = req.auth!.userId;
+  try {
+    const result = await pool.query<SquareCharacterRow>(
+      `SELECT cc.id, cc.name, cc.payload, cc.shared, cc.heat, cc.updated_at, cc.user_id, u.username
+       FROM favorites f
+       JOIN cloud_characters cc ON cc.id = f.character_id
+       JOIN users u ON u.id = cc.user_id
+       WHERE f.user_id = $1 AND cc.shared = TRUE
+       ORDER BY f.created_at DESC`,
+      [userId]
+    );
+    const characters = result.rows.map(r => {
+      let portraitBase64: string | undefined;
+      let portraitFullBase64: string | undefined;
+      let personality: string | undefined;
+      let background: string | undefined;
+      let gender: string | undefined;
+      let occupation: string | undefined;
+      try {
+        const p = JSON.parse(r.payload);
+        portraitBase64 = p.portraitBase64;
+        portraitFullBase64 = p.portraitFullBase64;
+        personality = p.personality;
+        background = p.background;
+        gender = p.gender;
+        occupation = p.occupation;
+      } catch { /* ignore */ }
+      return {
+        id: r.id,
+        name: r.name,
+        userName: r.username,
+        portraitBase64,
+        portraitFullBase64,
+        personality,
+        background,
+        gender,
+        occupation,
+        heat: r.heat || 0,
+        isFavorited: true,
+        updatedAt: r.updated_at,
+      };
+    });
+    res.json({ characters });
+  } catch (err) {
+    console.error('[square/favorites]', err);
+    res.status(500).json({ error: '读取收藏列表失败' });
   }
 });
 

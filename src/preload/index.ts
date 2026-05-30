@@ -167,6 +167,8 @@ const api = {
     pushModel: (payload: Record<string, unknown>) => ipcRenderer.invoke('square:pushModel', payload),
     deleteModel: (id: string) => ipcRenderer.invoke('square:deleteModel', id),
     listMyModels: () => ipcRenderer.invoke('square:listMyModels'),
+    favoriteCharacter: (id: string) => ipcRenderer.invoke('square:favoriteCharacter', id),
+    listFavorites: () => ipcRenderer.invoke('square:listFavorites'),
   },
   marketplace: {
     add: (url: string) => ipcRenderer.invoke('marketplace:add', url),

@@ -19,6 +19,8 @@ import {
   squarePushModel,
   squareDeleteModel,
   squareListMyModels,
+  squareFavoriteCharacter,
+  squareListFavorites,
 } from '../services/syncClient';
 
 export function setupSyncHandlers() {
@@ -104,5 +106,13 @@ export function setupSyncHandlers() {
 
   ipcMain.handle('square:listMyModels', async () => {
     return squareListMyModels();
+  });
+
+  ipcMain.handle('square:favoriteCharacter', async (_event, characterId: string) => {
+    return squareFavoriteCharacter(characterId);
+  });
+
+  ipcMain.handle('square:listFavorites', async () => {
+    return squareListFavorites();
   });
 }

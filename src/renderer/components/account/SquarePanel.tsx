@@ -2,35 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSquareStore, type SquareCharacter, type SquareModel } from '../../stores/square';
 import styles from './SquarePanel.module.css';
 
-/* ── localStorage favorites ── */
-function getFavIds(): Set<string> {
-  try {
-    const raw = localStorage.getItem('square:favorites');
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch { return new Set(); }
-}
-function setFavIds(ids: Set<string>) {
-  localStorage.setItem('square:favorites', JSON.stringify([...ids]));
-}
-
-/* ── fake heat for demo (stable per id) ── */
-function getHeat(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return 1000 + (hash % 15000);
-}
-function fmtHeat(n: number): string {
-  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-  return String(n);
-}
-
 /* ── extract tags from character ── */
 function getTags(c: SquareCharacter): string[] {
   const tags: string[] = [];
   if (c.gender) tags.push(c.gender);
   if (c.occupation) tags.push(c.occupation);
-  // try parse personality comma-separated
   if (c.personality) {
     c.personality.split(/[,，、]/).map(s => s.trim()).filter(Boolean).forEach(t => {
       if (!tags.includes(t)) tags.push(t);
@@ -39,8 +15,13 @@ function getTags(c: SquareCharacter): string[] {
   return tags.slice(0, 3);
 }
 
-function CharacterCard({ item, fav, onToggleFav }: { item: SquareCharacter; fav: boolean; onToggleFav: () => void }) {
-  const heat = getHeat(item.id);
+function fmtHeat(n: number): string {
+  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+function CharacterCard({ item, onToggleFav }: { item: SquareCharacter; onToggleFav: (id: string) => void }) {
   const tags = getTags(item);
   return (
     <div className={styles.characterCard}>
@@ -53,16 +34,16 @@ function CharacterCard({ item, fav, onToggleFav }: { item: SquareCharacter; fav:
       )}
 
       {/* top-left heat */}
-      <div className={styles.heatBadge}>🔥 {fmtHeat(heat)}</div>
+      <div className={styles.heatBadge}>🔥 {fmtHeat(item.heat)}</div>
 
       {/* top-right bookmark */}
       <button
         type="button"
-        className={`${styles.bookmarkBtn} ${fav ? styles.bookmarkActive : ''}`}
-        onClick={(e) => { e.stopPropagation(); onToggleFav(); }}
-        title={fav ? '取消收藏' : '收藏'}
+        className={`${styles.bookmarkBtn} ${item.isFavorited ? styles.bookmarkActive : ''}`}
+        onClick={(e) => { e.stopPropagation(); onToggleFav(item.id); }}
+        title={item.isFavorited ? '取消收藏' : '收藏'}
       >
-        {fav ? '🔖' : '🔖'}
+        🔖
       </button>
 
       <div className={styles.cardOverlay}>
@@ -101,8 +82,8 @@ function ModelItem({ item }: { item: SquareModel }) {
 
 export default function SquarePanel() {
   const {
-    characters, models, loading, error,
-    loadCharacters, loadModels, clearError,
+    characters, favorites, models, loading, error,
+    loadCharacters, loadFavorites, loadModels, toggleFavorite, clearError,
   } = useSquareStore();
   const [tab, setTab] = useState<'characters' | 'models'>('characters');
 
@@ -112,13 +93,11 @@ export default function SquarePanel() {
   const [tagFilter, setTagFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'hottest'>('newest');
 
-  /* favorites */
-  const [favIds, setFavIds] = useState<Set<string>>(getFavIds);
-
   useEffect(() => {
     clearError();
     void loadCharacters();
     void loadModels();
+    void loadFavorites();
   }, []);
 
   const allTags = useMemo(() => {
@@ -130,7 +109,6 @@ export default function SquarePanel() {
   const filteredCharacters = useMemo(() => {
     let list = [...characters];
 
-    // search
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter(c =>
@@ -141,19 +119,16 @@ export default function SquarePanel() {
       );
     }
 
-    // gender
     if (genderFilter !== 'all') {
       list = list.filter(c => c.gender === genderFilter);
     }
 
-    // tag
     if (tagFilter !== 'all') {
       list = list.filter(c => getTags(c).includes(tagFilter));
     }
 
-    // sort
     if (sortBy === 'hottest') {
-      list.sort((a, b) => getHeat(b.id) - getHeat(a.id));
+      list.sort((a, b) => b.heat - a.heat);
     } else {
       list.sort((a, b) => b.updatedAt - a.updatedAt);
     }
@@ -161,11 +136,8 @@ export default function SquarePanel() {
     return list;
   }, [characters, query, genderFilter, tagFilter, sortBy]);
 
-  const toggleFav = (id: string) => {
-    const next = new Set(favIds);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setFavIds(next);
-    setFavIds(next);
+  const handleToggleFav = async (id: string) => {
+    await toggleFavorite(id);
   };
 
   return (
@@ -195,14 +167,14 @@ export default function SquarePanel() {
             className={`${styles.tabBtn} ${tab === 'characters' ? styles.tabActive : ''}`}
             onClick={() => { setTab('characters'); setQuery(''); }}
           >
-            角色
+            角色 ({characters.length})
           </button>
           <button
             type="button"
             className={`${styles.tabBtn} ${tab === 'models' ? styles.tabActive : ''}`}
             onClick={() => { setTab('models'); setQuery(''); }}
           >
-            模型
+            模型 ({models.length})
           </button>
         </div>
 
@@ -256,8 +228,7 @@ export default function SquarePanel() {
                 <CharacterCard
                   key={c.id}
                   item={c}
-                  fav={favIds.has(c.id)}
-                  onToggleFav={() => toggleFav(c.id)}
+                  onToggleFav={handleToggleFav}
                 />
               ))}
             </div>

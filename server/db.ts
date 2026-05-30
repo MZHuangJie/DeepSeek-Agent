@@ -63,6 +63,18 @@ export async function initDb(): Promise<void> {
   try {
     await pool.query(`ALTER TABLE cloud_characters ADD COLUMN IF NOT EXISTS shared BOOLEAN NOT NULL DEFAULT FALSE`);
   } catch { /* ignore */ }
+  try {
+    await pool.query(`ALTER TABLE cloud_characters ADD COLUMN IF NOT EXISTS heat INT NOT NULL DEFAULT 0`);
+  } catch { /* ignore */ }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS favorites (
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      character_id VARCHAR(64) NOT NULL,
+      created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+      PRIMARY KEY (user_id, character_id)
+    );
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS cloud_templates (

@@ -3,6 +3,7 @@ import { useAuthStore } from '../../stores/auth';
 import { useSyncStore } from '../../stores/sync';
 import { useChatStore } from '../../stores/chat';
 import { useRoleplayStore } from '../../stores/roleplay';
+import { useSquareStore } from '../../stores/square';
 import AccountAuthForm from './AccountAuthForm';
 import SquarePanel from './SquarePanel';
 import { useToastStore } from '../../stores/toast';
@@ -117,6 +118,7 @@ export default function AccountCenter({ onClose }: Props) {
     cloudSessions, cloudCharacters, cloudTemplates, loading: cloudLoading, error: cloudError,
     loadCloudSessions, loadCloudCharacters, loadCloudTemplates, pullCharacter, pullSession, pullTemplate, pushTemplate, deleteCloudTemplate,
   } = useSyncStore();
+  const { favorites, loadFavorites } = useSquareStore();
   const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<AccountSection>('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -148,8 +150,13 @@ export default function AccountCenter({ onClose }: Props) {
       } catch (e) {
         console.error('[AccountCenter] loadCloudTemplates failed:', e);
       }
+      try {
+        await loadFavorites();
+      } catch (e) {
+        console.error('[AccountCenter] loadFavorites failed:', e);
+      }
     })();
-  }, [loadAll, loadCloudSessions, loadCloudCharacters, loadCloudTemplates, isLoggedIn]);
+  }, [loadAll, loadCloudSessions, loadCloudCharacters, loadCloudTemplates, loadFavorites, isLoggedIn]);
 
   const mainNav = NAV.filter(n => n.group === 'main');
 
@@ -322,7 +329,7 @@ export default function AccountCenter({ onClose }: Props) {
                   onClick={async () => {
                     setRefreshing(true);
                     try {
-                      await Promise.all([loadCloudSessions(), loadCloudCharacters(), loadCloudTemplates()]);
+                      await Promise.all([loadCloudSessions(), loadCloudCharacters(), loadCloudTemplates(), loadFavorites()]);
                     } catch (e) {
                       console.error('[AccountCenter] refresh failed:', e);
                     } finally {
@@ -686,7 +693,39 @@ export default function AccountCenter({ onClose }: Props) {
       case 'square':
         return <SquarePanel />;
       case 'favorites':
-        return renderPlaceholder('收藏夹', '收藏功能即将推出。');
+        return (
+          <div className={styles.pageScroll}>
+            <div className={styles.pageHeader}>
+              <h2>我的收藏</h2>
+              <span className={styles.pageSub}>共 {favorites.length} 个收藏</span>
+            </div>
+            {favorites.length === 0 ? (
+              <div className={styles.emptyCard}>暂无收藏，在角色广场中点击 🔖 收藏角色</div>
+            ) : (
+              <div className={styles.cardGridCharacters}>
+                {favorites.map(f => (
+                  <div
+                    key={f.id}
+                    className={`${styles.featureCard} ${styles.characterCard}`}
+                    onClick={() => {
+                      const full = f.portraitFullBase64 || f.portraitBase64;
+                      if (full) { setFullImageSrc(full); setShowFullImage(true); }
+                    }}
+                  >
+                    <PortraitBg src={f.portraitBase64} />
+                    <div className={styles.featureCardOverlay}>
+                      <div className={styles.featureCardInfo}>
+                        <div className={styles.featureTitle}>{f.name}</div>
+                        <div className={styles.featurePersonality}>{f.personality || f.background || '角色'}</div>
+                        <div className={styles.featureDesc}>{f.background || '暂无背景故事'}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
       default:
         return renderOverview();
     }

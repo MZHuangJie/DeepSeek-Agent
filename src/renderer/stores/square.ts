@@ -10,6 +10,8 @@ export interface SquareCharacter {
   background?: string;
   gender?: string;
   occupation?: string;
+  heat: number;
+  isFavorited: boolean;
   updatedAt: number;
 }
 
@@ -27,12 +29,15 @@ export interface SquareModel {
 
 interface SquareState {
   characters: SquareCharacter[];
+  favorites: SquareCharacter[];
   models: SquareModel[];
   myModels: SquareModel[];
   loading: boolean;
   error: string | null;
   loadCharacters: () => Promise<void>;
+  loadFavorites: () => Promise<void>;
   loadModels: () => Promise<void>;
+  toggleFavorite: (id: string) => Promise<boolean>;
   toggleCharacterShared: (id: string) => Promise<boolean | null>;
   toggleModelShared: (id: string) => Promise<boolean | null>;
   pushModel: (model: {
@@ -50,6 +55,7 @@ interface SquareState {
 
 export const useSquareStore = create<SquareState>((set) => ({
   characters: [],
+  favorites: [],
   models: [],
   myModels: [],
   loading: false,
@@ -69,6 +75,20 @@ export const useSquareStore = create<SquareState>((set) => ({
     }
   },
 
+  loadFavorites: async () => {
+    set({ loading: true, error: null });
+    try {
+      const res = await window.api.square.listFavorites();
+      if (res.success && res.characters) {
+        set({ favorites: res.characters, loading: false });
+      } else {
+        set({ error: res.error || '获取收藏列表失败', loading: false });
+      }
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : '网络错误', loading: false });
+    }
+  },
+
   loadModels: async () => {
     set({ loading: true, error: null });
     try {
@@ -80,6 +100,39 @@ export const useSquareStore = create<SquareState>((set) => ({
       }
     } catch (err) {
       set({ error: err instanceof Error ? err.message : '网络错误', loading: false });
+    }
+  },
+
+  toggleFavorite: async (id) => {
+    set({ error: null });
+    try {
+      const res = await window.api.square.favoriteCharacter(id);
+      if (res.success) {
+        const favorited = res.favorited ?? false;
+        // Update characters list
+        set((s) => ({
+          characters: s.characters.map(c =>
+            c.id === id
+              ? { ...c, isFavorited: favorited, heat: favorited ? c.heat + 1 : Math.max(0, c.heat - 1) }
+              : c
+          ),
+        }));
+        // Update favorites list
+        if (favorited) {
+          const char = useSquareStore.getState().characters.find(c => c.id === id);
+          if (char) {
+            set((s) => ({ favorites: [{ ...char, isFavorited: true }, ...s.favorites.filter(f => f.id !== id)] }));
+          }
+        } else {
+          set((s) => ({ favorites: s.favorites.filter(f => f.id !== id) }));
+        }
+        return favorited;
+      }
+      set({ error: res.error || '收藏操作失败' });
+      return false;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : '网络错误' });
+      return false;
     }
   },
 

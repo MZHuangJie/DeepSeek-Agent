@@ -441,6 +441,8 @@ export interface SquareCharacterMeta {
   background?: string;
   gender?: string;
   occupation?: string;
+  heat: number;
+  isFavorited: boolean;
   updatedAt: number;
 }
 
@@ -611,6 +613,50 @@ export async function squareListMyModels(): Promise<SquareModelListResult> {
       return { success: false, error: '登录已过期，请重新登录' };
     }
     return { success: false, error: data.error || '获取我的模型失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export interface SquareFavoriteResult {
+  success: boolean;
+  favorited?: boolean;
+  error?: string;
+}
+
+export async function squareFavoriteCharacter(characterId: string): Promise<SquareFavoriteResult> {
+  try {
+    const { status, data } = await requestJson<{ favorited?: boolean; error?: string }>(
+      'POST',
+      `/square/characters/${encodeURIComponent(characterId)}/favorite`,
+    );
+    if (status === 200) {
+      return { success: true, favorited: data.favorited };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '收藏操作失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function squareListFavorites(): Promise<SquareCharacterListResult> {
+  try {
+    const { status, data } = await requestJson<{ characters?: SquareCharacterMeta[]; error?: string }>(
+      'GET',
+      '/square/favorites',
+    );
+    if (status === 200 && Array.isArray(data.characters)) {
+      return { success: true, characters: data.characters };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '获取收藏列表失败' };
   } catch (err) {
     const msg = err instanceof Error ? err.message : '网络错误';
     return { success: false, error: msg };
