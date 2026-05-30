@@ -212,7 +212,7 @@ export async function generateImage(
   const payload: Record<string, unknown> = {
     model: config.model || 'gpt-image-1',
     ...(useChatApi
-      ? { contents: [{ parts: [{ text: args.prompt }] }] }
+      ? { messages: [{ role: 'user', content: args.prompt }] }
       : {
           prompt: args.prompt,
           n: Math.min(Math.max(args.n ?? 1, 1), 4),
