@@ -49,8 +49,10 @@ export default function AccountCenter({ onClose }: Props) {
     characters, templates, loadAll, saveCharacter,
   } = useRoleplayStore();
   const {
-    cloudSessions, cloudCharacters, loadCloudSessions, loadCloudCharacters, pullCharacter, pullSession,
+    cloudSessions, cloudCharacters, loading: cloudLoading, error: cloudError,
+    loadCloudSessions, loadCloudCharacters, pullCharacter, pullSession,
   } = useSyncStore();
+  const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<AccountSection>('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editUsername, setEditUsername] = useState('');
@@ -64,8 +66,18 @@ export default function AccountCenter({ onClose }: Props) {
 
   useEffect(() => {
     void loadAll();
-    void loadCloudSessions();
-    void loadCloudCharacters();
+    (async () => {
+      try {
+        await loadCloudSessions();
+      } catch (e) {
+        console.error('[AccountCenter] loadCloudSessions failed:', e);
+      }
+      try {
+        await loadCloudCharacters();
+      } catch (e) {
+        console.error('[AccountCenter] loadCloudCharacters failed:', e);
+      }
+    })();
   }, [loadAll, loadCloudSessions, loadCloudCharacters]);
 
   const mainNav = NAV.filter(n => n.group === 'main');
@@ -302,15 +314,27 @@ export default function AccountCenter({ onClose }: Props) {
             <div className={styles.widgetHead}><span>↻</span><h3>云端同步</h3></div>
             <div className={styles.syncOk}>☁ {cloudCharacters.length} 个角色 · {cloudSessions.length} 个会话</div>
             <div className={styles.widgetSub}>点击刷新查看云端最新数据</div>
+            {cloudError && (
+              <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 6, wordBreak: 'break-all' }}>
+                ⚠ {cloudError}
+              </div>
+            )}
             <button
               type="button"
               className={styles.primaryBtnSmall}
-              onClick={() => {
-                void loadCloudSessions();
-                void loadCloudCharacters();
+              disabled={refreshing || cloudLoading}
+              onClick={async () => {
+                setRefreshing(true);
+                try {
+                  await Promise.all([loadCloudSessions(), loadCloudCharacters()]);
+                } catch (e) {
+                  console.error('[AccountCenter] refresh failed:', e);
+                } finally {
+                  setRefreshing(false);
+                }
               }}
             >
-              刷新云端列表
+              {refreshing || cloudLoading ? '刷新中…' : '刷新云端列表'}
             </button>
           </section>
         </div>
@@ -329,6 +353,9 @@ export default function AccountCenter({ onClose }: Props) {
               <h2>☁ 云端角色</h2>
               <span className={styles.pageSub}>共 {cloudCharacters.length} 个，可恢复到本地</span>
             </div>
+            {cloudError && (
+              <div style={{ padding: '0 16px', fontSize: 12, color: '#fca5a5' }}>⚠ {cloudError}</div>
+            )}
             <div className={styles.cloudList}>
               {cloudCharacters.map(cc => {
                 const alreadyLocal = characters.some(c => c.id === cc.id);
@@ -432,6 +459,9 @@ export default function AccountCenter({ onClose }: Props) {
               <h2>☁ 云端会话</h2>
               <span className={styles.pageSub}>共 {cloudSessions.length} 个，可恢复到本地</span>
             </div>
+            {cloudError && (
+              <div style={{ padding: '0 16px', fontSize: 12, color: '#fca5a5' }}>⚠ {cloudError}</div>
+            )}
             <div className={styles.cloudList}>
               {cloudSessions.map(cs => {
                 const alreadyLocal = sessions.some(s => s.id === cs.id);
