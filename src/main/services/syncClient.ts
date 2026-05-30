@@ -428,3 +428,191 @@ export async function cloudDeleteTemplate(templateId: string): Promise<{ success
     return { success: false, error: msg };
   }
 }
+
+// ──────────── Square / 角色广场 ────────────
+
+export interface SquareCharacterMeta {
+  id: string;
+  name: string;
+  userName: string;
+  portraitBase64?: string;
+  portraitFullBase64?: string;
+  personality?: string;
+  background?: string;
+  gender?: string;
+  occupation?: string;
+  updatedAt: number;
+}
+
+export interface SquareModelMeta {
+  id: string;
+  name: string;
+  userName: string;
+  provider: string;
+  baseUrl: string;
+  modelId: string;
+  contextWindow: number;
+  shared: boolean;
+  updatedAt: number;
+}
+
+export interface SquareCharacterListResult {
+  success: boolean;
+  characters?: SquareCharacterMeta[];
+  error?: string;
+}
+
+export interface SquareModelListResult {
+  success: boolean;
+  models?: SquareModelMeta[];
+  error?: string;
+}
+
+export interface SquareToggleResult {
+  success: boolean;
+  shared?: boolean;
+  error?: string;
+}
+
+export async function squareListCharacters(): Promise<SquareCharacterListResult> {
+  try {
+    const { status, data } = await requestJson<{ characters?: SquareCharacterMeta[]; error?: string }>(
+      'GET',
+      '/square/characters',
+    );
+    if (status === 200 && Array.isArray(data.characters)) {
+      return { success: true, characters: data.characters };
+    }
+    return { success: false, error: data.error || '获取广场角色失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function squareListModels(): Promise<SquareModelListResult> {
+  try {
+    const { status, data } = await requestJson<{ models?: SquareModelMeta[]; error?: string }>(
+      'GET',
+      '/square/models',
+    );
+    if (status === 200 && Array.isArray(data.models)) {
+      return { success: true, models: data.models };
+    }
+    return { success: false, error: data.error || '获取广场模型失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function squareToggleCharacterShared(characterId: string): Promise<SquareToggleResult> {
+  try {
+    const { status, data } = await requestJson<{ shared?: boolean; error?: string }>(
+      'POST',
+      `/square/characters/${encodeURIComponent(characterId)}/toggle`,
+    );
+    if (status === 200) {
+      return { success: true, shared: data.shared };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '切换分享失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function squareToggleModelShared(modelId: string): Promise<SquareToggleResult> {
+  try {
+    const { status, data } = await requestJson<{ shared?: boolean; error?: string }>(
+      'POST',
+      `/square/models/${encodeURIComponent(modelId)}/toggle`,
+    );
+    if (status === 200) {
+      return { success: true, shared: data.shared };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '切换分享失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export interface SquarePushModelArgs {
+  id: string;
+  name: string;
+  provider: string;
+  baseUrl: string;
+  modelId: string;
+  contextWindow?: number;
+}
+
+export async function squarePushModel(args: SquarePushModelArgs): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { status, data } = await requestJson<{ id?: string; error?: string }>(
+      'PUT',
+      `/square/models/${encodeURIComponent(args.id)}`,
+      {
+        name: args.name,
+        provider: args.provider,
+        baseUrl: args.baseUrl,
+        modelId: args.modelId,
+        contextWindow: args.contextWindow ?? 64000,
+      },
+    );
+    if (status === 200) {
+      return { success: true };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '上传模型失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function squareDeleteModel(modelId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { status, data } = await requestJson<{ success?: boolean; error?: string }>(
+      'DELETE',
+      `/square/models/${encodeURIComponent(modelId)}`,
+    );
+    if (status === 200) {
+      return { success: true };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: (data as any).error || '删除模型失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function squareListMyModels(): Promise<SquareModelListResult> {
+  try {
+    const { status, data } = await requestJson<{ models?: SquareModelMeta[]; error?: string }>(
+      'GET',
+      '/square/models/mine',
+    );
+    if (status === 200 && Array.isArray(data.models)) {
+      return { success: true, models: data.models };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '获取我的模型失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}

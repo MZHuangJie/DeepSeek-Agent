@@ -5,6 +5,7 @@ import { useChatStore } from '../../stores/chat';
 import { useSyncStore } from '../../stores/sync';
 import { useToastStore } from '../../stores/toast';
 import { useAuthStore } from '../../stores/auth';
+import { useSquareStore } from '../../stores/square';
 import CharacterEditor from './CharacterEditor';
 import {
   buildCharacterStatusEnabledMap,
@@ -90,6 +91,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
   const { pushCharacter, pushTemplate } = useSyncStore();
   const { status: authStatus } = useAuthStore();
   const isLoggedIn = authStatus === 'authenticated';
+  const { toggleCharacterShared } = useSquareStore();
 
   const [tab, setTab] = useState<'characters' | 'templates'>('characters');
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -217,6 +219,23 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                       }}
                     >
                       {syncingId === c.id ? '⋯' : '☁'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      title={isLoggedIn ? '分享/取消分享到广场' : '登录后可分享到广场'}
+                      disabled={!isLoggedIn}
+                      onClick={async () => {
+                        if (!isLoggedIn) { useToastStore.getState().show('请先登录', 'info'); return; }
+                        const shared = await toggleCharacterShared(c.id);
+                        if (shared === null) {
+                          useToastStore.getState().show('请先将角色同步到云端（点击 ☁ 按钮）', 'info');
+                        } else {
+                          useToastStore.getState().show(shared ? '已分享到广场' : '已取消分享', 'success');
+                        }
+                      }}
+                    >
+                      🏪
                     </button>
                     <button type="button" className={styles.actionBtnDanger} onClick={() => void deleteCharacter(c.id)}>删除</button>
                   </div>

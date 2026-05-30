@@ -4,6 +4,7 @@ import { useSyncStore } from '../../stores/sync';
 import { useChatStore } from '../../stores/chat';
 import { useRoleplayStore } from '../../stores/roleplay';
 import AccountAuthForm from './AccountAuthForm';
+import SquarePanel from './SquarePanel';
 import { useToastStore } from '../../stores/toast';
 import styles from './AccountCenter.module.css';
 
@@ -34,11 +35,7 @@ export type AccountSection =
   | 'templates'
   | 'history'
   | 'favorites'
-  | 'settings'
-  | 'api'
-  | 'sync'
-  | 'about'
-  | 'feedback';
+  | 'square';
 
 interface NavItem {
   id: AccountSection;
@@ -48,16 +45,12 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { id: 'overview', label: '账户概览', icon: '◫', group: 'main' },
-  { id: 'characters', label: '角色卡片', icon: '👤', group: 'main' },
-  { id: 'templates', label: '我的模板', icon: '▦', group: 'main' },
-  { id: 'history', label: '对话历史', icon: '💬', group: 'main' },
-  { id: 'favorites', label: '收藏夹', icon: '★', group: 'main' },
-  { id: 'settings', label: '设置', icon: '⚙', group: 'footer' },
-  { id: 'api', label: 'API 管理', icon: '⇄', group: 'footer' },
-  { id: 'sync', label: '数据与同步', icon: '↻', group: 'footer' },
-  { id: 'about', label: '关于', icon: 'ⓘ', group: 'footer' },
-  { id: 'feedback', label: '反馈与建议', icon: '✉', group: 'footer' },
+  { id: 'overview', label: '账户概览', icon: '\u25EB', group: 'main' },
+  { id: 'characters', label: '角色卡片', icon: '\uD83D\uDC64', group: 'main' },
+  { id: 'templates', label: '我的模板', icon: '\u25A6', group: 'main' },
+  { id: 'history', label: '对话历史', icon: '\uD83D\uDCAC', group: 'main' },
+  { id: 'favorites', label: '收藏夹', icon: '\u2605', group: 'main' },
+  { id: 'square', label: '角色广场', icon: '\uD83C\uDFEA', group: 'main' },
 ];
 
 interface Props {
@@ -109,7 +102,6 @@ export default function AccountCenter({ onClose }: Props) {
   }, [loadAll, loadCloudSessions, loadCloudCharacters, loadCloudTemplates, isLoggedIn]);
 
   const mainNav = NAV.filter(n => n.group === 'main');
-  const footerNav = NAV.filter(n => n.group === 'footer');
 
   const renderPlaceholder = (title: string, hint: string) => (
     <div className={styles.placeholder}>
@@ -184,28 +176,6 @@ export default function AccountCenter({ onClose }: Props) {
       <>
         <div className={styles.overviewScroll}>
           <section className={styles.profileHero}>
-            <button
-              type="button"
-              className={styles.refreshFab}
-              disabled={refreshing || cloudLoading}
-              title="刷新云端数据"
-              onClick={async () => {
-                setRefreshing(true);
-                try {
-                  await Promise.all([loadCloudSessions(), loadCloudCharacters(), loadCloudTemplates()]);
-                } catch (e) {
-                  console.error('[AccountCenter] refresh failed:', e);
-                } finally {
-                  setRefreshing(false);
-                }
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
-                <polyline points="23 4 23 10 17 10" />
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-              </svg>
-              {refreshing || cloudLoading ? '刷新中…' : '刷新'}
-            </button>
             <div className={styles.profileMain}>
               <div
                 className={styles.heroAvatar}
@@ -293,6 +263,31 @@ export default function AccountCenter({ onClose }: Props) {
               </div>
             </div>
             <div className={styles.statsPanel}>
+              <div className={styles.statsPanelToolbar}>
+                <button
+                  type="button"
+                  className={styles.refreshBtn}
+                  disabled={refreshing || cloudLoading}
+                  title="刷新云端数据"
+                  onClick={async () => {
+                    setRefreshing(true);
+                    try {
+                      await Promise.all([loadCloudSessions(), loadCloudCharacters(), loadCloudTemplates()]);
+                    } catch (e) {
+                      console.error('[AccountCenter] refresh failed:', e);
+                    } finally {
+                      setRefreshing(false);
+                    }
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg>
+                  {refreshing || cloudLoading ? '刷新中…' : '刷新'}
+                </button>
+              </div>
+              <div className={styles.statsPanelBody}>
               <div className={styles.statCol}>
                 <div className={styles.statLabel}>云端角色</div>
                 <div className={styles.statValue}>{cloudCharacters.length}</div>
@@ -312,6 +307,7 @@ export default function AccountCenter({ onClose }: Props) {
                 <div className={styles.statLabel}>本地会话</div>
                 <div className={styles.statValue}>{sessions.length}</div>
                 <div className={styles.statSub}>当前设备</div>
+              </div>
               </div>
             </div>
           </section>
@@ -637,18 +633,10 @@ export default function AccountCenter({ onClose }: Props) {
             </div>
           </div>
         );
+      case 'square':
+        return <SquarePanel />;
       case 'favorites':
         return renderPlaceholder('收藏夹', '收藏功能即将推出。');
-      case 'settings':
-        return renderPlaceholder('设置', '请使用左下角系统设置菜单打开主题、模型等配置。');
-      case 'api':
-        return renderPlaceholder('API 管理', '请在系统设置 → 模型设置 中管理 API Key。');
-      case 'sync':
-        return renderPlaceholder('数据与同步', '云端会话同步将在 Phase 2 实现。');
-      case 'about':
-        return renderPlaceholder('关于', 'DeepSeek Agent Desktop IDE');
-      case 'feedback':
-        return renderPlaceholder('反馈与建议', '反馈渠道即将开放。');
       default:
         return renderOverview();
     }
@@ -663,18 +651,6 @@ export default function AccountCenter({ onClose }: Props) {
         </div>
         <nav className={styles.nav}>
           {mainNav.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              className={`${styles.navItem} ${section === item.id ? styles.navActive : ''}`}
-              onClick={() => setSection(item.id)}
-            >
-              <span className={styles.navIcon}>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-          <div className={styles.navDivider} />
-          {footerNav.map(item => (
             <button
               key={item.id}
               type="button"

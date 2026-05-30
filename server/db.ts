@@ -69,6 +69,29 @@ export async function initDb(): Promise<void> {
       PRIMARY KEY (user_id, id)
     );
   `);
+
+  // 角色广场：已有表增加 shared 列
+  try {
+    await pool.query(`ALTER TABLE cloud_characters ADD COLUMN IF NOT EXISTS shared BOOLEAN NOT NULL DEFAULT FALSE`);
+  } catch { /* ignore */ }
+  try {
+    await pool.query(`ALTER TABLE cloud_templates ADD COLUMN IF NOT EXISTS shared BOOLEAN NOT NULL DEFAULT FALSE`);
+  } catch { /* ignore */ }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cloud_models (
+      id VARCHAR(64) NOT NULL,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      provider VARCHAR(32) NOT NULL,
+      base_url VARCHAR(512) NOT NULL,
+      model_id VARCHAR(128) NOT NULL,
+      context_window INT NOT NULL DEFAULT 64000,
+      shared BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+      PRIMARY KEY (user_id, id)
+    );
+  `);
 }
 
 export async function findUserByUsername(username: string): Promise<UserRow | undefined> {
@@ -138,6 +161,7 @@ export async function updateUser(
 
 // For tests only
 export async function resetStoreForTests(): Promise<void> {
+  await pool.query('DELETE FROM cloud_models');
   await pool.query('DELETE FROM cloud_templates');
   await pool.query('DELETE FROM cloud_characters');
   await pool.query('DELETE FROM cloud_sessions');

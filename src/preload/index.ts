@@ -159,6 +159,15 @@ const api = {
     pushTemplate: (templateId: string, name: string, payload: string) => ipcRenderer.invoke('sync:pushTemplate', templateId, name, payload),
     deleteTemplate: (templateId: string) => ipcRenderer.invoke('sync:deleteTemplate', templateId),
   },
+  square: {
+    listCharacters: () => ipcRenderer.invoke('square:listCharacters'),
+    listModels: () => ipcRenderer.invoke('square:listModels'),
+    toggleCharacterShared: (id: string) => ipcRenderer.invoke('square:toggleCharacterShared', id),
+    toggleModelShared: (id: string) => ipcRenderer.invoke('square:toggleModelShared', id),
+    pushModel: (payload: Record<string, unknown>) => ipcRenderer.invoke('square:pushModel', payload),
+    deleteModel: (id: string) => ipcRenderer.invoke('square:deleteModel', id),
+    listMyModels: () => ipcRenderer.invoke('square:listMyModels'),
+  },
   marketplace: {
     add: (url: string) => ipcRenderer.invoke('marketplace:add', url),
     remove: (id: string) => ipcRenderer.invoke('marketplace:remove', id),

@@ -3,6 +3,7 @@ import express from 'express';
 import { initDb } from './db';
 import authRouter from './routes/auth';
 import syncRouter from './routes/sync';
+import squareRouter from './routes/square';
 
 const BASE_PATH = '/ds';
 const API_PREFIX = `${BASE_PATH}/api`;
@@ -22,6 +23,7 @@ app.get(`${API_PREFIX}/health`, (_req, res) => {
 
 app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/sync`, syncRouter);
+app.use(`${API_PREFIX}/square`, squareRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

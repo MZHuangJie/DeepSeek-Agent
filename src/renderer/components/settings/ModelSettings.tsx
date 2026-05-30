@@ -8,6 +8,8 @@ import {
   ProviderKey,
 } from '../../stores/model';
 import styles from './ModelSettings.module.css';
+import { useSquareStore } from '../../stores/square';
+import { useToastStore } from '../../stores/toast';
 
 interface Props {
   onClose: () => void;
@@ -19,10 +21,12 @@ export default function ModelSettings({ onClose }: Props) {
   const [list, setList] = useState<ModelConfig[]>(models);
   const [imageConfig, setImageConfig] = useState<ImageModelConfig>(imageModel);
   const [visionConfig, setVisionConfig] = useState<VisionModelConfig>(visionModel);
+  const { myModels, loadMyModels, pushModel, toggleModelShared } = useSquareStore();
 
   useEffect(() => {
     loadImageModel();
     loadVisionModel();
+    void loadMyModels();
   }, []);
 
   useEffect(() => { setImageConfig(imageModel); }, [imageModel]);
@@ -116,6 +120,42 @@ export default function ModelSettings({ onClose }: Props) {
                     </div>
                   </div>
                   <button onClick={() => setEditing({ ...m })} className={styles.actionBtn}>编辑</button>
+                  <button
+                    onClick={async () => {
+                      const cloudModel = myModels.find(mm => mm.id === m.id);
+                      if (!cloudModel) {
+                        // Push first
+                        const ok = await pushModel({
+                          id: m.id,
+                          name: m.name,
+                          provider: m.provider,
+                          baseUrl: m.baseUrl,
+                          modelId: m.model,
+                          contextWindow: m.contextWindow,
+                        });
+                        if (!ok) {
+                          useToastStore.getState().show('上传失败，请确保已登录', 'error');
+                          return;
+                        }
+                        await loadMyModels();
+                      }
+                      const shared = await toggleModelShared(m.id);
+                      if (shared !== null) {
+                        useToastStore.getState().show(shared ? '已分享到广场' : '已取消分享', 'success');
+                        await loadMyModels();
+                      }
+                    }}
+                    className={styles.actionBtn}
+                    title={
+                      myModels.find(mm => mm.id === m.id)?.shared
+                        ? '已分享，点击取消'
+                        : myModels.find(mm => mm.id === m.id)
+                          ? '已上传，点击分享'
+                          : '上传到云端并分享'
+                    }
+                  >
+                    {myModels.find(mm => mm.id === m.id)?.shared ? '🏪✓' : myModels.find(mm => mm.id === m.id) ? '🏪⬆' : '🏪'}
+                  </button>
                   <button onClick={() => removeModel(m.id)} className={styles.deleteBtn}>删除</button>
                 </div>
               ))}

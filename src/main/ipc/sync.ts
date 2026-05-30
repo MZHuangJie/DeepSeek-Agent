@@ -12,6 +12,13 @@ import {
   cloudGetTemplate,
   cloudPushTemplate,
   cloudDeleteTemplate,
+  squareListCharacters,
+  squareListModels,
+  squareToggleCharacterShared,
+  squareToggleModelShared,
+  squarePushModel,
+  squareDeleteModel,
+  squareListMyModels,
 } from '../services/syncClient';
 
 export function setupSyncHandlers() {
@@ -61,5 +68,41 @@ export function setupSyncHandlers() {
 
   ipcMain.handle('sync:deleteTemplate', async (_event, templateId: string) => {
     return cloudDeleteTemplate(templateId);
+  });
+
+  // ── Square / 角色广场 ──
+  ipcMain.handle('square:listCharacters', async () => {
+    return squareListCharacters();
+  });
+
+  ipcMain.handle('square:listModels', async () => {
+    return squareListModels();
+  });
+
+  ipcMain.handle('square:toggleCharacterShared', async (_event, characterId: string) => {
+    return squareToggleCharacterShared(characterId);
+  });
+
+  ipcMain.handle('square:toggleModelShared', async (_event, modelId: string) => {
+    return squareToggleModelShared(modelId);
+  });
+
+  ipcMain.handle('square:pushModel', async (_event, payload: Record<string, unknown>) => {
+    return squarePushModel({
+      id: payload.id as string,
+      name: payload.name as string,
+      provider: payload.provider as string,
+      baseUrl: payload.baseUrl as string,
+      modelId: payload.modelId as string,
+      contextWindow: payload.contextWindow as number | undefined,
+    });
+  });
+
+  ipcMain.handle('square:deleteModel', async (_event, modelId: string) => {
+    return squareDeleteModel(modelId);
+  });
+
+  ipcMain.handle('square:listMyModels', async () => {
+    return squareListMyModels();
   });
 }
