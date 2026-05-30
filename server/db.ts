@@ -55,11 +55,12 @@ export async function initDb(): Promise<void> {
       name VARCHAR(255) NOT NULL,
       payload TEXT NOT NULL,
       shared BOOLEAN NOT NULL DEFAULT FALSE,
+      heat INT NOT NULL DEFAULT 0,
       updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
       PRIMARY KEY (user_id, id)
     );
   `);
-  // 兼容已有表
+  // 兼容已有表（旧版本缺少的列）
   try {
     await pool.query(`ALTER TABLE cloud_characters ADD COLUMN IF NOT EXISTS shared BOOLEAN NOT NULL DEFAULT FALSE`);
   } catch { /* ignore */ }
