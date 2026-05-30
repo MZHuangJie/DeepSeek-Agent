@@ -443,6 +443,7 @@ export interface SquareCharacterMeta {
   occupation?: string;
   heat: number;
   isFavorited: boolean;
+  shared: boolean;
   updatedAt: number;
 }
 

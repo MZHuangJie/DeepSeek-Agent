@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSquareStore, type SquareCharacter, type SquareModel } from '../../stores/square';
+import { useSyncStore } from '../../stores/sync';
+import { useRoleplayStore } from '../../stores/roleplay';
+import { useToastStore } from '../../stores/toast';
 import styles from './SquarePanel.module.css';
 
 /* ── fallback heat (stable per id) ── */
@@ -27,8 +30,16 @@ function getTags(c: SquareCharacter): string[] {
   return tags.slice(0, 3);
 }
 
-function CharacterCard({ item, onToggleFav }: { item: SquareCharacter; onToggleFav: (id: string) => void }) {
+function CharacterCard({ item, onToggleFav, onRestore, alreadyLocal, restoringId }: {
+  item: SquareCharacter;
+  onToggleFav: (id: string) => void;
+  onRestore: (item: SquareCharacter) => void;
+  alreadyLocal: boolean;
+  restoringId: string | null;
+}) {
   const tags = getTags(item);
+  const isRestoring = restoringId === item.id;
+
   return (
     <div className={styles.characterCard}>
       {item.portraitBase64 ? (
@@ -51,6 +62,18 @@ function CharacterCard({ item, onToggleFav }: { item: SquareCharacter; onToggleF
       >
         🔖
       </button>
+
+      {/* bottom restore button */}
+      <div className={styles.cardBottom}>
+        <button
+          type="button"
+          className={`${styles.restoreBtn} ${alreadyLocal ? styles.restoreBtnDone : ''}`}
+          disabled={alreadyLocal || isRestoring}
+          onClick={(e) => { e.stopPropagation(); onRestore(item); }}
+        >
+          {isRestoring ? '恢复中…' : alreadyLocal ? '已恢复' : '⬇ 恢复到本地'}
+        </button>
+      </div>
 
       <div className={styles.cardOverlay}>
         <div className={styles.cardInfo}>
@@ -91,7 +114,11 @@ export default function SquarePanel() {
     characters, favorites, models, loading, error,
     loadCharacters, loadFavorites, loadModels, toggleFavorite, clearError,
   } = useSquareStore();
+  const { pullCharacter } = useSyncStore();
+  const { characters: localChars, saveCharacter, loadAll } = useRoleplayStore();
+  const toast = useToastStore();
   const [tab, setTab] = useState<'characters' | 'models'>('characters');
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   /* search & filters */
   const [query, setQuery] = useState('');
@@ -144,6 +171,58 @@ export default function SquarePanel() {
 
   const handleToggleFav = async (id: string) => {
     await toggleFavorite(id);
+  };
+
+  const handleRestore = async (item: SquareCharacter) => {
+    setRestoringId(item.id);
+    const data = await pullCharacter(item.id);
+    if (!data) {
+      toast.show('拉取角色失败', 'error');
+      setRestoringId(null);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(data.payload);
+      const characterId = parsed.id || item.id;
+      let portraitPath: string | undefined;
+      let portraitFullPath: string | undefined;
+      if (parsed.portraitBase64) {
+        try {
+          portraitPath = await window.api.files.saveBase64Image(
+            parsed.portraitBase64, `portraits/${characterId}`
+          );
+        } catch (e) { console.warn('保存头像失败', e); }
+      }
+      if (parsed.portraitFullBase64) {
+        try {
+          portraitFullPath = await window.api.files.saveBase64Image(
+            parsed.portraitFullBase64, `portraits/${characterId}-full`
+          );
+        } catch (e) { console.warn('保存全身像失败', e); }
+      }
+      await saveCharacter({
+        id: characterId,
+        templateId: parsed.templateId,
+        name: parsed.name || item.name,
+        gender: parsed.gender,
+        occupation: parsed.occupation,
+        personality: parsed.personality,
+        background: parsed.background,
+        body: parsed.body,
+        openingStory: parsed.openingStory,
+        portraitPath,
+        portraitFullPath,
+        statusFieldEnabled: parsed.statusFieldEnabled,
+        statusFields: parsed.statusFields,
+      });
+      await loadAll();
+      toast.show(`「${item.name}」已恢复到本地`, 'success');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '解析角色数据失败';
+      toast.show(`恢复角色失败: ${msg}`, 'error');
+    } finally {
+      setRestoringId(null);
+    }
   };
 
   return (
@@ -230,13 +309,19 @@ export default function SquarePanel() {
             </div>
           ) : (
             <div className={styles.characterGrid}>
-              {filteredCharacters.map(c => (
-                <CharacterCard
-                  key={c.id}
-                  item={c}
-                  onToggleFav={handleToggleFav}
-                />
-              ))}
+              {filteredCharacters.map(c => {
+                const alreadyLocal = localChars.some(lc => lc.id === c.id);
+                return (
+                  <CharacterCard
+                    key={c.id}
+                    item={c}
+                    onToggleFav={handleToggleFav}
+                    onRestore={handleRestore}
+                    alreadyLocal={alreadyLocal}
+                    restoringId={restoringId}
+                  />
+                );
+              })}
             </div>
           )
         )}

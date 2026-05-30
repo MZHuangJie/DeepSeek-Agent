@@ -137,7 +137,7 @@ router.post('/characters/:id/favorite', requireAuth, async (req, res) => {
   }
 });
 
-// GET /square/favorites — 当前用户收藏的角色列表（需登录）
+// GET /square/favorites — 当前用户收藏的角色列表（需登录，含已取消分享的角色）
 router.get('/favorites', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   try {
@@ -146,7 +146,7 @@ router.get('/favorites', requireAuth, async (req, res) => {
        FROM favorites f
        JOIN cloud_characters cc ON cc.id = f.character_id
        JOIN users u ON u.id = cc.user_id
-       WHERE f.user_id = $1 AND cc.shared = TRUE
+       WHERE f.user_id = $1
        ORDER BY f.created_at DESC`,
       [userId]
     );
@@ -178,6 +178,7 @@ router.get('/favorites', requireAuth, async (req, res) => {
         occupation,
         heat: r.heat || 0,
         isFavorited: true,
+        shared: r.shared,
         updatedAt: r.updated_at,
       };
     });

@@ -118,7 +118,7 @@ export default function AccountCenter({ onClose }: Props) {
     cloudSessions, cloudCharacters, cloudTemplates, loading: cloudLoading, error: cloudError,
     loadCloudSessions, loadCloudCharacters, loadCloudTemplates, pullCharacter, pullSession, pullTemplate, pushTemplate, deleteCloudTemplate,
   } = useSyncStore();
-  const { favorites, loadFavorites, toggleCharacterShared, toggleTemplateShared, loadCharacters, loadTemplates } = useSquareStore();
+  const { favorites, loadFavorites, toggleFavorite, toggleCharacterShared, toggleTemplateShared, loadCharacters, loadTemplates } = useSquareStore();
   const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<AccountSection>('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -741,25 +741,86 @@ export default function AccountCenter({ onClose }: Props) {
               <div className={styles.emptyCard}>暂无收藏，在角色广场中点击 🔖 收藏角色</div>
             ) : (
               <div className={styles.cardGridCharacters}>
-                {favorites.map(f => (
-                  <div
-                    key={f.id}
-                    className={`${styles.featureCard} ${styles.characterCard}`}
-                    onClick={() => {
-                      const full = f.portraitFullBase64 || f.portraitBase64;
-                      if (full) { setFullImageSrc(full); setShowFullImage(true); }
-                    }}
-                  >
-                    <PortraitBg src={f.portraitBase64} />
-                    <div className={styles.featureCardOverlay}>
-                      <div className={styles.featureCardInfo}>
-                        <div className={styles.featureTitle}>{f.name}</div>
-                        <div className={styles.featurePersonality}>{f.personality || f.background || '角色'}</div>
-                        <div className={styles.featureDesc}>{f.background || '暂无背景故事'}</div>
+                {favorites.map(f => {
+                  const alreadyLocal = characters.some(c => c.id === f.id);
+                  const isUnshared = !f.shared;
+                  return (
+                    <div
+                      key={f.id}
+                      className={`${styles.featureCard} ${styles.characterCard} ${isUnshared ? styles.characterCardUnshared : ''}`}
+                      onClick={() => {
+                        if (isUnshared) return;
+                        const full = f.portraitFullBase64 || f.portraitBase64;
+                        if (full) { setFullImageSrc(full); setShowFullImage(true); }
+                      }}
+                    >
+                      <PortraitBg src={f.portraitBase64} />
+                      <div className={styles.featureCardOverlay}>
+                        <div className={styles.featureCardInfo}>
+                          <div className={styles.featureTitle}>{f.name}</div>
+                          <div className={styles.featurePersonality}>
+                            {isUnshared ? '作者已取消分享' : (f.personality || f.background || '角色')}
+                          </div>
+                          <div className={styles.featureDesc}>by {f.userName}</div>
+                        </div>
                       </div>
+                      {/* top-right: unshared badge or unfavorite button */}
+                      {isUnshared ? (
+                        <div className={styles.unsharedBadge}>已取消分享</div>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.favRestoreBtn}
+                          disabled={alreadyLocal}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const data = await pullCharacter(f.id);
+                            if (!data) { useToastStore.getState().show('拉取失败', 'error'); return; }
+                            try {
+                              const parsed = JSON.parse(data.payload);
+                              const characterId = parsed.id || f.id;
+                              let portraitPath: string | undefined;
+                              let portraitFullPath: string | undefined;
+                              if (parsed.portraitBase64) {
+                                try { portraitPath = await window.api.files.saveBase64Image(parsed.portraitBase64, `portraits/${characterId}`); } catch (e) { console.warn('保存头像失败', e); }
+                              }
+                              if (parsed.portraitFullBase64) {
+                                try { portraitFullPath = await window.api.files.saveBase64Image(parsed.portraitFullBase64, `portraits/${characterId}-full`); } catch (e) { console.warn('保存全身像失败', e); }
+                              }
+                              await saveCharacter({
+                                id: characterId, templateId: parsed.templateId, name: parsed.name || f.name,
+                                gender: parsed.gender, occupation: parsed.occupation, personality: parsed.personality,
+                                background: parsed.background, body: parsed.body, openingStory: parsed.openingStory,
+                                portraitPath, portraitFullPath,
+                                statusFieldEnabled: parsed.statusFieldEnabled, statusFields: parsed.statusFields,
+                              });
+                              await loadAll();
+                              useToastStore.getState().show(`「${f.name}」已恢复到本地`, 'success');
+                            } catch (e) {
+                              const msg = e instanceof Error ? e.message : '解析角色数据失败';
+                              useToastStore.getState().show(`恢复角色失败: ${msg}`, 'error');
+                            }
+                          }}
+                        >
+                          {alreadyLocal ? '已恢复' : '⬇ 恢复'}
+                        </button>
+                      )}
+                      {/* bottom-right: remove favorite */}
+                      <button
+                        type="button"
+                        className={styles.favRemoveBtn}
+                        title="取消收藏"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await toggleFavorite(f.id);
+                          await loadFavorites();
+                        }}
+                      >
+                        ×
+                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

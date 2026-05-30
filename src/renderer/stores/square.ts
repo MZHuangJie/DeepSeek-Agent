@@ -12,6 +12,7 @@ export interface SquareCharacter {
   occupation?: string;
   heat: number;
   isFavorited: boolean;
+  shared: boolean;
   updatedAt: number;
 }
 
