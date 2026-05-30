@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSquareStore, type SquareCharacter, type SquareModel } from '../../stores/square';
 import { useSyncStore } from '../../stores/sync';
 import { useRoleplayStore } from '../../stores/roleplay';
+import { useModeStore } from '../../stores/mode';
+import { useChatStore } from '../../stores/chat';
 import { useToastStore } from '../../stores/toast';
 import styles from './SquarePanel.module.css';
 
@@ -30,18 +32,19 @@ function getTags(c: SquareCharacter): string[] {
   return tags.slice(0, 3);
 }
 
-function CharacterCard({ item, onToggleFav, onRestore, alreadyLocal, restoringId }: {
+function CharacterCard({ item, onToggleFav, onRestore, alreadyLocal, restoringId, onClick }: {
   item: SquareCharacter;
   onToggleFav: (id: string) => void;
   onRestore: (item: SquareCharacter) => void;
   alreadyLocal: boolean;
   restoringId: string | null;
+  onClick: (item: SquareCharacter) => void;
 }) {
   const tags = getTags(item);
   const isRestoring = restoringId === item.id;
 
   return (
-    <div className={styles.characterCard}>
+    <div className={styles.characterCard} onClick={() => onClick(item)}>
       {item.portraitBase64 ? (
         <div className={styles.portraitBg} style={{ backgroundImage: `url(${item.portraitBase64})` }} />
       ) : (
@@ -89,6 +92,93 @@ function CharacterCard({ item, onToggleFav, onRestore, alreadyLocal, restoringId
   );
 }
 
+function CharacterDetail({ item, alreadyLocal, restoringId, onClose, onToggleFav, onRestore, onStartChat }: {
+  item: SquareCharacter;
+  alreadyLocal: boolean;
+  restoringId: string | null;
+  onClose: () => void;
+  onToggleFav: (id: string) => void;
+  onRestore: (item: SquareCharacter) => void;
+  onStartChat: (item: SquareCharacter) => void;
+}) {
+  const tags = getTags(item);
+  const isRestoring = restoringId === item.id;
+
+  return (
+    <div className={styles.detailOverlay} onClick={onClose}>
+      <div className={styles.detailPanel} onClick={(e) => e.stopPropagation()}>
+        <button className={styles.detailClose} onClick={onClose}>×</button>
+
+        <div className={styles.detailPortrait}>
+          {item.portraitBase64 ? (
+            <img src={item.portraitBase64} alt={item.name} className={styles.detailPortraitImg} />
+          ) : item.portraitFullBase64 ? (
+            <img src={item.portraitFullBase64} alt={item.name} className={styles.detailPortraitImg} />
+          ) : (
+            <div className={styles.detailPortraitEmpty}>{item.name.charAt(0) || '?'}</div>
+          )}
+        </div>
+
+        <div className={styles.detailBody}>
+          <h2 className={styles.detailName}>{item.name}</h2>
+          <div className={styles.detailAuthor}>by {item.userName}</div>
+
+          {tags.length > 0 && (
+            <div className={styles.detailTags}>
+              {tags.map(t => <span key={t} className={styles.cardTag}>{t}</span>)}
+            </div>
+          )}
+
+          <div className={styles.detailSections}>
+            {item.personality && (
+              <div className={styles.detailSection}>
+                <div className={styles.detailLabel}>性格</div>
+                <div className={styles.detailText}>{item.personality}</div>
+              </div>
+            )}
+            {item.background && (
+              <div className={styles.detailSection}>
+                <div className={styles.detailLabel}>背景</div>
+                <div className={styles.detailText}>{item.background}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.detailActions}>
+          <button
+            type="button"
+            className={`${styles.bookmarkBtn} ${item.isFavorited ? styles.bookmarkActive : ''}`}
+            onClick={() => onToggleFav(item.id)}
+            title={item.isFavorited ? '取消收藏' : '收藏'}
+          >
+            🔖
+          </button>
+
+          {alreadyLocal ? (
+            <button
+              type="button"
+              className={styles.detailChatBtn}
+              onClick={() => onStartChat(item)}
+            >
+              💬 发起聊天
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.detailRestoreBtn} ${isRestoring ? '' : ''}`}
+              disabled={isRestoring}
+              onClick={() => onRestore(item)}
+            >
+              {isRestoring ? '恢复中…' : '⬇ 恢复到本地'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ModelItem({ item }: { item: SquareModel }) {
   return (
     <div className={styles.modelItem}>
@@ -111,10 +201,13 @@ export default function SquarePanel() {
     loadCharacters, loadFavorites, loadModels, toggleFavorite, clearError,
   } = useSquareStore();
   const { pullCharacter } = useSyncStore();
-  const { characters: localChars, saveCharacter, loadAll } = useRoleplayStore();
+  const { characters: localChars, saveCharacter, loadAll, setActiveCharacter } = useRoleplayStore();
+  const setMode = useModeStore(s => s.setMode);
+  const bindSessionCharacter = useChatStore(s => s.setSessionCharacter);
   const toast = useToastStore();
   const [tab, setTab] = useState<'characters' | 'models'>('characters');
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [selectedChar, setSelectedChar] = useState<SquareCharacter | null>(null);
 
   /* search & filters */
   const [query, setQuery] = useState('');
@@ -221,6 +314,16 @@ export default function SquarePanel() {
     }
   };
 
+  const handleStartChat = async (item: SquareCharacter) => {
+    const local = localChars.find(c => c.id === item.id);
+    if (!local) return;
+    setMode('roleplay');
+    await setActiveCharacter(item.id);
+    bindSessionCharacter(item.id);
+    setSelectedChar(null);
+    toast.show(`已切换到角色「${item.name}」`, 'success');
+  };
+
   return (
     <div className={styles.panel}>
       {/* Header */}
@@ -315,6 +418,7 @@ export default function SquarePanel() {
                     onRestore={handleRestore}
                     alreadyLocal={alreadyLocal}
                     restoringId={restoringId}
+                    onClick={setSelectedChar}
                   />
                 );
               })}
@@ -338,6 +442,18 @@ export default function SquarePanel() {
           )
         )}
       </div>
+
+      {selectedChar && (
+        <CharacterDetail
+          item={selectedChar}
+          alreadyLocal={localChars.some(lc => lc.id === selectedChar.id)}
+          restoringId={restoringId}
+          onClose={() => setSelectedChar(null)}
+          onToggleFav={handleToggleFav}
+          onRestore={handleRestore}
+          onStartChat={handleStartChat}
+        />
+      )}
     </div>
   );
 }
