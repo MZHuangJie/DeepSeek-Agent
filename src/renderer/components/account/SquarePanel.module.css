@@ -420,27 +420,27 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 16px;
-  max-width: 520px;
+  max-width: 720px;
   width: 100%;
   max-height: 85vh;
-  overflow-y: auto;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   position: relative;
+  overflow: hidden;
 }
 
 .detailClose {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 12px;
+  right: 12px;
   z-index: 2;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.45);
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -453,31 +453,34 @@
 }
 
 .detailPortrait {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  border-radius: 16px 16px 0 0;
-  background: linear-gradient(145deg, #2a2342, #1e1b2e);
+  width: 280px;
+  flex-shrink: 0;
+  background: linear-gradient(145deg, #1a1528, #12101e);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  min-height: 0;
 }
 
 .detailPortraitImg {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .detailPortraitEmpty {
   font-size: 64px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.1);
 }
 
 .detailBody {
-  padding: 20px 24px 0;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
 }
 
 .detailName {
@@ -497,19 +500,22 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .detailSections {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .detailSection {
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: var(--bg-primary);
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--border);
 }
 
@@ -519,7 +525,7 @@
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .detailText {
@@ -533,9 +539,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 18px 24px 22px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
-  margin-top: 6px;
+  flex-shrink: 0;
 }
 
 .detailActions .bookmarkBtn {

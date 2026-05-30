@@ -143,36 +143,36 @@ function CharacterDetail({ item, alreadyLocal, restoringId, onClose, onToggleFav
               </div>
             )}
           </div>
-        </div>
 
-        <div className={styles.detailActions}>
-          <button
-            type="button"
-            className={`${styles.bookmarkBtn} ${item.isFavorited ? styles.bookmarkActive : ''}`}
-            onClick={() => onToggleFav(item.id)}
-            title={item.isFavorited ? '取消收藏' : '收藏'}
-          >
-            🔖
-          </button>
-
-          {alreadyLocal ? (
+          <div className={styles.detailActions}>
             <button
               type="button"
-              className={styles.detailChatBtn}
-              onClick={() => onStartChat(item)}
+              className={`${styles.bookmarkBtn} ${item.isFavorited ? styles.bookmarkActive : ''}`}
+              onClick={() => onToggleFav(item.id)}
+              title={item.isFavorited ? '取消收藏' : '收藏'}
             >
-              💬 发起聊天
+              🔖
             </button>
-          ) : (
-            <button
-              type="button"
-              className={`${styles.detailRestoreBtn} ${isRestoring ? '' : ''}`}
-              disabled={isRestoring}
-              onClick={() => onRestore(item)}
-            >
-              {isRestoring ? '恢复中…' : '⬇ 恢复到本地'}
-            </button>
-          )}
+
+            {alreadyLocal ? (
+              <button
+                type="button"
+                className={styles.detailChatBtn}
+                onClick={() => onStartChat(item)}
+              >
+                💬 发起聊天
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.detailRestoreBtn}
+                disabled={isRestoring}
+                onClick={() => onRestore(item)}
+              >
+                {isRestoring ? '恢复中…' : '⬇ 恢复到本地'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
