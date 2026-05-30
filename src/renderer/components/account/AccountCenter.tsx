@@ -493,7 +493,7 @@ export default function AccountCenter({ onClose }: Props) {
                         }
                       }}
                     >
-                      {alreadyLocal ? '已存在' : '☁ 恢复'}
+                      {alreadyLocal ? '已同步' : '☁ 恢复'}
                     </button>
                   </div>
                 );
@@ -587,7 +587,7 @@ export default function AccountCenter({ onClose }: Props) {
                         }
                       }}
                     >
-                      {alreadyLocal ? '已存在' : '☁ 恢复'}
+                      {alreadyLocal ? '已同步' : '☁ 恢复'}
                     </button>
                   </div>
                 );
@@ -633,7 +633,7 @@ export default function AccountCenter({ onClose }: Props) {
                         }
                       }}
                     >
-                      {alreadyLocal ? '已存在' : '恢复到本地'}
+                      {alreadyLocal ? '已同步' : '恢复到本地'}
                     </button>
                   </div>
                 );
