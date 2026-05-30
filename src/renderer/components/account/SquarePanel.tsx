@@ -28,7 +28,6 @@ function getTags(c: SquareCharacter): string[] {
 }
 
 function CharacterCard({ item, onToggleFav }: { item: SquareCharacter; onToggleFav: (id: string) => void }) {
-  const heat = item.heat || getHeat(item.id);
   const tags = getTags(item);
   return (
     <div className={styles.characterCard}>
@@ -41,7 +40,7 @@ function CharacterCard({ item, onToggleFav }: { item: SquareCharacter; onToggleF
       )}
 
       {/* top-left heat */}
-      <div className={styles.heatBadge}>🔥 {fmtHeat(heat)}</div>
+      <div className={styles.heatBadge}>🔥 {fmtHeat(item.heat)}</div>
 
       {/* top-right bookmark */}
       <button
@@ -135,7 +134,7 @@ export default function SquarePanel() {
     }
 
     if (sortBy === 'hottest') {
-      list.sort((a, b) => (b.heat || getHeat(b.id)) - (a.heat || getHeat(a.id)));
+      list.sort((a, b) => b.heat - a.heat);
     } else {
       list.sort((a, b) => b.updatedAt - a.updatedAt);
     }
