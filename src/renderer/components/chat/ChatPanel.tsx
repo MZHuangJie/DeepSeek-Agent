@@ -407,8 +407,7 @@ export default function ChatPanel() {
     const modelConfig = getActiveModel();
     const providerSupportsVision = PROVIDERS[modelConfig.provider]?.multimodal ?? false;
     const imageMarkdown = hasImages ? '\n' + images!.map(im => {
-      const fileUrl = im.path ? `file:///${im.path.replace(/\\/g, '/')}` : im.dataUrl;
-      return `![image](${fileUrl})`;
+      return `![image](${im.dataUrl})`;
     }).join('\n') : '';
     const storedContent = (displayContent || (hasImages ? '（图片）' : '')) + imageMarkdown;
     const contentParts = (hasImages && providerSupportsVision)
