@@ -74,16 +74,16 @@ function isLocalImagePath(url: string): boolean {
 }
 
 function normalizeLocalImagePath(url: string): string {
-  let cleaned = decodeURIComponent(url).trim();
-  // file:// 协议
+  let cleaned = url.trim();
+  try { cleaned = decodeURIComponent(cleaned); } catch { /* keep as-is */ }
   if (/^file:\/\/\//i.test(cleaned)) {
     cleaned = cleaned.replace(/^file:\/\/\//i, '');
   } else if (/^file:\/\//i.test(cleaned)) {
     cleaned = cleaned.replace(/^file:\/\//i, '');
+  } else if (/^https?:\/\//i.test(cleaned) || cleaned.startsWith('data:')) {
+    return cleaned; // 远程/内联 URL，原样返回
   }
-  // 统一为正斜杠再转 Windows 反斜杠
   cleaned = cleaned.replace(/\\/g, '/');
-  // 处理 /C:/xxx → C:/xxx
   cleaned = cleaned.replace(/^\/([A-Za-z]:)\//, '$1/');
   return cleaned.replace(/\//g, '\\');
 }
@@ -183,6 +183,17 @@ function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
   return <ImageCard url={src} alt={alt || ''} />;
 }
 
+class MarkdownErrorBoundary extends React.Component<{ content: string; children: React.ReactNode }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return <div className={styles.textWrap}>{this.props.content}</div>;
+    }
+    return this.props.children;
+  }
+}
+
 function MessageContent({ content }: { content: string }) {
   const trimmed = content.trim();
   if (!trimmed.includes('\n') && !trimmed.includes('*') && !trimmed.includes('`') && !trimmed.includes('[')) {
@@ -193,39 +204,41 @@ function MessageContent({ content }: { content: string }) {
 
   return (
     <div className={styles.markdownBody}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          img: ({ src, alt }) => <MarkdownImage src={src} alt={alt} />,
-          a: ({ href, children }) => {
-            const url = href || '';
-            if (isImageUrl(url)) return <ImageCard url={url} alt={String(children ?? '')} />;
-            return <a href={url} target="_blank" rel="noopener noreferrer" className={styles.link}>{children}</a>;
-          },
-          code: ({ className, children, ...props }) => {
-            const isInline = !className;
-            if (isInline) {
-              return <code className={styles.inlineCode}>{children}</code>;
-            }
-            return (
-              <pre className={styles.codeBlock}>
-                <code className={className}>{children}</code>
-              </pre>
-            );
-          },
-          p: ({ children }) => <p className={styles.paragraph}>{children}</p>,
-          ul: ({ children }) => <ul className={styles.list}>{children}</ul>,
-          ol: ({ children }) => <ol className={styles.list}>{children}</ol>,
-          table: ({ children }) => (
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>{children}</table>
-            </div>
-          ),
-          blockquote: ({ children }) => <blockquote className={styles.blockquote}>{children}</blockquote>,
-        }}
-      >
-        {content}
-      </ReactMarkdown>
+      <MarkdownErrorBoundary content={content}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            img: ({ src, alt }) => <MarkdownImage src={src} alt={alt} />,
+            a: ({ href, children }) => {
+              const url = href || '';
+              if (isImageUrl(url)) return <ImageCard url={url} alt={String(children ?? '')} />;
+              return <a href={url} target="_blank" rel="noopener noreferrer" className={styles.link}>{children}</a>;
+            },
+            code: ({ className, children, ...props }) => {
+              const isInline = !className;
+              if (isInline) {
+                return <code className={styles.inlineCode}>{children}</code>;
+              }
+              return (
+                <pre className={styles.codeBlock}>
+                  <code className={className}>{children}</code>
+                </pre>
+              );
+            },
+            p: ({ children }) => <p className={styles.paragraph}>{children}</p>,
+            ul: ({ children }) => <ul className={styles.list}>{children}</ul>,
+            ol: ({ children }) => <ol className={styles.list}>{children}</ol>,
+            table: ({ children }) => (
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>{children}</table>
+              </div>
+            ),
+            blockquote: ({ children }) => <blockquote className={styles.blockquote}>{children}</blockquote>,
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </MarkdownErrorBoundary>
     </div>
   );
 }
