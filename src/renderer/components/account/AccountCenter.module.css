@@ -186,6 +186,7 @@
   display: flex;
   align-items: stretch;
   gap: 28px;
+  position: relative;
 }
 
 .profileMain {
@@ -1225,9 +1226,9 @@
 
 .refreshFab {
   position: absolute;
-  top: 20px;
-  right: 28px;
-  z-index: 10;
+  top: 14px;
+  right: 18px;
+  z-index: 5;
   display: inline-flex;
   align-items: center;
   padding: 6px 14px;
