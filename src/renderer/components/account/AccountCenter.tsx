@@ -66,6 +66,7 @@ export default function AccountCenter({ onClose }: Props) {
 
   useEffect(() => {
     void loadAll();
+    if (!isLoggedIn) return;
     (async () => {
       try {
         await loadCloudSessions();
@@ -78,7 +79,7 @@ export default function AccountCenter({ onClose }: Props) {
         console.error('[AccountCenter] loadCloudCharacters failed:', e);
       }
     })();
-  }, [loadAll, loadCloudSessions, loadCloudCharacters]);
+  }, [loadAll, loadCloudSessions, loadCloudCharacters, isLoggedIn]);
 
   const mainNav = NAV.filter(n => n.group === 'main');
   const footerNav = NAV.filter(n => n.group === 'footer');
