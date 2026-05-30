@@ -192,6 +192,17 @@ export default function ModelSettings({ onClose }: Props) {
             </select>
           </div>
           <div className={styles.fieldGroup}>
+            <div className={styles.fieldLabel}>Prompt 生成指令（可选，覆盖默认）</div>
+            <textarea
+              className={styles.input}
+              rows={3}
+              placeholder="自定义 prompt 生成的系统提示词，留空使用默认"
+              value={imageConfig.promptInstruction || ''}
+              onChange={e => setImageConfig(c => ({ ...c, promptInstruction: e.target.value }))}
+              style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+            />
+          </div>
+          <div className={styles.fieldGroup}>
             <div className={styles.fieldLabel}>扩展参数（JSON，可选）</div>
             <textarea
               className={styles.input}

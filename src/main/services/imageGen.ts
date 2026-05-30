@@ -25,6 +25,8 @@ export interface ImageModelConfig {
   apiType?: 'images' | 'chat';
   /** 透传给 API 的额外参数，优先级高于默认值 */
   extraParams?: Record<string, unknown>;
+  /** 自定义 prompt 生成指令（系统提示词），为空则用默认 */
+  promptInstruction?: string;
 }
 
 export interface GenerateImageArgs {

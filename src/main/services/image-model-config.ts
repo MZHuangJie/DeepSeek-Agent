@@ -7,6 +7,7 @@ export interface StoredImageModelConfig {
   apiKey?: string;
   apiType?: 'images' | 'chat';
   extraParams?: string | Record<string, unknown>;
+  promptInstruction?: string;
 }
 
 /** 与聊天 generate_image 工具保持一致：必须启用生图模型，API Key 可回退到全局 Key */
@@ -39,6 +40,7 @@ export function resolveImageModelConfig(
     apiKey,
     apiType: cfg.apiType || 'images',
     extraParams,
+    promptInstruction: cfg.promptInstruction?.trim() || undefined,
   };
 }
 

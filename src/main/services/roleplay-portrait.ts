@@ -109,10 +109,14 @@ function resolveActiveModel(): ModelConfig & { apiKey?: string } {
   return { model: found.model, baseUrl: found.baseUrl, apiKey: found.apiKey };
 }
 
+const DEFAULT_PROMPT_INSTRUCTION =
+  '你是角色立绘提示词专家。根据中文角色设定与指定画风，输出一段英文图像生成提示词，用于生成单人角色立绘（半身或全身）。要求：只输出提示词本身，不要解释、不要 markdown。需包含外貌、服装、气质、构图，并严格体现用户指定的画风英文关键词。禁止文字、水印、多人、畸形肢体。';
+
 async function generatePortraitPrompt(
   apiKey: string,
   modelConfig: ModelConfig,
   input: PortraitCharacterInput,
+  promptInstruction?: string,
 ): Promise<string> {
   const description = buildCharacterDescription(input);
   const style = resolvePortraitStyle(input.portraitStyle);
@@ -137,8 +141,7 @@ async function generatePortraitPrompt(
       [
         {
           role: 'system',
-          content:
-            '你是角色立绘提示词专家。根据中文角色设定与指定画风，输出一段英文图像生成提示词，用于生成单人角色立绘（半身或全身）。要求：只输出提示词本身，不要解释、不要 markdown。需包含外貌、服装、气质、构图，并严格体现用户指定的画风英文关键词。禁止文字、水印、多人、畸形肢体。',
+          content: promptInstruction || DEFAULT_PROMPT_INSTRUCTION,
         },
         {
           role: 'user',
@@ -323,6 +326,7 @@ export async function generateCharacterPortrait(
       activeModel.apiKey?.trim() || apiKey,
       activeModel,
       input,
+      imageConfig.promptInstruction,
     );
 
     onProgress?.('image');

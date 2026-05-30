@@ -39,6 +39,7 @@ export interface ImageModelConfig {
   apiKey: string;
   apiType: 'images' | 'chat';
   extraParams: string;
+  promptInstruction: string;
 }
 
 const DEFAULT_MODELS: ModelConfig[] = [
@@ -122,6 +123,7 @@ const DEFAULT_IMAGE_MODEL: ImageModelConfig = {
   apiKey: '',
   apiType: 'images',
   extraParams: '',
+  promptInstruction: '',
 };
 
 const DEFAULT_VISION_MODEL: VisionModelConfig = {
