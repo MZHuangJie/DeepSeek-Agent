@@ -180,6 +180,17 @@ export default function ModelSettings({ onClose }: Props) {
           onApiKeyChange={v => setImageConfig(c => ({ ...c, apiKey: v }))}
           checkboxLabel="启用生图功能"
         >
+          <div className={styles.fieldGroup}>
+            <div className={styles.fieldLabel}>API 类型</div>
+            <select
+              className={styles.select}
+              value={imageConfig.apiType || 'images'}
+              onChange={e => setImageConfig(c => ({ ...c, apiType: e.target.value as 'images' | 'chat' }))}
+            >
+              <option value="images">/v1/images/generations（OpenAI 兼容）</option>
+              <option value="chat">/v1/chat/completions（Gemini 等）</option>
+            </select>
+          </div>
           {activeProvider.multimodal && (
             <div className={styles.hintText}>
               当前对话模型（{activeProvider.label}）已支持多模态，可直接在对话中生成图片。

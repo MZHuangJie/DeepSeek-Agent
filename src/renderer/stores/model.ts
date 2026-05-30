@@ -37,6 +37,7 @@ export interface ImageModelConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+  apiType: 'images' | 'chat';
 }
 
 const DEFAULT_MODELS: ModelConfig[] = [
@@ -118,6 +119,7 @@ const DEFAULT_IMAGE_MODEL: ImageModelConfig = {
   baseUrl: 'https://api.openai.com',
   model: 'gpt-image-1',
   apiKey: '',
+  apiType: 'images',
 };
 
 const DEFAULT_VISION_MODEL: VisionModelConfig = {

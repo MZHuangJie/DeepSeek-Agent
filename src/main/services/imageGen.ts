@@ -21,6 +21,8 @@ export interface ImageModelConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+  /** 'images' = /v1/images/generations (OpenAI 格式), 'chat' = /v1/chat/completions (Gemini 等) */
+  apiType?: 'images' | 'chat';
 }
 
 export interface GenerateImageArgs {
@@ -176,14 +178,14 @@ export async function generateImage(
   signal?: AbortSignal,
   logContext = 'imageGen',
 ): Promise<GenerateImageResult> {
-  const isGemini = config.model.toLowerCase().includes('gemini');
+  const useChatApi = config.apiType === 'chat';
   const base = config.baseUrl.replace(/\/+$/, '');
-  const path = isGemini ? '/v1/chat/completions' : buildImageGenerationUrl(base).replace(base, '');
+  const path = useChatApi ? '/v1/chat/completions' : buildImageGenerationUrl(base).replace(base, '');
 
   const url = new URL(base + path);
   const isHttps = url.protocol === 'https:';
 
-  const payload: Record<string, unknown> = isGemini
+  const payload: Record<string, unknown> = useChatApi
     ? {
         model: config.model,
         messages: [{ role: 'user', content: args.prompt }],
