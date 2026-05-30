@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Message, useChatStore } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore } from '../../stores/mode';
@@ -40,37 +42,6 @@ function TurnBlock({
       )}
     </div>
   );
-}
-
-// 轻量 markdown 解析：识别图片 ![alt](url) 和普通文本
-function parseMarkdown(content: string): Array<
-  | { type: 'text'; text: string }
-  | { type: 'image'; alt: string; url: string }
-  | { type: 'link'; text: string; url: string }
-> {
-  const result: ReturnType<typeof parseMarkdown> = [];
-  const regex = /(!?\[([^\]]*)\]\(([^)]+)\))/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      result.push({ type: 'text', text: content.slice(lastIndex, match.index) });
-    }
-    const isImage = match[0].startsWith('!');
-    if (isImage) {
-      result.push({ type: 'image', alt: match[2], url: match[3] });
-    } else {
-      result.push({ type: 'link', text: match[2], url: match[3] });
-    }
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < content.length) {
-    result.push({ type: 'text', text: content.slice(lastIndex) });
-  }
-
-  return result;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -198,69 +169,54 @@ function ImageCard({ url, alt }: { url: string; alt: string }) {
     </div>
   );
 }
-
-const AT_PATH_RE = /@([A-Za-z]:[\\/][\S]+)/g;
-
-function RichText({ text }: { text: string }) {
-  const parts: Array<{ type: 'text'; value: string } | { type: 'at'; path: string }> = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = AT_PATH_RE.exec(text)) !== null) {
-    if (m.index > last) parts.push({ type: 'text', value: text.slice(last, m.index) });
-    const name = m[1].split(/[\\/]/).pop() || m[1];
-    parts.push({ type: 'at', path: name });
-    last = AT_PATH_RE.lastIndex;
-  }
-  if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
-  if (parts.length === 0) return <span className={styles.textWrap}>{text}</span>;
-  return (
-    <>
-      {parts.map((p, i) =>
-        p.type === 'text'
-          ? <span key={i} className={styles.textWrap}>{p.value}</span>
-          : <span key={i} className={styles.atChip}>@{p.path}</span>
-      )}
-    </>
-  );
+function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+  if (!src) return null;
+  return <ImageCard url={src} alt={alt || ''} />;
 }
 
 function MessageContent({ content }: { content: string }) {
-  const parts = useMemo(() => parseMarkdown(content), [content]);
-
-  if (parts.length === 1 && parts[0].type === 'text') {
-    if (isImageUrl(content.trim()) || content.trim().startsWith('data:image/')) {
-      return <ImageCard url={content.trim()} alt="" />;
+  const trimmed = content.trim();
+  if (!trimmed.includes('\n') && !trimmed.includes('*') && !trimmed.includes('`') && !trimmed.includes('[')) {
+    if (isImageUrl(trimmed) || trimmed.startsWith('data:image/')) {
+      return <ImageCard url={trimmed} alt="" />;
     }
-    return <div className={styles.textWrap}><RichText text={content} /></div>;
   }
 
   return (
-    <div style={{ wordBreak: 'break-word' }}>
-      {parts.map((part, idx) => {
-        if (part.type === 'text') {
-          return <RichText key={idx} text={part.text} />;
-        }
-        if (part.type === 'image') {
-          return <ImageCard key={idx} url={part.url} alt={part.alt} />;
-        }
-        if (part.type === 'link') {
-          if (isImageUrl(part.url)) {
-            return <ImageCard key={idx} url={part.url} alt={part.text} />;
-          }
-          return (
-            <a
-              key={idx}
-              href={part.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.link}
-            >
-              {part.text || part.url}
-            </a>
-          );
-        }
-        return null;
-      })}
+    <div className={styles.markdownBody}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          img: ({ src, alt }) => <MarkdownImage src={src} alt={alt} />,
+          a: ({ href, children }) => {
+            const url = href || '';
+            if (isImageUrl(url)) return <ImageCard url={url} alt={String(children ?? '')} />;
+            return <a href={url} target="_blank" rel="noopener noreferrer" className={styles.link}>{children}</a>;
+          },
+          code: ({ className, children, ...props }) => {
+            const isInline = !className;
+            if (isInline) {
+              return <code className={styles.inlineCode}>{children}</code>;
+            }
+            return (
+              <pre className={styles.codeBlock}>
+                <code className={className}>{children}</code>
+              </pre>
+            );
+          },
+          p: ({ children }) => <p className={styles.paragraph}>{children}</p>,
+          ul: ({ children }) => <ul className={styles.list}>{children}</ul>,
+          ol: ({ children }) => <ol className={styles.list}>{children}</ol>,
+          table: ({ children }) => (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>{children}</table>
+            </div>
+          ),
+          blockquote: ({ children }) => <blockquote className={styles.blockquote}>{children}</blockquote>,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }

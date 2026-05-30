@@ -159,4 +159,78 @@
   color: #c4b5fd;
 }
 
+/* Markdown content */
+.markdownBody {
+  word-break: break-word;
+}
+
+.paragraph {
+  margin: 0 0 6px;
+  line-height: 1.6;
+}
+.paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.inlineCode {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  color: #e879f9;
+}
+
+.codeBlock {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  color: var(--text-primary);
+}
+
+.list {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+.tableWrap {
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.table th {
+  background: rgba(0, 0, 0, 0.25);
+  font-weight: 600;
+}
+
+.blockquote {
+  margin: 6px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--accent);
+  background: rgba(124, 58, 237, 0.08);
+  border-radius: 0 6px 6px 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
