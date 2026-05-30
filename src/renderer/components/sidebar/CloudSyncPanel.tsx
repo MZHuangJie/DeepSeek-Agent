@@ -36,6 +36,8 @@ export default function CloudSyncPanel({ onClose, onOpenLogin }: Props) {
       messages: session.messages,
       characterId: session.characterId,
       characterIds: session.characterIds,
+      userCharacterId: session.userCharacterId,
+      pendingOpening: session.pendingOpening,
       sessionMode: session.sessionMode,
       planTodos: session.planTodos,
       planDocPath: session.planDocPath,
@@ -51,6 +53,7 @@ export default function CloudSyncPanel({ onClose, onOpenLogin }: Props) {
     clearError();
     const data = await pullSession(id);
     if (data) {
+      await window.api.sessions.save(id, data.title, data.payload);
       await useChatStore.getState().loadSessions();
     }
     setPullingId(null);
