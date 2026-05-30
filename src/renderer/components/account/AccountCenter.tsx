@@ -373,35 +373,28 @@ export default function AccountCenter({ onClose }: Props) {
         </section>
         </div>
 
-        <div className={styles.floatingSync}>
-          <section className={styles.widgetCard}>
-            <div className={styles.widgetHead}><span>↻</span><h3>云端同步</h3></div>
-            <div className={styles.syncOk}>☁ {cloudCharacters.length} 个角色 · {cloudTemplates.length} 个模板 · {cloudSessions.length} 个会话</div>
-            <div className={styles.widgetSub}>点击刷新查看云端最新数据</div>
-            {cloudError && (
-              <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 6, wordBreak: 'break-all' }}>
-                ⚠ {cloudError}
-              </div>
-            )}
-            <button
-              type="button"
-              className={styles.primaryBtnSmall}
-              disabled={refreshing || cloudLoading}
-              onClick={async () => {
-                setRefreshing(true);
-                try {
-                  await Promise.all([loadCloudSessions(), loadCloudCharacters(), loadCloudTemplates()]);
-                } catch (e) {
-                  console.error('[AccountCenter] refresh failed:', e);
-                } finally {
-                  setRefreshing(false);
-                }
-              }}
-            >
-              {refreshing || cloudLoading ? '刷新中…' : '刷新云端列表'}
-            </button>
-          </section>
-        </div>
+        <button
+          type="button"
+          className={styles.refreshFab}
+          disabled={refreshing || cloudLoading}
+          title="刷新云端数据"
+          onClick={async () => {
+            setRefreshing(true);
+            try {
+              await Promise.all([loadCloudSessions(), loadCloudCharacters(), loadCloudTemplates()]);
+            } catch (e) {
+              console.error('[AccountCenter] refresh failed:', e);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+          {refreshing || cloudLoading ? '刷新中…' : '刷新'}
+        </button>
       </>
     );
   };
