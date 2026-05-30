@@ -128,7 +128,8 @@ export default function AccountCenter({ onClose }: Props) {
   } = useRoleplayStore();
   const {
     cloudSessions, cloudCharacters, cloudTemplates, loading: cloudLoading, error: cloudError,
-    loadCloudSessions, loadCloudCharacters, loadCloudTemplates, pullCharacter, pullSession, pullTemplate, pushTemplate, deleteCloudTemplate,
+    loadCloudSessions, loadCloudCharacters, loadCloudTemplates, pullCharacter, pullSession, pullTemplate, pushTemplate,
+    deleteCloudCharacter, deleteCloudSession, deleteCloudTemplate,
   } = useSyncStore();
   const { favorites, loadFavorites, toggleFavorite, toggleCharacterShared, toggleTemplateShared, loadCharacters, loadTemplates } = useSquareStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -571,6 +572,24 @@ export default function AccountCenter({ onClose }: Props) {
                     >
                       <IconShare />
                     </button>
+                    <button
+                      type="button"
+                      className={styles.cloudDeleteBtn}
+                      title="删除云端角色"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!confirm(`确定删除云端角色「${cc.name}」？`)) return;
+                        const ok = await deleteCloudCharacter(cc.id);
+                        if (ok) {
+                          useToastStore.getState().show(`已删除「${cc.name}」`, 'success');
+                          void loadCloudCharacters();
+                        } else {
+                          useToastStore.getState().show('删除失败', 'error');
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
                   </div>
                 );
               })}
@@ -683,6 +702,24 @@ export default function AccountCenter({ onClose }: Props) {
                     >
                       <IconShare />
                     </button>
+                    <button
+                      type="button"
+                      className={styles.cloudDeleteBtn}
+                      title="删除云端模板"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!confirm(`确定删除云端模板「${ct.name}」？`)) return;
+                        const ok = await deleteCloudTemplate(ct.id);
+                        if (ok) {
+                          useToastStore.getState().show(`已删除「${ct.name}」`, 'success');
+                          void loadCloudTemplates();
+                        } else {
+                          useToastStore.getState().show('删除失败', 'error');
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
                   </div>
                 );
               })}
@@ -728,6 +765,25 @@ export default function AccountCenter({ onClose }: Props) {
                       }}
                     >
                       {alreadyLocal ? '已同步' : '恢复到本地'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.cloudDeleteBtn}
+                      style={{ position: 'static', marginLeft: 8 }}
+                      title="删除云端会话"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!confirm(`确定删除云端会话「${cs.title}」？`)) return;
+                        const ok = await deleteCloudSession(cs.id);
+                        if (ok) {
+                          useToastStore.getState().show(`已删除「${cs.title}」`, 'success');
+                          void loadCloudSessions();
+                        } else {
+                          useToastStore.getState().show('删除失败', 'error');
+                        }
+                      }}
+                    >
+                      ×
                     </button>
                   </div>
                 );
