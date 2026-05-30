@@ -662,3 +662,62 @@ export async function squareListFavorites(): Promise<SquareCharacterListResult> 
     return { success: false, error: msg };
   }
 }
+
+// ── Template Square ──
+
+export interface SquareTemplateMeta {
+  id: string;
+  name: string;
+  userName: string;
+  portraitBase64?: string;
+  portraitFullBase64?: string;
+  personality?: string;
+  background?: string;
+  gender?: string;
+  occupation?: string;
+  updatedAt: number;
+}
+
+export interface SquareTemplateListResult {
+  success: boolean;
+  templates?: SquareTemplateMeta[];
+  error?: string;
+}
+
+export async function squareListTemplates(): Promise<SquareTemplateListResult> {
+  try {
+    const { status, data } = await requestJson<{ templates?: SquareTemplateMeta[]; error?: string }>(
+      'GET',
+      '/square/templates',
+    );
+    if (status === 200 && Array.isArray(data.templates)) {
+      return { success: true, templates: data.templates };
+    }
+    return { success: false, error: data.error || '获取广场模板失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}
+
+export async function squareToggleTemplateShared(templateId: string): Promise<SquareToggleResult> {
+  try {
+    const { status, data } = await requestJson<{ shared?: boolean; error?: string }>(
+      'POST',
+      `/square/templates/${encodeURIComponent(templateId)}/toggle`,
+    );
+    if (status === 200) {
+      return { success: true, shared: data.shared };
+    }
+    if (status === 404) {
+      return { success: false, error: '模板不存在（请先同步到云端）' };
+    }
+    if (status === 401) {
+      return { success: false, error: '登录已过期，请重新登录' };
+    }
+    return { success: false, error: data.error || '切换分享状态失败' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '网络错误';
+    return { success: false, error: msg };
+  }
+}

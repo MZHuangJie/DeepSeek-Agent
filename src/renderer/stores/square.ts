@@ -27,18 +27,34 @@ export interface SquareModel {
   updatedAt: number;
 }
 
+export interface SquareTemplate {
+  id: string;
+  name: string;
+  userName: string;
+  portraitBase64?: string;
+  portraitFullBase64?: string;
+  personality?: string;
+  background?: string;
+  gender?: string;
+  occupation?: string;
+  updatedAt: number;
+}
+
 interface SquareState {
   characters: SquareCharacter[];
   favorites: SquareCharacter[];
+  templates: SquareTemplate[];
   models: SquareModel[];
   myModels: SquareModel[];
   loading: boolean;
   error: string | null;
   loadCharacters: () => Promise<void>;
   loadFavorites: () => Promise<void>;
+  loadTemplates: () => Promise<void>;
   loadModels: () => Promise<void>;
   toggleFavorite: (id: string) => Promise<boolean>;
   toggleCharacterShared: (id: string) => Promise<boolean | null>;
+  toggleTemplateShared: (id: string) => Promise<boolean | null>;
   toggleModelShared: (id: string) => Promise<boolean | null>;
   pushModel: (model: {
     id: string;
@@ -56,6 +72,7 @@ interface SquareState {
 export const useSquareStore = create<SquareState>((set) => ({
   characters: [],
   favorites: [],
+  templates: [],
   models: [],
   myModels: [],
   loading: false,
@@ -83,6 +100,20 @@ export const useSquareStore = create<SquareState>((set) => ({
         set({ favorites: res.characters, loading: false });
       } else {
         set({ error: res.error || '获取收藏列表失败', loading: false });
+      }
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : '网络错误', loading: false });
+    }
+  },
+
+  loadTemplates: async () => {
+    set({ loading: true, error: null });
+    try {
+      const res = await window.api.square.listTemplates();
+      if (res.success && res.templates) {
+        set({ templates: res.templates, loading: false });
+      } else {
+        set({ error: res.error || '获取广场模板失败', loading: false });
       }
     } catch (err) {
       set({ error: err instanceof Error ? err.message : '网络错误', loading: false });
@@ -140,6 +171,21 @@ export const useSquareStore = create<SquareState>((set) => ({
     set({ error: null });
     try {
       const res = await window.api.square.toggleCharacterShared(id);
+      if (res.success) {
+        return res.shared ?? null;
+      }
+      set({ error: res.error || '切换分享失败' });
+      return null;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : '网络错误' });
+      return null;
+    }
+  },
+
+  toggleTemplateShared: async (id) => {
+    set({ error: null });
+    try {
+      const res = await window.api.square.toggleTemplateShared(id);
       if (res.success) {
         return res.shared ?? null;
       }

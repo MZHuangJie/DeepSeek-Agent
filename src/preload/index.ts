@@ -169,6 +169,8 @@ const api = {
     listMyModels: () => ipcRenderer.invoke('square:listMyModels'),
     favoriteCharacter: (id: string) => ipcRenderer.invoke('square:favoriteCharacter', id),
     listFavorites: () => ipcRenderer.invoke('square:listFavorites'),
+    listTemplates: () => ipcRenderer.invoke('square:listTemplates'),
+    toggleTemplateShared: (id: string) => ipcRenderer.invoke('square:toggleTemplateShared', id),
   },
   marketplace: {
     add: (url: string) => ipcRenderer.invoke('marketplace:add', url),

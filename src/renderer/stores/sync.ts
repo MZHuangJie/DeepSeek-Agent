@@ -15,6 +15,7 @@ export interface CloudCharacterMeta {
   portraitFullBase64?: string;
   personality?: string;
   background?: string;
+  shared?: boolean;
 }
 
 export interface CloudTemplateMeta {
@@ -25,6 +26,7 @@ export interface CloudTemplateMeta {
   portraitFullBase64?: string;
   personality?: string;
   background?: string;
+  shared?: boolean;
 }
 
 interface SyncState {

@@ -348,4 +348,85 @@ router.get('/models/mine', requireAuth, async (req, res) => {
   }
 });
 
+// ── Template Square ──
+
+interface SquareTemplateRow {
+  id: string;
+  name: string;
+  payload: string;
+  shared: boolean;
+  updated_at: number;
+  user_id: number;
+  username: string;
+}
+
+// GET /square/templates — 广场模板列表（跨用户，仅 shared=true，无需登录）
+router.get('/templates', async (_req, res) => {
+  try {
+    const result = await pool.query<SquareTemplateRow>(
+      `SELECT ct.id, ct.name, ct.payload, ct.shared, ct.updated_at, ct.user_id, u.username
+       FROM cloud_templates ct
+       JOIN users u ON u.id = ct.user_id
+       WHERE ct.shared = TRUE
+       ORDER BY ct.updated_at DESC
+       LIMIT 100`
+    );
+    const templates = result.rows.map(r => {
+      let portraitBase64: string | undefined;
+      let portraitFullBase64: string | undefined;
+      let personality: string | undefined;
+      let background: string | undefined;
+      let gender: string | undefined;
+      let occupation: string | undefined;
+      try {
+        const p = JSON.parse(r.payload);
+        portraitBase64 = p.portraitBase64;
+        portraitFullBase64 = p.portraitFullBase64;
+        personality = p.personality;
+        background = p.background;
+        gender = p.gender;
+        occupation = p.occupation;
+      } catch { /* ignore */ }
+      return {
+        id: r.id,
+        name: r.name,
+        userName: r.username,
+        portraitBase64,
+        portraitFullBase64,
+        personality,
+        background,
+        gender,
+        occupation,
+        updatedAt: r.updated_at,
+      };
+    });
+    res.json({ templates });
+  } catch (err) {
+    console.error('[square/templates]', err);
+    res.status(500).json({ error: '读取广场模板失败' });
+  }
+});
+
+// POST /square/templates/:id/toggle — 切换模板分享状态（需登录）
+router.post('/templates/:id/toggle', requireAuth, async (req, res) => {
+  const userId = req.auth!.userId;
+  const templateId = req.params.id;
+  try {
+    const result = await pool.query<{ shared: boolean }>(
+      `UPDATE cloud_templates SET shared = NOT shared, updated_at = $1
+       WHERE user_id = $2 AND id = $3
+       RETURNING shared`,
+      [Date.now(), userId, templateId]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: '模板不存在（请先同步到云端）' });
+      return;
+    }
+    res.json({ shared: result.rows[0].shared });
+  } catch (err) {
+    console.error('[square/templates/toggle]', err);
+    res.status(500).json({ error: '切换分享状态失败' });
+  }
+});
+
 export default router;

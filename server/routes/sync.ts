@@ -18,6 +18,7 @@ interface CharacterMeta {
   id: string;
   name: string;
   updatedAt: number;
+  shared?: boolean;
 }
 
 // GET /sync/sessions — 列表
@@ -130,7 +131,7 @@ router.get('/characters', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   try {
     const result = await pool.query<CharacterMeta>(
-      `SELECT id, name, updated_at as "updatedAt"
+      `SELECT id, name, updated_at as "updatedAt", shared
        FROM cloud_characters WHERE user_id = $1 ORDER BY updated_at DESC`,
       [userId]
     );
@@ -227,6 +228,7 @@ interface TemplateMeta {
   id: string;
   name: string;
   updatedAt: number;
+  shared?: boolean;
 }
 
 // GET /sync/templates
@@ -234,7 +236,7 @@ router.get('/templates', requireAuth, async (req, res) => {
   const userId = req.auth!.userId;
   try {
     const result = await pool.query<TemplateMeta>(
-      `SELECT id, name, updated_at as "updatedAt"
+      `SELECT id, name, updated_at as "updatedAt", shared
        FROM cloud_templates WHERE user_id = $1 ORDER BY updated_at DESC`,
       [userId]
     );

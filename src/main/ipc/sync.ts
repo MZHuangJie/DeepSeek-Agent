@@ -21,6 +21,8 @@ import {
   squareListMyModels,
   squareFavoriteCharacter,
   squareListFavorites,
+  squareListTemplates,
+  squareToggleTemplateShared,
 } from '../services/syncClient';
 
 export function setupSyncHandlers() {
@@ -114,5 +116,13 @@ export function setupSyncHandlers() {
 
   ipcMain.handle('square:listFavorites', async () => {
     return squareListFavorites();
+  });
+
+  ipcMain.handle('square:listTemplates', async () => {
+    return squareListTemplates();
+  });
+
+  ipcMain.handle('square:toggleTemplateShared', async (_event, templateId: string) => {
+    return squareToggleTemplateShared(templateId);
   });
 }

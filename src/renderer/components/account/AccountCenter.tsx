@@ -118,7 +118,7 @@ export default function AccountCenter({ onClose }: Props) {
     cloudSessions, cloudCharacters, cloudTemplates, loading: cloudLoading, error: cloudError,
     loadCloudSessions, loadCloudCharacters, loadCloudTemplates, pullCharacter, pullSession, pullTemplate, pushTemplate, deleteCloudTemplate,
   } = useSyncStore();
-  const { favorites, loadFavorites } = useSquareStore();
+  const { favorites, loadFavorites, toggleCharacterShared, toggleTemplateShared, loadCharacters, loadTemplates } = useSquareStore();
   const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<AccountSection>('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -488,7 +488,7 @@ export default function AccountCenter({ onClose }: Props) {
                     <button
                       type="button"
                       className={styles.cardStatusTag}
-                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+                      style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}
                       disabled={alreadyLocal}
                       onClick={async (e) => {
                         e.stopPropagation();
@@ -541,6 +541,25 @@ export default function AccountCenter({ onClose }: Props) {
                     >
                       {alreadyLocal ? '已同步' : '☁ 恢复'}
                     </button>
+                    <button
+                      type="button"
+                      className={styles.cardStatusTag}
+                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, background: 'rgba(59,130,246,0.9)' }}
+                      title={cc.shared ? '已分享到广场，点击取消' : '分享到广场'}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const shared = await toggleCharacterShared(cc.id);
+                        if (shared === null) {
+                          useToastStore.getState().show('操作失败', 'error');
+                        } else {
+                          useToastStore.getState().show(shared ? '已分享到广场' : '已取消分享', 'success');
+                          void loadCloudCharacters();
+                          void loadCharacters();
+                        }
+                      }}
+                    >
+                      {cc.shared ? '🏪 已分享' : '🏪 分享'}
+                    </button>
                   </div>
                 );
               })}
@@ -583,7 +602,7 @@ export default function AccountCenter({ onClose }: Props) {
                     <button
                       type="button"
                       className={styles.cardStatusTag}
-                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+                      style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}
                       disabled={alreadyLocal}
                       onClick={async (e) => {
                         e.stopPropagation();
@@ -634,6 +653,25 @@ export default function AccountCenter({ onClose }: Props) {
                       }}
                     >
                       {alreadyLocal ? '已同步' : '☁ 恢复'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.cardStatusTag}
+                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, background: 'rgba(59,130,246,0.9)' }}
+                      title={ct.shared ? '已分享到广场，点击取消' : '分享到广场'}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const shared = await toggleTemplateShared(ct.id);
+                        if (shared === null) {
+                          useToastStore.getState().show('操作失败', 'error');
+                        } else {
+                          useToastStore.getState().show(shared ? '已分享到广场' : '已取消分享', 'success');
+                          void loadCloudTemplates();
+                          void loadTemplates();
+                        }
+                      }}
+                    >
+                      {ct.shared ? '🏪 已分享' : '🏪 分享'}
                     </button>
                   </div>
                 );

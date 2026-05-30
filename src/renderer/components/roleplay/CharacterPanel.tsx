@@ -91,7 +91,7 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
   const { pushCharacter, pushTemplate } = useSyncStore();
   const { status: authStatus } = useAuthStore();
   const isLoggedIn = authStatus === 'authenticated';
-  const { toggleCharacterShared } = useSquareStore();
+  const { toggleCharacterShared, toggleTemplateShared } = useSquareStore();
 
   const [tab, setTab] = useState<'characters' | 'templates'>('characters');
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -314,6 +314,23 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                       }}
                     >
                       {syncingTemplateId === t.id ? '⋯' : '☁'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      title={isLoggedIn ? '分享/取消分享到广场' : '登录后可分享到广场'}
+                      disabled={!isLoggedIn}
+                      onClick={async () => {
+                        if (!isLoggedIn) { useToastStore.getState().show('请先登录', 'info'); return; }
+                        const shared = await toggleTemplateShared(t.id);
+                        if (shared === null) {
+                          useToastStore.getState().show('请先将模板同步到云端（点击 ☁ 按钮）', 'info');
+                        } else {
+                          useToastStore.getState().show(shared ? '已分享到广场' : '已取消分享', 'success');
+                        }
+                      }}
+                    >
+                      🏪
                     </button>
                     <button type="button" className={styles.actionBtnDanger} onClick={() => void deleteTemplate(t.id)}>删除</button>
                   </div>
