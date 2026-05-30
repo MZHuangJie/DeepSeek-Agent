@@ -315,7 +315,6 @@ export default function AccountCenter({ onClose }: Props) {
                     <div className={styles.profileMeta}>{user.email || '未设置邮箱'}</div>
                     <div className={styles.profileBio}>DeepSeek Agent 账户</div>
                     <div className={styles.profileJoin}>
-                      <span className={styles.joinIcon} aria-hidden>📅</span>
                       用户 ID: {user.id}
                     </div>
                     <div className={styles.heroActions}>
@@ -324,7 +323,10 @@ export default function AccountCenter({ onClose }: Props) {
                         className={styles.editProfileBtn}
                         onClick={() => { setEditUsername(user.username); setEditEmail(user.email || ''); setIsEditingProfile(true); clearError(); }}
                       >
-                        <span className={styles.editIcon} aria-hidden>✎</span>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5, opacity: 0.6 }}>
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
                         编辑资料
                       </button>
                       <button type="button" className={styles.logoutLink} onClick={() => void logout()}>退出登录</button>
