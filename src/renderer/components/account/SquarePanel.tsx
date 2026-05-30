@@ -63,18 +63,6 @@ function CharacterCard({ item, onToggleFav, onRestore, alreadyLocal, restoringId
         🔖
       </button>
 
-      {/* bottom restore button */}
-      <div className={styles.cardBottom}>
-        <button
-          type="button"
-          className={`${styles.restoreBtn} ${alreadyLocal ? styles.restoreBtnDone : ''}`}
-          disabled={alreadyLocal || isRestoring}
-          onClick={(e) => { e.stopPropagation(); onRestore(item); }}
-        >
-          {isRestoring ? '恢复中…' : alreadyLocal ? '已恢复' : '⬇ 恢复到本地'}
-        </button>
-      </div>
-
       <div className={styles.cardOverlay}>
         <div className={styles.cardInfo}>
           <div className={styles.cardName}>{item.name}</div>
@@ -88,6 +76,14 @@ function CharacterCard({ item, onToggleFav, onRestore, alreadyLocal, restoringId
             ))}
           </div>
         </div>
+        <button
+          type="button"
+          className={`${styles.restoreBtn} ${alreadyLocal ? styles.restoreBtnDone : ''}`}
+          disabled={alreadyLocal || isRestoring}
+          onClick={(e) => { e.stopPropagation(); onRestore(item); }}
+        >
+          {isRestoring ? '恢复中…' : alreadyLocal ? '已恢复' : '⬇ 恢复到本地'}
+        </button>
       </div>
     </div>
   );

@@ -402,19 +402,9 @@
   font-size: 13px;
 }
 
-/* bottom restore */
-.cardBottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  padding: 0 10px 10px;
-  display: flex;
-  justify-content: center;
-}
-
+/* restore button inside card overlay */
 .restoreBtn {
+  align-self: center;
   padding: 5px 14px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -425,6 +415,7 @@
   backdrop-filter: blur(4px);
   transition: background 0.15s;
   white-space: nowrap;
+  margin-top: 6px;
 }
 
 .restoreBtn:hover:not(:disabled) {
