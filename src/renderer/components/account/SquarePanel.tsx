@@ -2,6 +2,18 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSquareStore, type SquareCharacter, type SquareModel } from '../../stores/square';
 import styles from './SquarePanel.module.css';
 
+/* ── fallback heat (stable per id) ── */
+function getHeat(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return 1000 + (hash % 15000);
+}
+function fmtHeat(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1) + 'w';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
+
 /* ── extract tags from character ── */
 function getTags(c: SquareCharacter): string[] {
   const tags: string[] = [];
@@ -15,13 +27,8 @@ function getTags(c: SquareCharacter): string[] {
   return tags.slice(0, 3);
 }
 
-function fmtHeat(n: number): string {
-  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-  return String(n);
-}
-
 function CharacterCard({ item, onToggleFav }: { item: SquareCharacter; onToggleFav: (id: string) => void }) {
+  const heat = item.heat || getHeat(item.id);
   const tags = getTags(item);
   return (
     <div className={styles.characterCard}>
@@ -34,7 +41,7 @@ function CharacterCard({ item, onToggleFav }: { item: SquareCharacter; onToggleF
       )}
 
       {/* top-left heat */}
-      <div className={styles.heatBadge}>🔥 {fmtHeat(item.heat)}</div>
+      <div className={styles.heatBadge}>🔥 {fmtHeat(heat)}</div>
 
       {/* top-right bookmark */}
       <button
@@ -128,7 +135,7 @@ export default function SquarePanel() {
     }
 
     if (sortBy === 'hottest') {
-      list.sort((a, b) => b.heat - a.heat);
+      list.sort((a, b) => (b.heat || getHeat(b.id)) - (a.heat || getHeat(a.id)));
     } else {
       list.sort((a, b) => b.updatedAt - a.updatedAt);
     }
