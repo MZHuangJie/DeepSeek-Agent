@@ -184,7 +184,9 @@ export async function generateImage(
 ): Promise<GenerateImageResult> {
   const useChatApi = config.apiType === 'chat';
   const base = config.baseUrl.replace(/\/+$/, '');
-  const path = useChatApi ? '/v1/chat/completions' : buildImageGenerationUrl(base).replace(base, '');
+  const path = useChatApi
+    ? (base.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions')
+    : buildImageGenerationUrl(base).replace(base, '');
 
   const url = new URL(base + path);
   const isHttps = url.protocol === 'https:';
