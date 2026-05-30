@@ -19,10 +19,19 @@ export async function presentWebPreview(
 ): Promise<WebPreviewResult> {
   const { html, timeout = 600_000 } = options;
 
-  const injectedHtml = html.replace('</body>', `
+  const hasInteractive = /data-action\s*=/i.test(html);
+  const closeBar = hasInteractive ? '' : `
+<div id="__preview_close_bar" style="position:fixed;top:0;left:0;right:0;z-index:99999;display:flex;align-items:center;justify-content:flex-end;padding:6px 12px;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);gap:8px;">
+  <span style="color:rgba(255,255,255,0.5);font-size:12px;font-family:system-ui;">预览模式</span>
+  <button id="__preview_done_btn" style="padding:4px 14px;border:none;border-radius:6px;background:#2563eb;color:#fff;font-size:12px;cursor:pointer;font-family:system-ui;">完成 ✓</button>
+</div>`;
+
+  const injectedHtml = html.replace('</body>', `${closeBar}
 <script>
+var __previewDone = false;
 document.querySelectorAll('[data-action]').forEach(btn => {
   btn.addEventListener('click', async () => {
+    if (__previewDone) return; __previewDone = true;
     const action = btn.dataset.action;
     const feedback = document.getElementById('feedback')?.value || '';
     const extraValue = document.getElementById('choice-value')?.value || '';
@@ -38,10 +47,18 @@ document.querySelectorAll('[data-action]').forEach(btn => {
     }
   });
 });
+var doneBtn = document.getElementById('__preview_done_btn');
+if (doneBtn) {
+  doneBtn.addEventListener('click', async () => {
+    if (__previewDone) return; __previewDone = true;
+    await fetch('/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: '用户关闭预览' }) });
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#22c55e;font-size:18px;">✅ 预览已完成，可以关闭此页面</div>';
+  });
+}
 document.querySelectorAll('form').forEach(f => {
   f.addEventListener('submit', e => e.preventDefault());
   const submitBtn = f.querySelector('button[type="submit"], input[type="submit"]');
-  if (submitBtn && !document.querySelector('[data-action]')) {
+  if (submitBtn && !document.querySelector('[data-action]') && !doneBtn) {
     submitBtn.setAttribute('data-action', submitBtn.textContent?.trim() || '提交');
   }
 });
