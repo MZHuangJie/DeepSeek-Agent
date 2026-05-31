@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { deriveFallbackSessionTitle, extractPlainUserText } from '../utils/sessionTitle';
 import { useRoleplayStore } from './roleplay';
-import { useModeStore, type AgentMode } from './mode';
+import { useModeStore } from './mode';
 
 let sessionCounter = 0;
 
@@ -239,12 +239,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : [];
     if (participantIds.length > 0) {
       void useRoleplayStore.getState().setSessionCast(participantIds);
-      const targetMode: AgentMode = session?.sessionMode === 'roleplay' || !session?.sessionMode
-        ? 'roleplay'
-        : useModeStore.getState().mode;
-      if (session?.sessionMode === 'roleplay' || participantIds.length > 0) {
-        useModeStore.getState().setMode(targetMode);
-      }
+    }
+    if (session?.sessionMode === 'roleplay') {
+      useModeStore.getState().setMode('roleplay');
     }
   },
 
