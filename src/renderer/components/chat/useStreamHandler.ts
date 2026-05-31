@@ -29,13 +29,14 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
   };
 
   const handleChunk = (chunk: any) => {
-    const { sessions, activeSessionId, updateLastAssistant } = useChatStore.getState();
+    const { sessions, activeSessionId, updateLastAssistant, webPreviewHtml } = useChatStore.getState();
     const sess = sessions.find(s => s.id === activeSessionId);
     const lastMsg = sess?.messages.at(-1);
+    const hasWebPreview = !!webPreviewHtml;
 
     if (chunk.type === 'content') {
       const step = chunk.step || 1;
-      if (step > currentStepRef.current) {
+      if (step > currentStepRef.current && !hasWebPreview) {
         currentStepRef.current = step;
         flushRafBuffer();
         totalContentRef.current = '';
@@ -44,11 +45,13 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         pendingThinkingRef.current = '';
         useChatStore.getState().newAssistantMessage();
       }
-      pendingContentRef.current += chunk.text;
+      if (!hasWebPreview) {
+        pendingContentRef.current += chunk.text;
+      }
       scheduleRaf();
     } else if (chunk.type === 'thinking') {
       const step = chunk.step || 0;
-      if (step > 0 && step > currentStepRef.current) {
+      if (step > 0 && step > currentStepRef.current && !hasWebPreview) {
         currentStepRef.current = step;
         if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
         pendingContentRef.current = '';
@@ -61,7 +64,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       scheduleRaf();
     } else if (chunk.type === 'tool-call') {
       const step = chunk.step || 1;
-      if (step > currentStepRef.current) {
+      if (step > currentStepRef.current && !hasWebPreview) {
         currentStepRef.current = step;
         flushRafBuffer();
         totalContentRef.current = '';
