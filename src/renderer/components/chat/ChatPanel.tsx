@@ -68,12 +68,13 @@ export default function ChatPanel() {
       const upd: Partial<import('../../stores/chat').Message> = {};
       if (totalThinkingRef.current) upd.thinkingContent = totalThinkingRef.current;
 
+      const targetId = targetSessionRef.current;
       const mode = useModeStore.getState().mode;
-      if (totalContentRef.current) {
+      if (totalContentRef.current && targetId) {
         if (mode === 'roleplay') {
           const raw = totalContentRef.current;
           const chat = useChatStore.getState();
-          const currentSession = chat.sessions.find(s => s.id === chat.activeSessionId);
+          const currentSession = chat.sessions.find(s => s.id === targetId);
           const cast = resolveSessionCast(currentSession);
           const participants = getCharactersByIds(
             useRoleplayStore.getState().characters,
@@ -113,7 +114,7 @@ export default function ChatPanel() {
         }
       }
 
-      useChatStore.getState().updateLastAssistant(upd);
+      useChatStore.getState().updateLastAssistant(upd, targetId || undefined);
     }
   }
 
