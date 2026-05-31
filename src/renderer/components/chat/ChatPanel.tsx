@@ -580,7 +580,7 @@ export default function ChatPanel() {
                 >✕</button>
               </div>
             </div>
-            <iframe srcDoc={webPreviewHtml} sandbox="allow-scripts allow-same-origin" className={styles.webPreviewFrame} title="web preview" />
+            <iframe srcDoc={webPreviewHtml} sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation" className={styles.webPreviewFrame} title="web preview" />
           </div>
         )}
         {choiceReq && (
