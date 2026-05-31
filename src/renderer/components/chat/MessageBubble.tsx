@@ -281,7 +281,7 @@ function ToolCallCard({ tc }: { tc: import('../../stores/chat').ToolCall }) {
 
   return (
     <div className={styles.toolCard} style={{ background: bgColor, border: `1px solid ${statusColor}20` }}>
-      <div className={styles.toolHeader} onClick={() => setExpanded(!expanded)}>
+      <div className={styles.toolHeader} onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
         <span style={{ color: statusColor }}>{expanded ? '▼' : '▶'}</span>
         {isRunning ? (
           <span className={styles.spinner} style={{ borderColor: `${statusColor}40`, borderTopColor: statusColor }} />
@@ -322,10 +322,30 @@ function isSuccess(tc: import('../../stores/chat').ToolCall): boolean {
 }
 
 function ToolCallProgress({ toolCalls }: { toolCalls?: import('../../stores/chat').ToolCall[] }) {
+  const [expanded, setExpanded] = useState(false);
   if (!toolCalls || toolCalls.length === 0) return null;
+
+  const running = toolCalls.filter(t => t.status === 'running').length;
+  const done = toolCalls.filter(t => t.status === 'success').length;
+  const failed = toolCalls.filter(t => t.status === 'error').length;
+  const uniqueNames = [...new Set(toolCalls.map(t => t.name))];
+
+  const statusIcon = running > 0 ? '⏳' : failed > 0 ? '⚠️' : '✅';
+  const statusText = running > 0 ? '执行中' : failed > 0 ? `${failed} 个失败` : '已完成';
+  const nameList = uniqueNames.slice(0, 3).join(', ') + (uniqueNames.length > 3 ? ` 等 ${uniqueNames.length} 个` : '');
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {toolCalls.map((tc, i) => <ToolCallCard key={i} tc={tc} />)}
+    <div className={styles.toolSummary} onClick={() => setExpanded(!expanded)}>
+      <span className={styles.toolSummaryIcon}>{statusIcon}</span>
+      <span className={styles.toolSummaryText}>{statusText} · {done + running + failed} 个操作 · {nameList}</span>
+      {toolCalls.length > 0 && (
+        <span className={styles.toolSummaryToggle}>{expanded ? '收起 ▲' : '展开 ▼'}</span>
+      )}
+      {expanded && (
+        <div className={styles.toolSummaryBody}>
+          {toolCalls.map((tc, i) => <ToolCallCard key={i} tc={tc} />)}
+        </div>
+      )}
     </div>
   );
 }
