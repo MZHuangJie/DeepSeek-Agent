@@ -38,7 +38,7 @@ import shared from '../../styles/components.module.css';
 import styles from './ChatPanel.module.css';
 
 export default function ChatPanel() {
-  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions, clearPlanTodos } = useChatStore();
+  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions, clearPlanTodos, webPreviewHtml, setWebPreviewHtml } = useChatStore();
   const { loadModels, getActiveModel, loadImageModel, loadVisionModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
@@ -556,6 +556,19 @@ export default function ChatPanel() {
             onStop={() => void handleStop()}
             onClose={() => clearPlanTodos()}
           />
+        )}
+        {webPreviewHtml && (
+          <div className={styles.webPreviewWrap}>
+            <div className={styles.webPreviewBar}>
+              <span className={styles.webPreviewLabel}>🌐 网页预览</span>
+              <button
+                onClick={() => setWebPreviewHtml(null)}
+                className={styles.webPreviewClose}
+                title="关闭预览"
+              >✕</button>
+            </div>
+            <iframe srcDoc={webPreviewHtml} sandbox="allow-scripts allow-same-origin" className={styles.webPreviewFrame} title="web preview" />
+          </div>
         )}
         {choiceReq && (
           <ChoiceDialog

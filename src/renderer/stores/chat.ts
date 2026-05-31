@@ -46,8 +46,6 @@ export interface Message {
   roleplayMeta?: RoleplayMessageMeta;
   /** roleplay 原始流式输出，用于解析失败时的回退 */
   rawContent?: string;
-  /** present_web inline 模式：HTML 内容直接在聊天区渲染 */
-  webPreviewHtml?: string;
   timestamp: number;
 }
 
@@ -94,6 +92,9 @@ interface ChatState {
   setSessionCast: (characterIds: string[]) => void;
   setPlanTodos: (todos: PlanTodo[], planDocPath?: string) => void;
   clearPlanTodos: () => void;
+  /** present_web inline 全局预览（不受消息轮次影响） */
+  webPreviewHtml: string | null;
+  setWebPreviewHtml: (html: string | null) => void;
 }
 
 function parseSessionPayload(raw: string): {
@@ -231,7 +232,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   switchSession: (id) => {
     const session = get().sessions.find(s => s.id === id);
-    set({ activeSessionId: id });
+    set({ activeSessionId: id, webPreviewHtml: null });
     const participantIds = session?.characterIds?.length
       ? session.characterIds
       : session?.characterId
@@ -380,6 +381,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  webPreviewHtml: null as string | null,
+
   setPlanTodos: (todos, planDocPath) => {
     const { activeSessionId, sessions } = get();
     if (!activeSessionId) return;
@@ -409,4 +412,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const session = newSessions.find(s => s.id === activeSessionId);
     if (session) persistSession(session);
   },
+
+  setWebPreviewHtml: (html) => set({ webPreviewHtml: html }),
 }));
