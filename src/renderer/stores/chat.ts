@@ -94,7 +94,9 @@ interface ChatState {
   clearPlanTodos: () => void;
   /** present_web inline 全局预览（不受消息轮次影响） */
   webPreviewHtml: string | null;
+  webPreviewFile: string | null;
   setWebPreviewHtml: (html: string | null) => void;
+  setWebPreviewFile: (file: string | null) => void;
 }
 
 function parseSessionPayload(raw: string): {
@@ -232,7 +234,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   switchSession: (id) => {
     const session = get().sessions.find(s => s.id === id);
-    set({ activeSessionId: id, webPreviewHtml: null });
+    set({ activeSessionId: id, webPreviewHtml: null, webPreviewFile: null });
     const participantIds = session?.characterIds?.length
       ? session.characterIds
       : session?.characterId
@@ -382,6 +384,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   webPreviewHtml: null as string | null,
+  webPreviewFile: null as string | null,
 
   setPlanTodos: (todos, planDocPath) => {
     const { activeSessionId, sessions } = get();
@@ -414,4 +417,5 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setWebPreviewHtml: (html) => set({ webPreviewHtml: html }),
+  setWebPreviewFile: (file) => set({ webPreviewFile: file }),
 }));

@@ -198,11 +198,10 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
     } else if (chunk.type === 'web-preview') {
       if (typeof chunk.html === 'string') {
         const store = useChatStore.getState();
-        const existing = store.webPreviewHtml || '';
-        const newHtml = chunk.append && existing
-          ? existing + '\n' + chunk.html
-          : chunk.html;
-        store.setWebPreviewHtml(newHtml);
+        store.setWebPreviewHtml(chunk.html);
+        if (typeof chunk.file === 'string') {
+          store.setWebPreviewFile(chunk.file);
+        }
       }
     } else if (chunk.type === 'error') {
       setStreaming(false);

@@ -38,7 +38,7 @@ import shared from '../../styles/components.module.css';
 import styles from './ChatPanel.module.css';
 
 export default function ChatPanel() {
-  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions, clearPlanTodos, webPreviewHtml, setWebPreviewHtml } = useChatStore();
+  const { sessions, activeSessionId, isStreaming, addMessage, setStreaming, updateLastAssistant, newAssistantMessage, loadSessions, clearPlanTodos, webPreviewHtml, setWebPreviewHtml, webPreviewFile, setWebPreviewFile } = useChatStore();
   const { loadModels, getActiveModel, loadImageModel, loadVisionModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
@@ -561,11 +561,21 @@ export default function ChatPanel() {
           <div className={styles.webPreviewWrap}>
             <div className={styles.webPreviewBar}>
               <span className={styles.webPreviewLabel}>🌐 网页预览</span>
-              <button
-                onClick={() => setWebPreviewHtml(null)}
-                className={styles.webPreviewClose}
-                title="关闭预览"
-              >✕</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {webPreviewFile && (
+                  <button
+                    onClick={() => window.api.browser.open(webPreviewFile)}
+                    className={styles.webPreviewClose}
+                    title="在内置浏览器中打开"
+                    style={{ fontSize: 12 }}
+                  >🔗 浏览器打开</button>
+                )}
+                <button
+                  onClick={() => { setWebPreviewHtml(null); setWebPreviewFile(null); }}
+                  className={styles.webPreviewClose}
+                  title="关闭预览"
+                >✕</button>
+              </div>
             </div>
             <iframe srcDoc={webPreviewHtml} sandbox="allow-scripts allow-same-origin" className={styles.webPreviewFrame} title="web preview" />
           </div>

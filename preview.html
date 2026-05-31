@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hello Page</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: hidden;
+  }
+  .particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 50%;
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 0.6; }
+    100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
+  }
+  .container {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 60px 80px;
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+    transition: transform 0.5s ease, box-shadow 0.5s ease;
+  }
+  .container:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .icon-ring {
+    font-size: 4rem;
+    margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  h1 {
+    color: #fff;
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+  .subtitle {
+    color: rgba(255,255,255,0.8);
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+    letter-spacing: 0.5px;
+  }
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    padding: 16px 48px;
+    border: none;
+    border-radius: 50px;
+    background: #fff;
+    color: #667eea;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  button:hover::after {
+    opacity: 1;
+  }
+  button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.3);
+    color: #fff;
+  }
+  button:active {
+    transform: translateY(0) scale(0.97);
+  }
+  .btn-text, .btn-icon {
+    position: relative;
+    z-index: 1;
+    transition: transform 0.3s;
+  }
+  button:hover .btn-icon {
+    transform: rotate(20deg) scale(1.2);
+  }
+  .counter {
+    margin-top: 24px;
+    color: rgba(255,255,255,0.9);
+    font-size: 1rem;
+    font-weight: 500;
+    min-height: 24px;
+    transition: all 0.3s;
+  }
+  .counter.pop {
+    transform: scale(1.2);
+    color: #ffd700;
+  }
+  /* 成功徽章 */
+  .badge {
+    display: none;
+    margin-top: 20px;
+    padding: 10px 24px;
+    background: rgba(255,215,0,0.2);
+    border: 1px solid rgba(255,215,0,0.4);
+    border-radius: 50px;
+    color: #ffd700;
+    font-weight: 600;
+    font-size: 0.95rem;
+    animation: fadeInUp 0.5s ease;
+  }
+  .badge.show { display: inline-block; }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+  <div class="container">
+    <div class="icon-ring">✨</div>
+    <h1>欢迎来到我的页面</h1>
+    <p class="subtitle">点击下方按钮，看看会发生什么？</p>
+    <button id="magicBtn" onclick="handleClick()">
+      <span class="btn-text">点击我</span>
+      <span class="btn-icon">👆</span>
+    </button>
+    <div class="counter" id="counter">点击次数：0</div>
+    <div class="badge" id="badge">🏆 你已达成10次点击成就！</div>
+  </div>
+<script>
+  // 粒子背景动画
+  const particlesEl = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.classList.add('particle');
+    p.style.left = Math.random() * 100 + '%';
+    p.style.width = p.style.height = (Math.random() * 6 + 4) + 'px';
+    p.style.animationDuration = (Math.random() * 10 + 8) + 's';
+    p.style.animationDelay = Math.random() * 10 + 's';
+    p.style.background = `rgba(255,255,255,${Math.random() * 0.4 + 0.1})`;
+    particlesEl.appendChild(p);
+  }
+
+  let count = 0;
+  const messages = [
+    '🎉 太棒了！继续保持！',
+    '🔥 你正在越来越强！',
+    '⭐ 每点击一次，就离成功更近一步！',
+    '💪 坚持就是胜利！',
+    '🌟 你已经很棒了！',
+    '🚀 继续冲刺吧！',
+  ];
+
+  function handleClick() {
+    count++;
+    const c = document.getElementById('counter');
+    const btn = document.getElementById('magicBtn');
+    const badge = document.getElementById('badge');
+
+    c.textContent = '点击次数：' + count;
+    c.classList.add('pop');
+    btn.style.transform = 'translateY(-3px) scale(0.97)';
+    setTimeout(() => {
+      c.classList.remove('pop');
+      btn.style.transform = '';
+    }, 300);
+
+    if (count % 5 === 0) {
+      const msg = messages[Math.floor(Math.random() * messages.length)];
+      c.textContent = msg + ' (' + count + '次)';
+    }
+
+    if (count === 10) {
+      badge.classList.add('show');
+    }
+  }
+</script>
+</body>
+</html>

@@ -521,13 +521,13 @@ export function setupAgentHandlers() {
                 }
                 // 发送初始 HTML
                 if (typeof args.initialHtml === 'string') {
-                  win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: args.initialHtml });
+                  win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: args.initialHtml, file: filePath });
                 }
                 // 启动文件监听
                 const watcher = fs.watch(filePath, () => {
                   try {
                     const updated = fs.readFileSync(filePath, 'utf-8');
-                    win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: updated });
+                    win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: updated, file: filePath });
                   } catch { /* file may be temporarily locked */ }
                 });
                 fileWatchers.set(filePath, watcher);
