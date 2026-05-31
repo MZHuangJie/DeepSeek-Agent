@@ -4,6 +4,16 @@ import path from 'path';
 const browserWindows = new Map<number, BrowserWindow>();
 
 export function setupBrowserHandlers() {
+  ipcMain.handle('browser:open-inline', async (event, url?: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed() && typeof url === 'string') {
+      const fileUrl = url.replace(/\\/g, '/');
+      win.webContents.send('browser:load-url', { url: `file:///${fileUrl}` });
+      return true;
+    }
+    return false;
+  });
+
   ipcMain.handle('browser:open', async (_event, url?: string) => {
     const win = new BrowserWindow({
       width: 1200,

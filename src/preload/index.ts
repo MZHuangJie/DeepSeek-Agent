@@ -188,6 +188,7 @@ const api = {
   },
   browser: {
     open: (url?: string) => ipcRenderer.invoke('browser:open', url),
+    openInline: (url: string) => ipcRenderer.invoke('browser:open-inline', url),
     navigate: (id: number, url: string) => ipcRenderer.invoke('browser:navigate', id, url),
     onLoadUrl: (cb: (url: string) => void) => {
       const handler = (_: unknown, data: { url: string }) => cb(data.url);

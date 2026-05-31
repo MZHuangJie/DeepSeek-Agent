@@ -567,7 +567,7 @@ export default function ChatPanel() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {webPreviewFile && (
                   <button
-                    onClick={() => window.api.browser.open(webPreviewFile)}
+                    onClick={() => window.api.browser.openInline(webPreviewFile)}
                     className={styles.webPreviewClose}
                     title="在内置浏览器中打开"
                     style={{ fontSize: 12 }}
