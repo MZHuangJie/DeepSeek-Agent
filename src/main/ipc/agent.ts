@@ -20,8 +20,8 @@ import { resolveVisionConfig, buildVisionToolContext } from '../agent/vision-con
 import { enrichMessageWithVisionDescriptions } from '../agent/image-preprocess';
 
 
-let activeAbort: AbortController | null = null;
-let activeSubAgentManager: SubAgentManager | null = null;
+const sessionAborts = new Map<string, AbortController>();
+const sessionSubAgents = new Map<string, SubAgentManager>();
 const fileWatchers = new Map<string, fs.FSWatcher>();
 
 
@@ -65,11 +65,21 @@ export function setupAgentHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window');
 
-    const { sessionId } = payload;
-    const abortController = new AbortController();
-    activeAbort = abortController;
+    const { sessionId = 'default' } = payload;
 
-    infoLog('agent', 'send-start', { model: payload.model, mode: payload.mode, provider: (payload as any).provider, msgCount: payload.messages.length, newMsgLen: typeof payload.newMessage === 'string' ? payload.newMessage.length : payload.newMessage.length });
+    // 如果同 session 已有运行中的请求，先取消旧的
+    const oldAbort = sessionAborts.get(sessionId);
+    if (oldAbort) {
+      oldAbort.abort();
+      sessionAborts.delete(sessionId);
+      sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
+      sessionSubAgents.delete(sessionId);
+    }
+
+    const abortController = new AbortController();
+    sessionAborts.set(sessionId, abortController);
+
+    infoLog('agent', 'send-start', { sessionId, model: payload.model, mode: payload.mode, provider: (payload as any).provider, msgCount: payload.messages.length, newMsgLen: typeof payload.newMessage === 'string' ? payload.newMessage.length : payload.newMessage.length });
 
     try {
       const tools = getToolsForMode(payload.mode, payload.projectDir);
@@ -78,7 +88,7 @@ export function setupAgentHandlers() {
     const multiAgentRoles = isMultiAgent ? (payload.roles ?? []) : [];
     const projectContext = isCharacterMode ? '' : buildProjectContext(payload.projectDir);
     const subAgentManager = new SubAgentManager(win);
-    activeSubAgentManager = subAgentManager;
+    sessionSubAgents.set(sessionId, subAgentManager);
 
     // 根据模式选择 system prompt，命令 prompt 追加在后
     const baseSystemPrompt = getSystemPrompt(payload.mode);
@@ -109,8 +119,9 @@ export function setupAgentHandlers() {
     const isMultimodalMessage = Array.isArray(payload.newMessage);
     if (!payload.providerMultimodal && !isMultimodalMessage && visionConfig) {
       if (abortController.signal.aborted) {
-        activeAbort = null;
-        activeSubAgentManager = null;
+        sessionAborts.delete(sessionId);
+        sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
+        sessionSubAgents.delete(sessionId);
         return { success: false, error: '已取消' };
       }
       processedNewMessage = await enrichMessageWithVisionDescriptions(
@@ -246,18 +257,18 @@ export function setupAgentHandlers() {
             const retryMsg = retryErr?.message || String(retryErr);
             win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: retryMsg });
             win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
-            activeAbort = null;
-            activeSubAgentManager?.cancelAllSubAgents();
-            activeSubAgentManager = null;
+            sessionAborts.delete(sessionId);
+            sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
+            sessionSubAgents.delete(sessionId);
             return { success: false, error: retryMsg };
           }
           // 重试成功，跳过原来的 error 发送
         } else {
           win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message });
           win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
-          activeAbort = null;
-          activeSubAgentManager?.cancelAllSubAgents();
-          activeSubAgentManager = null;
+          sessionAborts.delete(sessionId);
+          sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
+          sessionSubAgents.delete(sessionId);
           return { success: false, error: message };
         }
       }
@@ -544,8 +555,9 @@ export function setupAgentHandlers() {
     }
 
     // 收集本次对话中修改过的文件
-    activeAbort = null;
-    activeSubAgentManager = null;
+    sessionAborts.delete(sessionId);
+    sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
+    sessionSubAgents.delete(sessionId);
     for (const w of fileWatchers.values()) { w.close(); }
     fileWatchers.clear();
     win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
@@ -560,18 +572,19 @@ export function setupAgentHandlers() {
         message,
       });
       win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
-      activeAbort = null;
-      activeSubAgentManager?.cancelAllSubAgents();
-      activeSubAgentManager = null;
+      sessionAborts.delete(sessionId);
+      sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
+      sessionSubAgents.delete(sessionId);
       return { success: false, error: message };
     }
   });
 
-  ipcMain.handle('agent:cancel', async () => {
-    activeAbort?.abort();
-    activeAbort = null;
-    activeSubAgentManager?.cancelAllSubAgents();
-    activeSubAgentManager = null;
+  ipcMain.handle('agent:cancel', async (_event, sessionId?: string) => {
+    const id = sessionId || 'default';
+    sessionAborts.get(id)?.abort();
+    sessionAborts.delete(id);
+    sessionSubAgents.get(id)?.cancelAllSubAgents();
+    sessionSubAgents.delete(id);
     return { success: true };
   });
 }

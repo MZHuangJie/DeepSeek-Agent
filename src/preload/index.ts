@@ -80,7 +80,7 @@ const api = {
   },
   agent: {
     send: (messages: unknown) => ipcRenderer.invoke('agent:send', messages),
-    cancel: () => ipcRenderer.invoke('agent:cancel'),
+    cancel: (sessionId?: string) => ipcRenderer.invoke('agent:cancel', sessionId),
     onStreamChunk: (cb: (chunk: unknown) => void) => {
       const handler = (_: unknown, chunk: unknown) => cb(chunk);
       ipcRenderer.on('agent:stream-chunk', handler);

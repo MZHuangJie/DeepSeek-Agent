@@ -19,13 +19,10 @@ import {
   resolveEffectiveCast,
 } from '../../utils/roleplay-multi';
 import {
-  parseRoleplayResponse,
-  parseMultiRoleplayResponse,
   formatRoleplayMessageForHistory,
   formatMultiRoleplayMessageForHistory,
   shouldRetryRoleplayStatus,
   shouldRetryMultiRoleplayStatus,
-  stripRoleplayReplyTags,
 } from '../../utils/parseRoleplayResponse';
 import MessageBubble from './MessageBubble';
 import PlanTodoPanel from './PlanTodoPanel';
@@ -54,70 +51,6 @@ export default function ChatPanel() {
   const [choiceReq, setChoiceReq] = useState<{ choiceId: string; message: string; choices: Array<{ label: string; description?: string }> } | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set());
   const statusRetryUsedRef = useRef(false);
-  const currentStepRef = useRef(0);
-  const totalContentRef = useRef('');
-  const totalThinkingRef = useRef('');
-  const pendingContentRef = useRef('');
-  const pendingThinkingRef = useRef('');
-  function flushRafBuffer() {
-    if (pendingContentRef.current || pendingThinkingRef.current) {
-      totalContentRef.current += pendingContentRef.current;
-      totalThinkingRef.current += pendingThinkingRef.current;
-      pendingContentRef.current = '';
-      pendingThinkingRef.current = '';
-      const upd: Partial<import('../../stores/chat').Message> = {};
-      if (totalThinkingRef.current) upd.thinkingContent = totalThinkingRef.current;
-
-      const targetId = targetSessionRef.current;
-      const mode = useModeStore.getState().mode;
-      if (totalContentRef.current && targetId) {
-        if (mode === 'roleplay') {
-          const raw = totalContentRef.current;
-          const chat = useChatStore.getState();
-          const currentSession = chat.sessions.find(s => s.id === targetId);
-          const cast = resolveSessionCast(currentSession);
-          const participants = getCharactersByIds(
-            useRoleplayStore.getState().characters,
-            cast.participantIds,
-          );
-
-          if (cast.isMulti) {
-            const parsed = parseMultiRoleplayResponse(raw);
-            const streaming = useChatStore.getState().isStreaming;
-            if (parsed.turns.length > 0) {
-              upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
-            } else if (streaming) {
-              upd.content = stripRoleplayReplyTags(
-                raw.replace(/<status\s*>[\s\S]*$/i, '').replace(/<\/?scene\s*>/gi, ''),
-              ) || raw;
-            } else {
-              upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
-            }
-            upd.rawContent = raw;
-            if (parsed.turns.length > 0) {
-              upd.roleplayMeta = { turns: mapTurnsToMeta(parsed.turns, participants) };
-            }
-          } else {
-            const parsed = parseRoleplayResponse(raw);
-            upd.content = parsed.reply
-              || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, ''))
-              || raw;
-            upd.rawContent = raw;
-            if (parsed.status && parsed.statusComplete) {
-              upd.roleplayMeta = { status: parsed.status, statusComplete: true };
-            } else if (parsed.status) {
-              upd.roleplayMeta = { status: parsed.status, statusComplete: false };
-            }
-          }
-        } else {
-          upd.content = totalContentRef.current;
-        }
-      }
-
-      useChatStore.getState().updateLastAssistant(upd, targetId || undefined);
-    }
-  }
-
   const projectDir = currentWorkspace || '';
 
   const session = sessions.find(s => s.id === activeSessionId);
@@ -218,11 +151,6 @@ export default function ChatPanel() {
     // 锁定当前会话 ID，防止切换会话后流式输出串到其他会话
     targetSessionRef.current = useChatStore.getState().activeSessionId;
     agentStore.reset();
-    currentStepRef.current = 1;
-    pendingContentRef.current = '';
-    pendingThinkingRef.current = '';
-    totalContentRef.current = '';
-    totalThinkingRef.current = '';
     isAtBottomRef.current = true;
   }, [agentStore]);
 
@@ -306,8 +234,7 @@ export default function ChatPanel() {
   const targetSessionRef = useRef<string | null>(null);
   const isMySessionStreaming = isStreaming && targetSessionRef.current === activeSessionId;
   const handleStreamChunk = useStreamHandler({
-    currentStepRef, totalContentRef, totalThinkingRef,
-    pendingContentRef, pendingThinkingRef, targetSessionRef, flushRafBuffer,
+    targetSessionRef,
     setStreaming: (v) => useChatStore.getState().setStreaming(v),
     setErrorMsg,
     onDone: () => { void sendRoleplayStatusRetry(); },
@@ -348,9 +275,9 @@ export default function ChatPanel() {
 
   const handleStop = useCallback(async () => {
     targetSessionRef.current = null;
-    await window.api.agent.cancel();
+    await window.api.agent.cancel(activeSessionId || undefined);
     setStreaming(false);
-  }, []);
+  }, [activeSessionId]);
 
   const sendCharacterOpening = useCallback(async (sessionId: string) => {
     if (!apiKey) return;

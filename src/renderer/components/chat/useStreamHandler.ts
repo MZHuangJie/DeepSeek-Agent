@@ -1,93 +1,211 @@
 import { useRef, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat';
 import { useAgentStore } from '../../stores/agent';
+import { useRoleplayStore } from '../../stores/roleplay';
 import { buildToolActivity, computeSubAgentProgress, isUsefulSubAgentSnippet } from './subAgentUi';
 import { summarizeSessionTitleIfNeeded } from '../../utils/sessionTitleSummarize';
+import {
+  getCharactersByIds,
+  mapTurnsToMeta,
+  resolveSessionCast,
+} from '../../utils/roleplay-multi';
+import {
+  parseRoleplayResponse,
+  parseMultiRoleplayResponse,
+  stripRoleplayReplyTags,
+} from '../../utils/parseRoleplayResponse';
 
 interface StreamHandlerDeps {
-  currentStepRef: React.MutableRefObject<number>;
-  totalContentRef: React.MutableRefObject<string>;
-  totalThinkingRef: React.MutableRefObject<string>;
-  pendingContentRef: React.MutableRefObject<string>;
-  pendingThinkingRef: React.MutableRefObject<string>;
   targetSessionRef: React.MutableRefObject<string | null>;
-  flushRafBuffer: () => void;
   setStreaming: (v: boolean) => void;
   setErrorMsg: (msg: string) => void;
   onDone?: () => void;
 }
 
+interface SessionBuffer {
+  currentStep: number;
+  totalContent: string;
+  totalThinking: string;
+  pendingContent: string;
+  pendingThinking: string;
+  rafId: number | null;
+}
+
+function buildMessageUpdate(
+  sid: string,
+  totalContent: string,
+  totalThinking: string,
+): Partial<import('../../stores/chat').Message> {
+  const upd: Partial<import('../../stores/chat').Message> = {};
+  if (totalThinking) upd.thinkingContent = totalThinking;
+
+  if (totalContent) {
+    const chat = useChatStore.getState();
+    const session = chat.sessions.find(s => s.id === sid);
+    const isRoleplay = session?.sessionMode === 'roleplay';
+
+    if (isRoleplay) {
+      const raw = totalContent;
+      const cast = resolveSessionCast(session);
+      const participants = getCharactersByIds(
+        useRoleplayStore.getState().characters,
+        cast.participantIds,
+      );
+
+      if (cast.isMulti) {
+        const parsed = parseMultiRoleplayResponse(raw);
+        const streaming = chat.isStreaming;
+        if (parsed.turns.length > 0) {
+          upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
+        } else if (streaming) {
+          upd.content = stripRoleplayReplyTags(
+            raw.replace(/<status\s*>[\s\S]*$/i, '').replace(/<\/?scene\s*>/gi, ''),
+          ) || raw;
+        } else {
+          upd.content = parsed.displayText || stripRoleplayReplyTags(raw);
+        }
+        upd.rawContent = raw;
+        if (parsed.turns.length > 0) {
+          upd.roleplayMeta = { turns: mapTurnsToMeta(parsed.turns, participants) };
+        }
+      } else {
+        const parsed = parseRoleplayResponse(raw);
+        upd.content = parsed.reply
+          || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, ''))
+          || raw;
+        upd.rawContent = raw;
+        if (parsed.status && parsed.statusComplete) {
+          upd.roleplayMeta = { status: parsed.status, statusComplete: true };
+        } else if (parsed.status) {
+          upd.roleplayMeta = { status: parsed.status, statusComplete: false };
+        }
+      }
+    } else {
+      upd.content = totalContent;
+    }
+  }
+
+  return upd;
+}
+
 export function useStreamHandler(deps: StreamHandlerDeps) {
-  const { currentStepRef, totalContentRef, totalThinkingRef, pendingContentRef, pendingThinkingRef, targetSessionRef, flushRafBuffer, setStreaming, setErrorMsg, onDone } = deps;
-  const rafRef = useRef<number | null>(null);
+  const { targetSessionRef, setStreaming, setErrorMsg, onDone } = deps;
 
-  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+  // 每个 session 独立维护自己的 buffer，避免多 tab 并发时串内容
+  const buffersRef = useRef(new Map<string, SessionBuffer>());
 
-  const scheduleRaf = () => {
-    if (!rafRef.current) {
-      rafRef.current = requestAnimationFrame(() => { rafRef.current = null; flushRafBuffer(); });
+  const getBuffer = (sid: string): SessionBuffer => {
+    let buf = buffersRef.current.get(sid);
+    if (!buf) {
+      buf = {
+        currentStep: 0,
+        totalContent: '',
+        totalThinking: '',
+        pendingContent: '',
+        pendingThinking: '',
+        rafId: null,
+      };
+      buffersRef.current.set(sid, buf);
+    }
+    return buf;
+  };
+
+  const flushBuffer = (sid: string) => {
+    const buf = buffersRef.current.get(sid);
+    if (!buf || (!buf.pendingContent && !buf.pendingThinking)) return;
+
+    buf.totalContent += buf.pendingContent;
+    buf.totalThinking += buf.pendingThinking;
+    buf.pendingContent = '';
+    buf.pendingThinking = '';
+
+    const upd = buildMessageUpdate(sid, buf.totalContent, buf.totalThinking);
+    useChatStore.getState().updateLastAssistant(upd, sid);
+  };
+
+  const scheduleRaf = (sid: string) => {
+    const buf = getBuffer(sid);
+    if (!buf.rafId) {
+      buf.rafId = requestAnimationFrame(() => {
+        buf.rafId = null;
+        flushBuffer(sid);
+      });
     }
   };
 
+  const cancelRaf = (sid: string) => {
+    const buf = buffersRef.current.get(sid);
+    if (buf?.rafId) {
+      cancelAnimationFrame(buf.rafId);
+      buf.rafId = null;
+    }
+  };
+
+  useEffect(() => () => {
+    buffersRef.current.forEach(buf => {
+      if (buf.rafId) cancelAnimationFrame(buf.rafId);
+    });
+    buffersRef.current.clear();
+  }, []);
+
   const handleChunk = (chunk: any) => {
     // 优先使用 IPC 消息中携带的 sessionId，支持多 tab 同时流式输出
-    const targetSessionId = chunk.sessionId || targetSessionRef.current;
-    if (!targetSessionId) return;
+    const sid = chunk.sessionId || targetSessionRef.current;
+    if (!sid) return;
 
-    const { sessions, updateLastAssistant, webPreviewHtml } = useChatStore.getState();
-    const sess = sessions.find(s => s.id === targetSessionId);
+    const { sessions, updateLastAssistant } = useChatStore.getState();
+    const sess = sessions.find(s => s.id === sid);
     const lastMsg = sess?.messages.at(-1);
-    const hasWebPreview = !!webPreviewHtml;
 
     if (chunk.type === 'content') {
+      const buf = getBuffer(sid);
       const step = chunk.step || 1;
-      if (step > currentStepRef.current) {
-        currentStepRef.current = step;
-        if (!hasWebPreview) {
-          flushRafBuffer();
-          totalContentRef.current = '';
-          totalThinkingRef.current = '';
-          pendingContentRef.current = '';
-          pendingThinkingRef.current = '';
-          useChatStore.getState().newAssistantMessage(targetSessionId);
-        }
+      if (step > buf.currentStep) {
+        buf.currentStep = step;
+        cancelRaf(sid);
+        flushBuffer(sid);
+        buf.totalContent = '';
+        buf.totalThinking = '';
+        buf.pendingContent = '';
+        buf.pendingThinking = '';
+        useChatStore.getState().newAssistantMessage(sid);
       }
-      pendingContentRef.current += chunk.text;
-      scheduleRaf();
+      buf.pendingContent += chunk.text;
+      scheduleRaf(sid);
     } else if (chunk.type === 'thinking') {
+      const buf = getBuffer(sid);
       const step = chunk.step || 0;
-      if (step > 0 && step > currentStepRef.current) {
-        currentStepRef.current = step;
-        if (!hasWebPreview) {
-          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-          pendingContentRef.current = '';
-          pendingThinkingRef.current = '';
-          totalContentRef.current = '';
-          totalThinkingRef.current = '';
-          useChatStore.getState().newAssistantMessage(targetSessionId);
-        }
+      if (step > 0 && step > buf.currentStep) {
+        buf.currentStep = step;
+        cancelRaf(sid);
+        flushBuffer(sid);
+        buf.totalContent = '';
+        buf.totalThinking = '';
+        buf.pendingContent = '';
+        buf.pendingThinking = '';
+        useChatStore.getState().newAssistantMessage(sid);
       }
-      pendingThinkingRef.current += chunk.text;
-      scheduleRaf();
+      buf.pendingThinking += chunk.text;
+      scheduleRaf(sid);
     } else if (chunk.type === 'tool-call') {
+      const buf = getBuffer(sid);
       const step = chunk.step || 1;
-      if (step > currentStepRef.current) {
-        currentStepRef.current = step;
-        if (!hasWebPreview) {
-          flushRafBuffer();
-          totalContentRef.current = '';
-          totalThinkingRef.current = '';
-          pendingContentRef.current = '';
-          pendingThinkingRef.current = '';
-          useChatStore.getState().newAssistantMessage(targetSessionId);
-        }
+      if (step > buf.currentStep) {
+        buf.currentStep = step;
+        cancelRaf(sid);
+        flushBuffer(sid);
+        buf.totalContent = '';
+        buf.totalThinking = '';
+        buf.pendingContent = '';
+        buf.pendingThinking = '';
+        useChatStore.getState().newAssistantMessage(sid);
       }
       let parsedArgs: Record<string, unknown> = {};
       try { parsedArgs = JSON.parse(chunk.args || '{}'); } catch { parsedArgs = { _raw: chunk.args }; }
       const current = lastMsg?.toolCalls ?? [];
       updateLastAssistant({
         toolCalls: [...current, { name: chunk.name, args: parsedArgs, status: 'running', timestamp: Date.now() }],
-      }, targetSessionId);
+      }, sid);
       useAgentStore.getState().addToolCall({
         id: `tc-${Date.now()}`, name: chunk.name, args: chunk.args || '{}', status: 'running', timestamp: Date.now(),
       });
@@ -103,7 +221,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         toolCalls: current.map((tc: any, idx: number) =>
           idx === targetIdx ? { ...tc, result: chunk.result, status: chunk.status } : tc
         ),
-      }, targetSessionId);
+      }, sid);
       const lastTc = useAgentStore.getState().toolCalls[useAgentStore.getState().toolCalls.length - 1];
       if (lastTc) useAgentStore.getState().updateToolCall(lastTc.id, { result: chunk.result, status: chunk.status });
     } else if (chunk.type === 'usage') {
@@ -113,16 +231,19 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         contextMax: chunk.contextMax || 100000, cost: parseFloat((chunk.total * 0.000002).toFixed(3)),
       });
     } else if (chunk.type === 'done') {
-      flushRafBuffer();
-      totalContentRef.current = '';
-      totalThinkingRef.current = '';
+      cancelRaf(sid);
+      flushBuffer(sid);
+      buffersRef.current.delete(sid);
       setStreaming(false);
-      targetSessionRef.current = null;
+      // 只有当前锁定的 session 完成时才清除锁定，避免后台 session 误清
+      if (targetSessionRef.current === sid) {
+        targetSessionRef.current = null;
+      }
       const current = useAgentStore.getState().currentStep;
       useAgentStore.getState().setCurrentStep({
         step: current?.step || 1, total: current?.total || 1, description: '已完成', progress: 100,
       });
-      void summarizeSessionTitleIfNeeded(targetSessionId);
+      void summarizeSessionTitleIfNeeded(sid);
       useAgentStore.getState().refreshBalance();
       onDone?.();
     } else if (chunk.type === 'explore-progress') {
@@ -216,8 +337,13 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         }
       }
     } else if (chunk.type === 'error') {
-      targetSessionRef.current = null;
+      cancelRaf(sid);
+      flushBuffer(sid);
+      buffersRef.current.delete(sid);
       setStreaming(false);
+      if (targetSessionRef.current === sid) {
+        targetSessionRef.current = null;
+      }
       setErrorMsg(chunk.message);
     }
   };
