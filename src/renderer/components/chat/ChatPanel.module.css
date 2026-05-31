@@ -130,6 +130,11 @@
   font-weight: 500;
 }
 
+.webPreviewBuilding {
+  color: #facc15;
+  animation: pulse 1.5s infinite;
+}
+
 .webPreviewClose {
   border: none;
   background: transparent;

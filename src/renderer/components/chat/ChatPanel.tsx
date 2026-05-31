@@ -560,7 +560,10 @@ export default function ChatPanel() {
         {webPreviewHtml && (
           <div className={styles.webPreviewWrap}>
             <div className={styles.webPreviewBar}>
-              <span className={styles.webPreviewLabel}>🌐 网页预览</span>
+              <span className={styles.webPreviewLabel}>
+                🌐 网页预览
+                {isStreaming && <span className={styles.webPreviewBuilding}> 🔨 构建中...</span>}
+              </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {webPreviewFile && (
                   <button
