@@ -36,42 +36,46 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
 
     if (chunk.type === 'content') {
       const step = chunk.step || 1;
-      if (step > currentStepRef.current && !hasWebPreview) {
+      if (step > currentStepRef.current) {
         currentStepRef.current = step;
-        flushRafBuffer();
-        totalContentRef.current = '';
-        totalThinkingRef.current = '';
-        pendingContentRef.current = '';
-        pendingThinkingRef.current = '';
-        useChatStore.getState().newAssistantMessage();
+        if (!hasWebPreview) {
+          flushRafBuffer();
+          totalContentRef.current = '';
+          totalThinkingRef.current = '';
+          pendingContentRef.current = '';
+          pendingThinkingRef.current = '';
+          useChatStore.getState().newAssistantMessage();
+        }
       }
-      if (!hasWebPreview) {
-        pendingContentRef.current += chunk.text;
-      }
+      pendingContentRef.current += chunk.text;
       scheduleRaf();
     } else if (chunk.type === 'thinking') {
       const step = chunk.step || 0;
-      if (step > 0 && step > currentStepRef.current && !hasWebPreview) {
+      if (step > 0 && step > currentStepRef.current) {
         currentStepRef.current = step;
-        if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-        pendingContentRef.current = '';
-        pendingThinkingRef.current = '';
-        totalContentRef.current = '';
-        totalThinkingRef.current = '';
-        useChatStore.getState().newAssistantMessage();
+        if (!hasWebPreview) {
+          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+          pendingContentRef.current = '';
+          pendingThinkingRef.current = '';
+          totalContentRef.current = '';
+          totalThinkingRef.current = '';
+          useChatStore.getState().newAssistantMessage();
+        }
       }
       pendingThinkingRef.current += chunk.text;
       scheduleRaf();
     } else if (chunk.type === 'tool-call') {
       const step = chunk.step || 1;
-      if (step > currentStepRef.current && !hasWebPreview) {
+      if (step > currentStepRef.current) {
         currentStepRef.current = step;
-        flushRafBuffer();
-        totalContentRef.current = '';
-        totalThinkingRef.current = '';
-        pendingContentRef.current = '';
-        pendingThinkingRef.current = '';
-        useChatStore.getState().newAssistantMessage();
+        if (!hasWebPreview) {
+          flushRafBuffer();
+          totalContentRef.current = '';
+          totalThinkingRef.current = '';
+          pendingContentRef.current = '';
+          pendingThinkingRef.current = '';
+          useChatStore.getState().newAssistantMessage();
+        }
       }
       let parsedArgs: Record<string, unknown> = {};
       try { parsedArgs = JSON.parse(chunk.args || '{}'); } catch { parsedArgs = { _raw: chunk.args }; }
