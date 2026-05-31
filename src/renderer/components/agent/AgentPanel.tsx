@@ -7,7 +7,7 @@ import BalanceSection from './BalanceSection';
 import TokenUsage from './TokenUsage';
 import styles from './AgentPanel.module.css';
 
-export default function AgentPanel() {
+export default function AgentPanel({ onClose }: { onClose: () => void }) {
   const { currentStep, toolCalls, balanceInfo, balanceLoading, balanceError, refreshBalance } = useAgentStore();
   const hasData = currentStep || toolCalls.length > 0;
 
@@ -19,7 +19,8 @@ export default function AgentPanel() {
     <div className={styles.panel}>
       <div className={styles.header}>
         <img src="/assets/logo.png" alt="agent" className={styles.headerIcon} />
-        <span>Agent 观测</span>
+        <span className={styles.headerTitle}>Agent 观测</span>
+        <button onClick={onClose} className={styles.closeBtn} title="关闭面板">✕</button>
       </div>
 
       <div className={styles.content}>

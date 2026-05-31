@@ -358,7 +358,7 @@ export default function App() {
           transition: 'width 0.2s ease',
         }}>
           <div style={{ width: agentPanelWidth, height: '100%' }}>
-            <AgentPanel />
+            <AgentPanel onClose={() => setOpenView(null)} />
           </div>
         </div>
         {openView === 'agent' && (
