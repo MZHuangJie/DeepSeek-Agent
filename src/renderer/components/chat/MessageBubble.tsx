@@ -5,7 +5,7 @@ import { Message, useChatStore } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
-import { parseRoleplayResponse, parseMultiRoleplayResponse } from '../../utils/parseRoleplayResponse';
+import { parseRoleplayResponse, parseMultiRoleplayResponse, formatRoleplayMessageForHistory } from '../../utils/parseRoleplayResponse';
 import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
 import { getCharactersByIds, mapTurnsToMeta, resolveSessionCast } from '../../utils/roleplay-multi';
 import RoleplayStatusPanel from '../roleplay/RoleplayStatusPanel';

@@ -34,6 +34,10 @@ function tryParseStatusObject(rawJson: string): RoleplayStatus | null {
     if (objMatch) attempts.push(objMatch[0]);
   }
 
+  // 模型有时会漏写逗号，尝试自动补逗号再解析
+  const withCommas = text.replace(/(\s*"[^"]+":\s*[^,\n]+)(\s*\n\s*")/g, '$1,$2');
+  if (withCommas !== text) attempts.push(withCommas);
+
   for (const candidate of attempts) {
     try {
       const parsed = JSON.parse(candidate);

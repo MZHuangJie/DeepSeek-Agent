@@ -332,11 +332,12 @@ export function duplicateTemplateForm(template: RoleplayTemplate): CharacterForm
 function buildStatusOutputPrompt(fields: StatusFieldDef[]): string {
   if (fields.length === 0) return '';
 
-  const schemaLines = fields.map(f => {
+  const schemaLines = fields.map((f, i, arr) => {
     const jsonKey = getStatusFieldKey(f);
     const typeHint = f.type === 'list' ? 'string[]' : f.type === 'number' ? 'number' : 'string';
     const hint = f.promptHint ? `，${f.promptHint}` : '';
-    return `  "${jsonKey}": ${typeHint}${hint ? `  // ${hint}` : ''}`;
+    const comma = i < arr.length - 1 ? ',' : '';
+    return `  "${jsonKey}": ${typeHint}${hint ? `  // ${hint}` : ''}${comma}`;
   });
 
   return [

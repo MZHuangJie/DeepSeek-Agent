@@ -70,9 +70,12 @@ function buildMessageUpdate(
         }
       } else {
         const parsed = parseRoleplayResponse(raw);
-        upd.content = parsed.reply
+        let content = parsed.reply
           || stripRoleplayReplyTags(raw.replace(/<status\s*>[\s\S]*$/i, ''))
           || raw;
+        // 清理开头可能导致 Markdown 渲染异常的 blockquote/table 标记
+        content = content.replace(/^(\s*[>|])+\s*/, '').trim();
+        upd.content = content;
         upd.rawContent = raw;
         if (parsed.status && parsed.statusComplete) {
           upd.roleplayMeta = { status: parsed.status, statusComplete: true };
