@@ -510,13 +510,18 @@ export function setupAgentHandlers() {
           try {
             const parsed = JSON.parse(tc.arguments || '{}');
             if (parsed.inline && typeof parsed.html === 'string') {
+              infoLog('agent', 'web-preview-sending', { htmlLen: parsed.html.length, append: !!parsed.append });
               win.webContents.send('agent:stream-chunk', {
                 type: 'web-preview',
                 html: parsed.html,
                 append: !!parsed.append,
               });
+            } else {
+              infoLog('agent', 'web-preview-skip', { hasInline: !!parsed.inline, htmlType: typeof parsed.html });
             }
-          } catch { /* ignore malformed args */ }
+          } catch (e: any) {
+            errorLog('agent', 'web-preview-parse-error', { error: e?.message, argsLen: (tc.arguments || '').length });
+          }
         }
       }
       // 工具执行完毕，静默继续下一轮（不再往聊天里刷提示）
