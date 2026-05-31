@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat';
 import { useAgentStore } from '../../stores/agent';
+import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
 import { buildToolActivity, computeSubAgentProgress, isUsefulSubAgentSnippet } from './subAgentUi';
 import { summarizeSessionTitleIfNeeded } from '../../utils/sessionTitleSummarize';
@@ -42,10 +43,14 @@ function buildMessageUpdate(
   if (totalContent) {
     const chat = useChatStore.getState();
     const session = chat.sessions.find(s => s.id === sid);
-    const isRoleplay = session?.sessionMode === 'roleplay';
+    const raw = totalContent;
+    // 与 MessageBubble 的判断逻辑对齐：sessionMode、当前全局 mode、或内容本身含角色扮演标签
+    const isRoleplay =
+      session?.sessionMode === 'roleplay'
+      || useModeStore.getState().mode === 'roleplay'
+      || new RegExp('<\\/?reply\\s*>|<\\/?status\\s*>|<\\/?turn\\s*>', 'i').test(raw);
 
     if (isRoleplay) {
-      const raw = totalContent;
       const cast = resolveSessionCast(session);
       const participants = getCharactersByIds(
         useRoleplayStore.getState().characters,
