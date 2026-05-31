@@ -510,33 +510,28 @@ export function setupAgentHandlers() {
         // present_web inline / watch 模式
         if (tc.name === 'present_web' && status === 'success') {
           try {
-            const args = JSON.parse(tc.arguments || '{}');
-            if (args.inline) {
-              // 实时开发预览：监听文件变化
-              if (args.file && typeof args.file === 'string') {
-                const filePath = args.file;
-                // 清理同文件旧 watcher
-                if (fileWatchers.has(filePath)) {
-                  fileWatchers.get(filePath)!.close();
-                }
-                // 发送初始 HTML
-                if (typeof args.initialHtml === 'string') {
-                  win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: args.initialHtml, file: filePath });
-                }
-                // 启动文件监听
-                const watcher = fs.watch(filePath, () => {
-                  try {
-                    const updated = fs.readFileSync(filePath, 'utf-8');
-                    win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: updated, file: filePath });
-                  } catch { /* file may be temporarily locked */ }
-                });
-                fileWatchers.set(filePath, watcher);
-                infoLog('agent', 'web-preview-watch', { file: filePath, initialLen: (args.initialHtml || '').length });
-              } else if (typeof args.html === 'string') {
-                // 内嵌 HTML 预览
-                win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: args.html });
-                infoLog('agent', 'web-preview-inline', { htmlLen: args.html.length });
+            const parsed = JSON.parse(toolResult || '{}');
+            if (parsed.opened === 'watch' && typeof parsed.file === 'string') {
+              const filePath = parsed.file;
+              if (fileWatchers.has(filePath)) {
+                fileWatchers.get(filePath)!.close();
               }
+              // 发送初始 HTML（从工具返回值获取）
+              if (typeof parsed.initialHtml === 'string') {
+                win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: parsed.initialHtml, file: filePath });
+              }
+              // 启动文件监听
+              const watcher = fs.watch(filePath, () => {
+                try {
+                  const updated = fs.readFileSync(filePath, 'utf-8');
+                  win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: updated, file: filePath });
+                } catch { /* file may be temporarily locked */ }
+              });
+              fileWatchers.set(filePath, watcher);
+              infoLog('agent', 'web-preview-watch', { file: filePath });
+            } else if (parsed.opened === 'inline' && typeof parsed.html === 'string') {
+              win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: parsed.html });
+              infoLog('agent', 'web-preview-inline', { htmlLen: parsed.html.length });
             }
           } catch (e: any) {
             errorLog('agent', 'web-preview-parse-error', { error: e?.message });
