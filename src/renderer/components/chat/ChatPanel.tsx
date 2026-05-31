@@ -282,6 +282,7 @@ export default function ChatPanel() {
 
     statusRetryUsedRef.current = true;
     resetStreamBuffers();
+    targetSessionRef.current = activeSessionId;
     setStreaming(true);
 
     const priorMessages = target.messages.slice(0, -1);
@@ -340,6 +341,7 @@ export default function ChatPanel() {
   };
 
   const handleStop = useCallback(async () => {
+    targetSessionRef.current = null;
     await window.api.agent.cancel();
     setStreaming(false);
   }, []);
@@ -366,6 +368,7 @@ export default function ChatPanel() {
 
     statusRetryUsedRef.current = false;
     resetStreamBuffers();
+    targetSessionRef.current = sessionId;
     addMessage({ id: `msg-${Date.now()}`, role: 'assistant', content: '', timestamp: Date.now() });
     setStreaming(true);
 
@@ -406,6 +409,7 @@ export default function ChatPanel() {
 
     const history = buildHistory(messages);
     resetStreamBuffers();
+    targetSessionRef.current = activeSessionId;
 
     const modelConfig = getActiveModel();
     const providerSupportsVision = PROVIDERS[modelConfig.provider]?.multimodal ?? false;

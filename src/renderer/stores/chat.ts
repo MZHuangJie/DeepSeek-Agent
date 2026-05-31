@@ -82,8 +82,8 @@ interface ChatState {
   deleteSession: (id: string) => void;
   addMessage: (msg: Message) => void;
   setStreaming: (v: boolean) => void;
-  updateLastAssistant: (update: Partial<Message>) => void;
-  newAssistantMessage: () => void;
+  updateLastAssistant: (update: Partial<Message>, sessionId?: string) => void;
+  newAssistantMessage: (sessionId?: string) => void;
   updateSessionTitle: (id: string, title: string, titlePending?: boolean) => void;
   setSessionCharacter: (
     characterId: string | null,
@@ -286,35 +286,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (wasStreaming && !v) persistAll(get().sessions);
   },
 
-  newAssistantMessage: () => {
+  newAssistantMessage: (sessionId?) => {
     const { activeSessionId, sessions } = get();
+    const targetId = sessionId || activeSessionId;
+    if (!targetId) return;
     const msg: Message = { id: `msg-${Date.now()}`, role: 'assistant', content: '', timestamp: Date.now() };
     const newSessions = sessions.map(s => {
-      if (s.id !== activeSessionId) return s;
+      if (s.id !== targetId) return s;
       return { ...s, messages: [...s.messages, msg] };
     });
-    const ordered = newSessions;
-    set({ sessions: ordered });
+    set({ sessions: newSessions });
   },
 
-  updateLastAssistant: (update) => {
+  updateLastAssistant: (update, sessionId?) => {
     const { activeSessionId, sessions, isStreaming } = get();
-    let modifiedSession: Session | null = null;
+    const targetId = sessionId || activeSessionId;
+    if (!targetId) return;
+    let modified = false;
     const newSessions = sessions.map(s => {
-      if (s.id !== activeSessionId) return s;
+      if (s.id !== targetId) return s;
       const msgs = [...s.messages];
       const last = msgs[msgs.length - 1];
       if (last && last.role === 'assistant') {
         msgs[msgs.length - 1] = { ...last, ...update };
+        modified = true;
       }
-      modifiedSession = { ...s, messages: msgs };
-      return modifiedSession;
+      return { ...s, messages: msgs };
     });
-    const ordered = modifiedSession
-      ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
-      : newSessions;
-    set({ sessions: ordered });
-    if (!isStreaming) persistAll(ordered);
+    set({ sessions: newSessions });
+    if (!isStreaming) persistAll(newSessions);
   },
 
   updateSessionTitle: (id, title, titlePending = false) => {

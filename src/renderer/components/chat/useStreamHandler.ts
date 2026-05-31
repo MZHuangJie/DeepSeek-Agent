@@ -30,9 +30,11 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
   };
 
   const handleChunk = (chunk: any) => {
+    const targetSessionId = targetSessionRef.current;
+    if (!targetSessionId) return; // 不是本 Panel 发起的流，忽略
+
     const { sessions, updateLastAssistant, webPreviewHtml } = useChatStore.getState();
-    const activeSessionId = targetSessionRef.current;
-    const sess = sessions.find(s => s.id === activeSessionId);
+    const sess = sessions.find(s => s.id === targetSessionId);
     const lastMsg = sess?.messages.at(-1);
     const hasWebPreview = !!webPreviewHtml;
 
@@ -46,7 +48,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
           totalThinkingRef.current = '';
           pendingContentRef.current = '';
           pendingThinkingRef.current = '';
-          useChatStore.getState().newAssistantMessage();
+          useChatStore.getState().newAssistantMessage(targetSessionId);
         }
       }
       pendingContentRef.current += chunk.text;
@@ -61,7 +63,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
           pendingThinkingRef.current = '';
           totalContentRef.current = '';
           totalThinkingRef.current = '';
-          useChatStore.getState().newAssistantMessage();
+          useChatStore.getState().newAssistantMessage(targetSessionId);
         }
       }
       pendingThinkingRef.current += chunk.text;
@@ -76,7 +78,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
           totalThinkingRef.current = '';
           pendingContentRef.current = '';
           pendingThinkingRef.current = '';
-          useChatStore.getState().newAssistantMessage();
+          useChatStore.getState().newAssistantMessage(targetSessionId);
         }
       }
       let parsedArgs: Record<string, unknown> = {};
@@ -84,7 +86,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       const current = lastMsg?.toolCalls ?? [];
       updateLastAssistant({
         toolCalls: [...current, { name: chunk.name, args: parsedArgs, status: 'running', timestamp: Date.now() }],
-      });
+      }, targetSessionId);
       useAgentStore.getState().addToolCall({
         id: `tc-${Date.now()}`, name: chunk.name, args: chunk.args || '{}', status: 'running', timestamp: Date.now(),
       });
@@ -100,7 +102,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         toolCalls: current.map((tc: any, idx: number) =>
           idx === targetIdx ? { ...tc, result: chunk.result, status: chunk.status } : tc
         ),
-      });
+      }, targetSessionId);
       const lastTc = useAgentStore.getState().toolCalls[useAgentStore.getState().toolCalls.length - 1];
       if (lastTc) useAgentStore.getState().updateToolCall(lastTc.id, { result: chunk.result, status: chunk.status });
     } else if (chunk.type === 'usage') {
@@ -114,13 +116,12 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       totalContentRef.current = '';
       totalThinkingRef.current = '';
       setStreaming(false);
+      targetSessionRef.current = null;
       const current = useAgentStore.getState().currentStep;
       useAgentStore.getState().setCurrentStep({
         step: current?.step || 1, total: current?.total || 1, description: '已完成', progress: 100,
       });
-      if (activeSessionId) {
-        void summarizeSessionTitleIfNeeded(activeSessionId);
-      }
+      void summarizeSessionTitleIfNeeded(targetSessionId);
       useAgentStore.getState().refreshBalance();
       onDone?.();
     } else if (chunk.type === 'explore-progress') {
@@ -214,6 +215,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         }
       }
     } else if (chunk.type === 'error') {
+      targetSessionRef.current = null;
       setStreaming(false);
       setErrorMsg(chunk.message);
     }
