@@ -211,11 +211,16 @@ export function buildSessionRoleplayPrompt(
   templates: RoleplayTemplate[],
   options?: { forOpening?: boolean; playerName?: string },
 ): string | undefined {
-  const cast = resolveSessionCast(session);
-  if (cast.participantIds.length === 0) return undefined;
-  const participants = getCharactersByIds(characters, cast.participantIds);
-  if (participants.length === 0) return undefined;
-  if (cast.isMulti) {
+  // 调用方通常已传入解析好的 participants；若为空则回退从 session 解析
+  let participants = characters;
+  if (participants.length === 0) {
+    const cast = resolveSessionCast(session);
+    if (cast.participantIds.length === 0) return undefined;
+    participants = getCharactersByIds(characters, cast.participantIds);
+    if (participants.length === 0) return undefined;
+  }
+  const isMulti = participants.length >= 2;
+  if (isMulti) {
     return buildGroupRoleplayPrompt(participants, templates, options);
   }
   const template = getTemplateById(templates, participants[0].templateId);

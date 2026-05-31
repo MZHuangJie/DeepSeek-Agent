@@ -188,7 +188,9 @@ export default function ChatPanel() {
   }, [apiKey, projectDir, getActiveModel]);
 
   const sendRoleplayStatusRetry = useCallback(async () => {
-    if (!activeSessionId || !apiKey || statusRetryUsedRef.current) return;
+    const modelConfig = getActiveModel();
+    const effectiveApiKey = modelConfig.apiKey || apiKey;
+    if (!activeSessionId || !effectiveApiKey || statusRetryUsedRef.current) return;
     if (useModeStore.getState().mode !== 'roleplay') return;
 
     const chat = useChatStore.getState();
@@ -231,7 +233,7 @@ export default function ChatPanel() {
       setStreaming(false);
       setErrorMsg(err instanceof Error ? err.message : '状态补全失败');
     }
-  }, [activeSessionId, apiKey, resetStreamBuffers, updateLastAssistant, setStreaming, buildHistory, invokeAgent]);
+  }, [activeSessionId, apiKey, getActiveModel, resetStreamBuffers, updateLastAssistant, setStreaming, buildHistory, invokeAgent]);
 
   const targetSessionRef = useRef<string | null>(null);
   const isMySessionStreaming = isStreaming && targetSessionRef.current === activeSessionId;
@@ -282,7 +284,9 @@ export default function ChatPanel() {
   }, [activeSessionId]);
 
   const sendCharacterOpening = useCallback(async (sessionId: string) => {
-    if (!apiKey) return;
+    const modelConfig = getActiveModel();
+    const effectiveApiKey = modelConfig.apiKey || apiKey;
+    if (!effectiveApiKey) return;
     const chat = useChatStore.getState();
     const target = chat.sessions.find(s => s.id === sessionId);
     if (!target?.pendingOpening || target.messages.length > 0) return;
@@ -324,7 +328,7 @@ export default function ChatPanel() {
       setStreaming(false);
       setErrorMsg(err instanceof Error ? err.message : '开场生成失败');
     }
-  }, [apiKey, resetStreamBuffers, addMessage, setStreaming, invokeAgent]);
+  }, [apiKey, getActiveModel, resetStreamBuffers, addMessage, setStreaming, invokeAgent]);
 
   useEffect(() => {
     if (!activeSessionId || isMySessionStreaming || !apiKey) return;
