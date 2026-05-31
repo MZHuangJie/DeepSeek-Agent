@@ -46,6 +46,8 @@ export interface Message {
   roleplayMeta?: RoleplayMessageMeta;
   /** roleplay 原始流式输出，用于解析失败时的回退 */
   rawContent?: string;
+  /** present_web inline 模式：HTML 内容直接在聊天区渲染 */
+  webPreviewHtml?: string;
   timestamp: number;
 }
 

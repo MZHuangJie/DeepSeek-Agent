@@ -504,6 +504,20 @@ export function setupAgentHandlers() {
             }
           } catch { /* ignore malformed args */ }
         }
+
+        // present_web inline 模式：把 HTML 转发到聊天区内嵌渲染
+        if (tc.name === 'present_web' && status === 'success') {
+          try {
+            const parsed = JSON.parse(tc.arguments || '{}');
+            if (parsed.inline && typeof parsed.html === 'string') {
+              win.webContents.send('agent:stream-chunk', {
+                type: 'web-preview',
+                html: parsed.html,
+                append: !!parsed.append,
+              });
+            }
+          } catch { /* ignore malformed args */ }
+        }
       }
       // 工具执行完毕，静默继续下一轮（不再往聊天里刷提示）
     }
