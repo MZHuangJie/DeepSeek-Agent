@@ -7,9 +7,9 @@ import AgentProcessPanel from './AgentProcessPanel';
 import styles from './ChatWorkspace.module.css';
 
 export default function ChatWorkspace() {
-  const { subAgents } = useAgentStore();
+  const { subAgents, processPanelDismissed, dismissProcessPanel } = useAgentStore();
   const { activeSessionId } = useChatStore();
-  const showProcessPanel = subAgents.length > 0;
+  const showProcessPanel = subAgents.length > 0 && !processPanelDismissed;
 
   return (
     <div className={styles.workspace}>
@@ -33,7 +33,7 @@ export default function ChatWorkspace() {
         </div>
         {showProcessPanel && (
           <div className={styles.processColumn}>
-            <AgentProcessPanel />
+            <AgentProcessPanel onClose={dismissProcessPanel} />
           </div>
         )}
       </div>

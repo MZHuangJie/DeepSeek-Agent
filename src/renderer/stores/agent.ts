@@ -125,6 +125,8 @@ interface AgentState {
   updateSubAgent: (id: string, update: Partial<SubAgentStatus>) => void;
   removeSubAgent: (id: string) => void;
   setExploreProgress: (p: AgentState['exploreProgress']) => void;
+  processPanelDismissed: boolean;
+  dismissProcessPanel: () => void;
   reset: () => void;
 }
 
@@ -138,9 +140,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   balanceInfo: null,
   balanceLoading: false,
   balanceError: null,
+  processPanelDismissed: false,
   setBalanceInfo: (info) => set({ balanceInfo: info, balanceError: null }),
   setBalanceLoading: (loading) => set({ balanceLoading: loading }),
   setBalanceError: (error) => set({ balanceError: error, balanceLoading: false }),
+  dismissProcessPanel: () => set({ processPanelDismissed: true }),
   refreshBalance: () => {
     const { setBalanceLoading, setBalanceError, setBalanceInfo } = get();
     setBalanceLoading(true);
@@ -211,6 +215,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     mainTokenStats: null,
     subAgents: [],
     exploreProgress: null,
+    processPanelDismissed: false,
     // 余额是账户级别数据，不随对话重置
   }),
 }));
