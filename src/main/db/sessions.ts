@@ -13,7 +13,7 @@ export function saveSession(id: string, title: string, messages: string) {
 
 export function loadSessions(): Array<{ id: string; title: string; messages: string }> {
   const db = getDb();
-  return db.prepare('SELECT id, title, messages FROM sessions ORDER BY updated_at DESC, created_at DESC').all() as any[];
+  return db.prepare('SELECT id, title, messages FROM sessions ORDER BY created_at ASC').all() as any[];
 }
 
 export function deleteSession(id: string) {
