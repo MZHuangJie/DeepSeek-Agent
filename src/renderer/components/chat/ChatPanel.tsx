@@ -311,10 +311,13 @@ export default function ChatPanel() {
     onDone: () => { void sendRoleplayStatusRetry(); },
   });
 
+  // 用 ref 稳定 IPC listener，避免每次渲染都重新注册导致消息丢失
+  const handleStreamChunkRef = useRef(handleStreamChunk);
+  handleStreamChunkRef.current = handleStreamChunk;
   useEffect(() => {
-    const unsubscribe = window.api.agent.onStreamChunk(handleStreamChunk);
+    const unsubscribe = window.api.agent.onStreamChunk((chunk) => handleStreamChunkRef.current(chunk));
     return () => { unsubscribe(); };
-  }, [handleStreamChunk]);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = window.api.agent.onConfirmRequest((req) => {
