@@ -110,7 +110,7 @@
 
 .webPreviewWrap {
   margin: 0 auto 8px;
-  max-width: 600px;
+  width: 70%;
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
@@ -152,7 +152,7 @@
 .webPreviewFrame {
   display: block;
   width: 100%;
-  height: 320px;
+  height: 420px;
   border: none;
   background: #fff;
 }
