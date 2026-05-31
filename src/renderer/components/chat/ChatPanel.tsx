@@ -216,8 +216,7 @@ export default function ChatPanel() {
   const resetStreamBuffers = useCallback(() => {
     // 锁定当前会话 ID，防止切换会话后流式输出串到其他会话
     targetSessionRef.current = useChatStore.getState().activeSessionId;
-    // 只清除当前步骤，保留 toolCalls/tokenStats/subAgents 累计
-    useAgentStore.setState({ currentStep: null, exploreProgress: null });
+    agentStore.reset();
     currentStepRef.current = 1;
     pendingContentRef.current = '';
     pendingThinkingRef.current = '';

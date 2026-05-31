@@ -210,12 +210,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   setExploreProgress: (p) => set({ exploreProgress: p }),
   reset: () => set({
     currentStep: null,
-    toolCalls: [],
-    tokenStats: null,
-    mainTokenStats: null,
-    subAgents: [],
     exploreProgress: null,
     processPanelDismissed: false,
-    // 余额是账户级别数据，不随对话重置
+    // toolCalls / tokenStats / subAgents 在同个会话内累计，不随每次消息重置
   }),
 }));
