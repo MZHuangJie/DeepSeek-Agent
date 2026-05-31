@@ -217,7 +217,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       sessionMode,
     };
     set(s => ({
-      sessions: [session, ...s.sessions],
+      sessions: [...s.sessions, session],
       activeSessionId: session.id,
     }));
     persistSession(session);
@@ -273,9 +273,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       modifiedSession = { ...s, title, titlePending, messages: newMessages };
       return modifiedSession;
     });
-    // 把刚更新的会话移到最前面
     const ordered = modifiedSession
-      ? [modifiedSession, ...newSessions.filter(s => s.id !== activeSessionId)]
+      ? newSessions.map(s => s.id === activeSessionId ? modifiedSession! : s)
       : newSessions;
     set({ sessions: ordered });
     if (!isStreaming) persistAll(ordered);
@@ -294,7 +293,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (s.id !== activeSessionId) return s;
       return { ...s, messages: [...s.messages, msg] };
     });
-    const ordered = [newSessions.find(s => s.id === activeSessionId)!, ...newSessions.filter(s => s.id !== activeSessionId)];
+    const ordered = newSessions;
     set({ sessions: ordered });
   },
 
@@ -323,14 +322,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const newSessions = sessions.map(s =>
       s.id === id ? { ...s, title, titlePending } : s,
     );
-    const ordered = [
-      newSessions.find(s => s.id === id)!,
-      ...newSessions.filter(s => s.id !== id),
-    ];
-    set({ sessions: ordered });
-    if (!isStreaming) persistAll(ordered);
+    set({ sessions: newSessions });
+    if (!isStreaming) persistAll(newSessions);
     else {
-      const session = ordered.find(s => s.id === id);
+      const session = newSessions.find(s => s.id === id);
       if (session) persistSession(session);
     }
   },
