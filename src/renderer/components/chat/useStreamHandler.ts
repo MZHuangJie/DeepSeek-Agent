@@ -98,7 +98,10 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
     let buf = buffersRef.current.get(sid);
     if (!buf) {
       buf = {
-        currentStep: 0,
+        // 调用方（handleSend / sendCharacterOpening）已提前 addMessage 创建空 assistant，
+        // 初始 step 设为 1，避免第一个 content chunk（step=1）误触发 newAssistantMessage
+        // 导致出现多余的空消息（显示为 "..."）
+        currentStep: 1,
         totalContent: '',
         totalThinking: '',
         pendingContent: '',
