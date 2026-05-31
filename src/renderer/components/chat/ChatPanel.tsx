@@ -158,6 +158,7 @@ export default function ChatPanel() {
     history: any[];
     newMessage: string;
     commandPrompt?: string;
+    sessionId: string;
   }) => {
     const modelConfig = getActiveModel();
     const sendMode = useModeStore.getState().mode;
@@ -182,7 +183,7 @@ export default function ChatPanel() {
       mode: sendMode,
       providerMultimodal: PROVIDERS[modelConfig.provider]?.multimodal ?? false,
       roles,
-      sessionId: activeSessionId,
+      sessionId: opts.sessionId,
     });
   }, [apiKey, projectDir, getActiveModel]);
 
@@ -224,6 +225,7 @@ export default function ChatPanel() {
         history,
         newMessage: getRoleplayStatusRetryMessage(target),
         commandPrompt,
+        sessionId: activeSessionId,
       });
     } catch (err: unknown) {
       setStreaming(false);
@@ -316,6 +318,7 @@ export default function ChatPanel() {
         history: [],
         newMessage: getRoleplayOpeningMessage(target),
         commandPrompt,
+        sessionId,
       });
     } catch (err: unknown) {
       setStreaming(false);
@@ -393,7 +396,7 @@ export default function ChatPanel() {
     const newMessage = contentParts ?? textContent;
 
     try {
-      await invokeAgent({ history, newMessage, commandPrompt });
+      await invokeAgent({ history, newMessage, commandPrompt, sessionId: activeSessionId });
     } catch (err: unknown) {
       setStreaming(false);
       setErrorMsg(err instanceof Error ? err.message : '请求失败');
