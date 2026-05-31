@@ -61,6 +61,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+// ... (keep existing helper functions unchanged)
 function isLocalImagePath(url: string): boolean {
   const trimmed = decodeURIComponent(url).trim();
   if (/^[A-Za-z]:[\\/]/.test(trimmed)) return true;
@@ -81,7 +82,7 @@ function normalizeLocalImagePath(url: string): string {
   } else if (/^file:\/\//i.test(cleaned)) {
     cleaned = cleaned.replace(/^file:\/\//i, '');
   } else if (/^https?:\/\//i.test(cleaned) || cleaned.startsWith('data:')) {
-    return cleaned; // 远程/内联 URL，原样返回
+    return cleaned;
   }
   cleaned = cleaned.replace(/\\/g, '/');
   cleaned = cleaned.replace(/^\/([A-Za-z]:)\//, '$1/');
@@ -93,7 +94,6 @@ function isImageUrl(url: string): boolean {
   if (isLocalImagePath(url)) return true;
   if (/\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/.test(lower)) return true;
   if (lower.startsWith('data:image/')) return true;
-  // 仅匹配已知生图 CDN 的域名，避免把普通链接误判成图片
   if (
     lower.includes('oaidalleapiprodscus.blob.core.windows.net') ||
     lower.includes('cdn.openai.com') ||
@@ -178,6 +178,7 @@ function ImageCard({ url, alt }: { url: string; alt: string }) {
     </div>
   );
 }
+
 function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
   if (!src) return null;
   return <ImageCard url={src} alt={alt || ''} />;
@@ -195,7 +196,6 @@ class MarkdownErrorBoundary extends React.Component<{ content: string; children:
 }
 
 function MessageContent({ content }: { content: string }) {
-  // 提取内嵌的 data:image 图片，从 markdown 内容中分离
   const imageUrls: string[] = [];
   let cleanContent = content;
   const dataImageRe = /!\[image\]\((data:image\/[^)]+)\)/g;
@@ -207,7 +207,6 @@ function MessageContent({ content }: { content: string }) {
     cleanContent = content.replace(dataImageRe, '').replace(/\n{3,}/g, '\n\n').trim();
   }
 
-  // 纯图片消息
   if (!cleanContent && imageUrls.length === 1) {
     return (
       <div>
@@ -326,6 +325,23 @@ function ToolCallProgress({ toolCalls }: { toolCalls?: import('../../stores/chat
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {toolCalls.map((tc, i) => <ToolCallCard key={i} tc={tc} />)}
+    </div>
+  );
+}
+
+// WebPreviewInline — present_web inline 模式：在聊天区嵌入网页预览
+function WebPreviewInline({ html }: { html: string }) {
+  return (
+    <div className={styles.webPreviewWrap}>
+      <div className={styles.webPreviewBar}>
+        <span className={styles.webPreviewLabel}>🌐 网页预览</span>
+      </div>
+      <iframe
+        className={styles.webPreviewFrame}
+        srcDoc={html}
+        sandbox="allow-scripts allow-same-origin"
+        title="web preview"
+      />
     </div>
   );
 }
@@ -452,6 +468,9 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   );
   const [assistantAvatar, setAssistantAvatar] = useState('/assets/ai_avater.png');
 
+  const isStreaming = useChatStore(s => s.isStreaming);
+  const isLastAssistant = !isUser && activeSession?.messages[activeSession.messages.length - 1]?.id === message.id;
+
   const displayContent = useMemo(() => {
     if (isUser) return message.content;
     if (mode === 'roleplay' && isRoleplayChat) {
@@ -525,9 +544,14 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
 
         <ToolCallProgress toolCalls={message.toolCalls} />
 
+        {/* present_web inline 模式：在聊天区内嵌网页预览 */}
+        {!isUser && message.webPreviewHtml && (
+          <WebPreviewInline html={message.webPreviewHtml} />
+        )}
+
         {showSingleBubble && (
           <div className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleAi}`}>
-            <MessageContent content={displayContent || '...'} />
+            <MessageContent content={displayContent || (isLastAssistant && isStreaming ? '...' : '')} />
           </div>
         )}
 
