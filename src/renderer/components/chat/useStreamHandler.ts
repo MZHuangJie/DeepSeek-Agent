@@ -195,6 +195,24 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       if (Array.isArray(chunk.todos)) {
         useChatStore.getState().setPlanTodos(chunk.todos, chunk.planDocPath);
       }
+    } else if (chunk.type === 'web-preview') {
+      if (typeof chunk.html === 'string') {
+        const store = useChatStore.getState();
+        const sessions = store.sessions;
+        const activeId = store.activeSessionId;
+        if (!activeId) return;
+        const session = sessions.find(s => s.id === activeId);
+        const lastMsg = session?.messages[session.messages.length - 1];
+        const existing = (lastMsg?.role === 'assistant' ? lastMsg.webPreviewHtml : undefined) || '';
+
+        if (chunk.append && existing) {
+          // 追加模式：累加 HTML 片段到已有内容末尾
+          store.updateLastAssistant({ webPreviewHtml: existing + '\n' + chunk.html });
+        } else {
+          // 替换模式（首次或完整覆盖）
+          store.updateLastAssistant({ webPreviewHtml: chunk.html });
+        }
+      }
     } else if (chunk.type === 'error') {
       setStreaming(false);
       setErrorMsg(chunk.message);
