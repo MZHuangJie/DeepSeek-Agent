@@ -173,11 +173,11 @@ export function setupAgentHandlers() {
       function flushStreamBuf() {
         if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
         if (contentBuf) {
-          win!.webContents.send('agent:stream-chunk', { type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
+          win!.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
           contentBuf = '';
         }
         if (thinkingBuf) {
-          win!.webContents.send('agent:stream-chunk', { type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
+          win!.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
           thinkingBuf = '';
         }
       }
