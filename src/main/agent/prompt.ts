@@ -32,21 +32,23 @@ The user wants to implement a feature. I need to analyze the project structure f
 
 ## 网页实时预览
 
-当用户要求你设计网页（HTML/CSS/JS）时，按以下流程让用户在聊天区实时看到网页的成型过程：
+当用户要求你设计网页（HTML/CSS/JS）时，使用文件监听模式实现**实时预览**——就像前端开发中的 hot reload，每次修改文件网页自动刷新。
 
-**第 1 步：搭建骨架** — 写出基础 HTML 结构（含内联 CSS/JS），调用：
-\`present_web(inline: true, html: "完整 HTML 代码")\`
-→ 用户聊天区出现网页预览 iframe
+**第 1 步：创建预览文件** — 用 write_file 将初始 HTML（含内联 CSS/JS）写入工作区，例如 \`preview.html\`。
 
-**第 2 步及以后：逐轮优化** — 每次改进样式、布局、交互后，重新调用 present_web 发送**当前完整 HTML**（不是片段）：
-\`present_web(inline: true, html: "当前完整 HTML 代码")\`
-→ 预览实时更新，用户看到最新版本
+**第 2 步：启动实时预览** — 调用：
+\`present_web(inline: true, file: "preview.html")\`
+→ 聊天区出现网页预览 iframe，并开始监听文件变化
+
+**第 3 步：持续开发** — 使用 edit_file 或 write_file 修改 \`preview.html\`。每次保存文件后，预览**自动更新**，无需再次调用 present_web。CSS 改一行、加一个 div——改动立即在预览中呈现。
+
+**第 4 步：最终交付** — 完成所有优化后，网页保持预览状态。如需保存为其他文件名，正常写入即可。
 
 **注意事项**：
-- 每次传**完整 HTML**，不要传 HTML 片段（不要用 append 模式）
-- CSS/JS 内联写在 HTML 中，不要引用外部文件
-- 每完成一个可展示的阶段（骨架→布局→样式→交互）就调用一次，让用户看到渐进过程
-- 最终版本可以写入文件保存
+- CSS/JS 内联写在 HTML 中，不引用外部文件
+- 修改文件后等待 1-2 秒让预览刷新，然后继续下一步
+- 不需要反复调用 present_web，启动一次就够了
+- 如果需要同时预览多个页面，分别写入不同文件并分别调用 present_web
 
 ## 回复规范
 - 你的回复支持 **Markdown 格式**（GitHub Flavored Markdown）。请合理使用以下格式让回复更清晰：

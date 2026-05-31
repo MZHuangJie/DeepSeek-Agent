@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { ipcMain, BrowserWindow } from 'electron';
 import { streamChat } from '../agent/client';
 import { buildCachePrefix, buildMessages } from '../agent/cache';
@@ -21,6 +22,7 @@ import { enrichMessageWithVisionDescriptions } from '../agent/image-preprocess';
 
 let activeAbort: AbortController | null = null;
 let activeSubAgentManager: SubAgentManager | null = null;
+const fileWatchers = new Map<string, fs.FSWatcher>();
 
 
 function buildToolPreview(name: string, argsJson: string): string {
@@ -505,22 +507,39 @@ export function setupAgentHandlers() {
           } catch { /* ignore malformed args */ }
         }
 
-        // present_web inline 模式：把 HTML 转发到聊天区内嵌渲染
+        // present_web inline / watch 模式
         if (tc.name === 'present_web' && status === 'success') {
           try {
-            const parsed = JSON.parse(tc.arguments || '{}');
-            if (parsed.inline && typeof parsed.html === 'string') {
-              infoLog('agent', 'web-preview-sending', { htmlLen: parsed.html.length, append: !!parsed.append });
-              win.webContents.send('agent:stream-chunk', {
-                type: 'web-preview',
-                html: parsed.html,
-                append: !!parsed.append,
-              });
-            } else {
-              infoLog('agent', 'web-preview-skip', { hasInline: !!parsed.inline, htmlType: typeof parsed.html });
+            const args = JSON.parse(tc.arguments || '{}');
+            if (args.inline) {
+              // 实时开发预览：监听文件变化
+              if (args.file && typeof args.file === 'string') {
+                const filePath = args.file;
+                // 清理同文件旧 watcher
+                if (fileWatchers.has(filePath)) {
+                  fileWatchers.get(filePath)!.close();
+                }
+                // 发送初始 HTML
+                if (typeof args.initialHtml === 'string') {
+                  win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: args.initialHtml });
+                }
+                // 启动文件监听
+                const watcher = fs.watch(filePath, () => {
+                  try {
+                    const updated = fs.readFileSync(filePath, 'utf-8');
+                    win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: updated });
+                  } catch { /* file may be temporarily locked */ }
+                });
+                fileWatchers.set(filePath, watcher);
+                infoLog('agent', 'web-preview-watch', { file: filePath, initialLen: (args.initialHtml || '').length });
+              } else if (typeof args.html === 'string') {
+                // 内嵌 HTML 预览
+                win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: args.html });
+                infoLog('agent', 'web-preview-inline', { htmlLen: args.html.length });
+              }
             }
           } catch (e: any) {
-            errorLog('agent', 'web-preview-parse-error', { error: e?.message, argsLen: (tc.arguments || '').length });
+            errorLog('agent', 'web-preview-parse-error', { error: e?.message });
           }
         }
       }
@@ -530,6 +549,8 @@ export function setupAgentHandlers() {
     // 收集本次对话中修改过的文件
     activeAbort = null;
     activeSubAgentManager = null;
+    for (const w of fileWatchers.values()) { w.close(); }
+    fileWatchers.clear();
     win.webContents.send('agent:stream-chunk', { type: 'done' });
     if (agentFailed) {
       return { success: false, error: agentError || 'Agent 执行失败' };
