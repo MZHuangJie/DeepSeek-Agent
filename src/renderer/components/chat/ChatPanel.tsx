@@ -214,6 +214,8 @@ export default function ChatPanel() {
   }, []);
 
   const resetStreamBuffers = useCallback(() => {
+    // 锁定当前会话 ID，防止切换会话后流式输出串到其他会话
+    targetSessionRef.current = useChatStore.getState().activeSessionId;
     // 只清除当前步骤，保留 toolCalls/tokenStats/subAgents 累计
     useAgentStore.setState({ currentStep: null, exploreProgress: null });
     currentStepRef.current = 1;
@@ -299,9 +301,10 @@ export default function ChatPanel() {
     }
   }, [activeSessionId, apiKey, resetStreamBuffers, updateLastAssistant, setStreaming, buildHistory, invokeAgent]);
 
+  const targetSessionRef = useRef<string | null>(null);
   const handleStreamChunk = useStreamHandler({
     currentStepRef, totalContentRef, totalThinkingRef,
-    pendingContentRef, pendingThinkingRef, flushRafBuffer,
+    pendingContentRef, pendingThinkingRef, targetSessionRef, flushRafBuffer,
     setStreaming: (v) => useChatStore.getState().setStreaming(v),
     setErrorMsg,
     onDone: () => { void sendRoleplayStatusRetry(); },

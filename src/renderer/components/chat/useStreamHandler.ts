@@ -10,6 +10,7 @@ interface StreamHandlerDeps {
   totalThinkingRef: React.MutableRefObject<string>;
   pendingContentRef: React.MutableRefObject<string>;
   pendingThinkingRef: React.MutableRefObject<string>;
+  targetSessionRef: React.MutableRefObject<string | null>;
   flushRafBuffer: () => void;
   setStreaming: (v: boolean) => void;
   setErrorMsg: (msg: string) => void;
@@ -17,7 +18,7 @@ interface StreamHandlerDeps {
 }
 
 export function useStreamHandler(deps: StreamHandlerDeps) {
-  const { currentStepRef, totalContentRef, totalThinkingRef, pendingContentRef, pendingThinkingRef, flushRafBuffer, setStreaming, setErrorMsg, onDone } = deps;
+  const { currentStepRef, totalContentRef, totalThinkingRef, pendingContentRef, pendingThinkingRef, targetSessionRef, flushRafBuffer, setStreaming, setErrorMsg, onDone } = deps;
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
@@ -29,7 +30,8 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
   };
 
   const handleChunk = (chunk: any) => {
-    const { sessions, activeSessionId, updateLastAssistant, webPreviewHtml } = useChatStore.getState();
+    const { sessions, updateLastAssistant, webPreviewHtml } = useChatStore.getState();
+    const activeSessionId = targetSessionRef.current;
     const sess = sessions.find(s => s.id === activeSessionId);
     const lastMsg = sess?.messages.at(-1);
     const hasWebPreview = !!webPreviewHtml;
