@@ -84,7 +84,7 @@ class MemDb implements DbLike {
       all: (...args: any[]) => {
         if (sql.includes('FROM sessions')) {
           const sessions = getMap('sessions');
-          return Array.from(sessions.values()).sort((a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0));
+          return Array.from(sessions.values()).sort((a: any, b: any) => (a.created_at || 0) - (b.created_at || 0));
         }
         if (sql.includes('FROM settings')) {
           const key = args[0];
