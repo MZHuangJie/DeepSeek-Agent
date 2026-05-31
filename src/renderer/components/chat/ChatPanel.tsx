@@ -215,7 +215,7 @@ export default function ChatPanel() {
 
   const resetStreamBuffers = useCallback(() => {
     // 只清除当前步骤，保留 toolCalls/tokenStats/subAgents 累计
-    agentStore.setState({ currentStep: null, exploreProgress: null });
+    useAgentStore.setState({ currentStep: null, exploreProgress: null });
     currentStepRef.current = 1;
     pendingContentRef.current = '';
     pendingThinkingRef.current = '';
