@@ -254,6 +254,7 @@ export default function ChatPanel() {
       mode: sendMode,
       providerMultimodal: PROVIDERS[modelConfig.provider]?.multimodal ?? false,
       roles,
+      sessionId: activeSessionId,
     });
   }, [apiKey, projectDir, getActiveModel]);
 

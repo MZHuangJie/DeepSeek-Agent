@@ -30,8 +30,9 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
   };
 
   const handleChunk = (chunk: any) => {
-    const targetSessionId = targetSessionRef.current;
-    if (!targetSessionId) return; // 不是本 Panel 发起的流，忽略
+    // 优先使用 IPC 消息中携带的 sessionId，支持多 tab 同时流式输出
+    const targetSessionId = chunk.sessionId || targetSessionRef.current;
+    if (!targetSessionId) return;
 
     const { sessions, updateLastAssistant, webPreviewHtml } = useChatStore.getState();
     const sess = sessions.find(s => s.id === targetSessionId);

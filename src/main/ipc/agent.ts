@@ -60,10 +60,12 @@ export function setupAgentHandlers() {
     mode?: AgentMode;
     providerMultimodal?: boolean;
     roles?: MultiAgentRole[];
+    sessionId?: string;
   }) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) throw new Error('No window');
 
+    const { sessionId } = payload;
     const abortController = new AbortController();
     activeAbort = abortController;
 
@@ -172,11 +174,11 @@ export function setupAgentHandlers() {
       try {
         flushTimer = setInterval(() => {
           if (contentBuf) {
-            win.webContents.send('agent:stream-chunk', { type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
+            win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
             contentBuf = '';
           }
           if (thinkingBuf) {
-            win.webContents.send('agent:stream-chunk', { type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
+            win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
             thinkingBuf = '';
           }
         }, 16);
@@ -215,7 +217,7 @@ export function setupAgentHandlers() {
               compressed++;
             }
           }
-          win.webContents.send('agent:stream-chunk', {
+          win.webContents.send('agent:stream-chunk', { sessionId,
             type: 'content',
             text: `\n[系统提示：上下文溢出（${message.match(/requested (\d+)/)?.[1] || '?'} tokens），已压缩 ${compressed} 个工具调用结果，正在重试...]\n`,
             step: turn + 1,
@@ -231,10 +233,10 @@ export function setupAgentHandlers() {
               modelConfig,
               {
                 onContent: (text) => {
-                  win.webContents.send('agent:stream-chunk', { type: 'content', text, step: turn + 1, total: maxTurns });
+                  win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text, step: turn + 1, total: maxTurns });
                 },
                 onThinking: (text) => {
-                  win.webContents.send('agent:stream-chunk', { type: 'thinking', text, step: turn + 1, total: maxTurns });
+                  win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text, step: turn + 1, total: maxTurns });
                 },
               },
               abortController.signal
@@ -242,8 +244,8 @@ export function setupAgentHandlers() {
           } catch (retryErr: any) {
             if (abortController.signal.aborted) break;
             const retryMsg = retryErr?.message || String(retryErr);
-            win.webContents.send('agent:stream-chunk', { type: 'error', message: retryMsg });
-            win.webContents.send('agent:stream-chunk', { type: 'done' });
+            win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: retryMsg });
+            win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
             activeAbort = null;
             activeSubAgentManager?.cancelAllSubAgents();
             activeSubAgentManager = null;
@@ -251,8 +253,8 @@ export function setupAgentHandlers() {
           }
           // 重试成功，跳过原来的 error 发送
         } else {
-          win.webContents.send('agent:stream-chunk', { type: 'error', message });
-          win.webContents.send('agent:stream-chunk', { type: 'done' });
+          win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message });
+          win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
           activeAbort = null;
           activeSubAgentManager?.cancelAllSubAgents();
           activeSubAgentManager = null;
@@ -267,7 +269,7 @@ export function setupAgentHandlers() {
         totalCompletion += result.usage.completion_tokens;
         totalTokens += result.usage.total_tokens;
         const currentPrompt = result.usage.prompt_tokens;
-        win.webContents.send('agent:stream-chunk', {
+        win.webContents.send('agent:stream-chunk', { sessionId,
           type: 'usage',
           prompt: totalPrompt,
           completion: totalCompletion,
@@ -298,7 +300,7 @@ export function setupAgentHandlers() {
             }
           }
 
-          win.webContents.send('agent:stream-chunk', {
+          win.webContents.send('agent:stream-chunk', { sessionId,
             type: 'content',
             text: `\n[系统提示：已压缩 ${compressCount} 个早期工具调用结果以节省上下文]\n`,
           });
@@ -312,13 +314,13 @@ export function setupAgentHandlers() {
             const hint = result.thinking
               ? '模型在思考阶段就用完了 token 配额，没有生成正文。建议：拆分任务、缩减上下文，或换用更大输出预算的模型。'
               : '模型输出被 max_tokens 截断且无内容。建议增加输出预算或简化提问。';
-            win.webContents.send('agent:stream-chunk', { type: 'error', message: hint });
+            win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: hint });
             agentFailed = true;
             agentError = hint;
             break;
           }
           if (!result.thinking) {
-            win.webContents.send('agent:stream-chunk', {
+            win.webContents.send('agent:stream-chunk', { sessionId,
               type: 'error',
               message: `模型返回空响应（finish_reason=${result.finishReason ?? '未知'}）。可能是上游临时故障，请重试。`,
             });
@@ -327,7 +329,7 @@ export function setupAgentHandlers() {
             break;
           }
           // 只有 thinking 没 content：把 thinking 当作回复展示，避免空白
-          win.webContents.send('agent:stream-chunk', {
+          win.webContents.send('agent:stream-chunk', { sessionId,
             type: 'content',
             text: `\n[模型仅输出了思考过程，未生成正文。以下为思考内容摘要]\n${result.thinking.slice(0, 2000)}${result.thinking.length > 2000 ? '\n...(已截断)' : ''}\n`,
           });
@@ -348,7 +350,7 @@ export function setupAgentHandlers() {
         if (payload.mode !== 'roleplay' && detectExploreMode(messages, result.content || '')) {
           const exploreState = buildExploreState(messages, payload.projectDir);
 
-          win.webContents.send('agent:stream-chunk', {
+          win.webContents.send('agent:stream-chunk', { sessionId,
             type: 'explore-progress',
             readPercentage: exploreState.readPercentage,
             readFileCount: exploreState.uniqueReadCount,
@@ -368,7 +370,7 @@ export function setupAgentHandlers() {
           }
 
           if (turn >= maxTurns - 1 && exploreState.readPercentage < 80) {
-            win.webContents.send('agent:stream-chunk', {
+            win.webContents.send('agent:stream-chunk', { sessionId,
               type: 'explore-warning',
               warning: `已达到最大轮次限制（${maxTurns}轮），已读取 ${exploreState.readPercentage}% 的文件（${exploreState.uniqueReadCount}/${exploreState.totalFiles}）`,
             });
@@ -433,8 +435,8 @@ export function setupAgentHandlers() {
               if (!approved) {
                 toolResult = '用户拒绝了此操作';
                 status = 'error';
-                win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
-                win.webContents.send('agent:stream-chunk', { type: 'tool-result', name: tc.name, result: toolResult, status, step: turn + 1, total: maxTurns });
+                win.webContents.send('agent:stream-chunk', { sessionId, type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
+                win.webContents.send('agent:stream-chunk', { sessionId, type: 'tool-result', name: tc.name, result: toolResult, status, step: turn + 1, total: maxTurns });
                 const truncatedResult = truncateToolResult(toolResult);
                 totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(truncatedResult);
                 messages.push({ role: 'tool', tool_call_id: tc.id, content: truncatedResult });
@@ -443,7 +445,7 @@ export function setupAgentHandlers() {
             }
 
             // 发送 tool-call 事件（确认后或无需确认的工具）
-            win.webContents.send('agent:stream-chunk', { type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
+            win.webContents.send('agent:stream-chunk', { sessionId, type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
 
             const imageModelRaw = getSetting('imageModel');
             const imageModelConfig = resolveImageModelConfig(imageModelRaw, payload.apiKey);
@@ -469,7 +471,7 @@ export function setupAgentHandlers() {
             status = 'error';
           }
         }
-        win.webContents.send('agent:stream-chunk', {
+        win.webContents.send('agent:stream-chunk', { sessionId,
           type: 'tool-result',
           name: tc.name,
           result: toolResult,
@@ -498,7 +500,7 @@ export function setupAgentHandlers() {
             const parsed = JSON.parse(tc.arguments || '{}');
             const todos = normalizePlanTodos(parsed.todos);
             if (todos.length > 0) {
-              win.webContents.send('agent:stream-chunk', {
+              win.webContents.send('agent:stream-chunk', { sessionId,
                 type: 'plan-todos',
                 todos,
                 planDocPath: typeof parsed.plan_doc_path === 'string' ? parsed.plan_doc_path : undefined,
@@ -518,19 +520,19 @@ export function setupAgentHandlers() {
               }
               // 发送初始 HTML（从工具返回值获取）
               if (typeof parsed.initialHtml === 'string') {
-                win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: parsed.initialHtml, file: filePath });
+                win.webContents.send('agent:stream-chunk', { sessionId, type: 'web-preview', html: parsed.initialHtml, file: filePath });
               }
               // 启动文件监听
               const watcher = fs.watch(filePath, () => {
                 try {
                   const updated = fs.readFileSync(filePath, 'utf-8');
-                  win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: updated, file: filePath });
+                  win.webContents.send('agent:stream-chunk', { sessionId, type: 'web-preview', html: updated, file: filePath });
                 } catch { /* file may be temporarily locked */ }
               });
               fileWatchers.set(filePath, watcher);
               infoLog('agent', 'web-preview-watch', { file: filePath });
             } else if (parsed.opened === 'inline' && typeof parsed.html === 'string') {
-              win.webContents.send('agent:stream-chunk', { type: 'web-preview', html: parsed.html });
+              win.webContents.send('agent:stream-chunk', { sessionId, type: 'web-preview', html: parsed.html });
               infoLog('agent', 'web-preview-inline', { htmlLen: parsed.html.length });
             }
           } catch (e: any) {
@@ -546,18 +548,18 @@ export function setupAgentHandlers() {
     activeSubAgentManager = null;
     for (const w of fileWatchers.values()) { w.close(); }
     fileWatchers.clear();
-    win.webContents.send('agent:stream-chunk', { type: 'done' });
+    win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
     if (agentFailed) {
       return { success: false, error: agentError || 'Agent 执行失败' };
     }
     return { success: true };
     } catch (err: any) {
       const message = err?.message || String(err);
-      win.webContents.send('agent:stream-chunk', {
+      win.webContents.send('agent:stream-chunk', { sessionId,
         type: 'error',
         message,
       });
-      win.webContents.send('agent:stream-chunk', { type: 'done' });
+      win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
       activeAbort = null;
       activeSubAgentManager?.cancelAllSubAgents();
       activeSubAgentManager = null;
