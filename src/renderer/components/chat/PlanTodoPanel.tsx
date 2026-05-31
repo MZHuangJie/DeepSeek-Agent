@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { PlanTodo } from '../../stores/chat';
 import styles from './PlanTodoPanel.module.css';
 
@@ -20,10 +20,21 @@ const STATUS_GLYPH: Record<PlanTodo['status'], string> = {
 
 export default function PlanTodoPanel({ todos, planDocPath, executing, onExecute, onStop, onClose }: Props) {
   const [collapsed, setCollapsed] = useState(false);
-  if (todos.length === 0) return null;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const done = todos.filter(t => t.status === 'completed').length;
   const allDone = done === todos.length;
+
+  // 全部任务完成后，等执行结束自动关闭面板
+  useEffect(() => {
+    if (allDone && !executing) {
+      const timer = setTimeout(() => onCloseRef.current(), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [allDone, executing]);
+
+  if (todos.length === 0) return null;
 
   return (
     <div className={styles.panel}>

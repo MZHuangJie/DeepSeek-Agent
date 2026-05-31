@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { BalanceInfo } from '../components/agent/BalanceSection';
 
 export interface ToolCallEntry {
   id: string;
@@ -8,6 +9,8 @@ export interface ToolCallEntry {
   status: 'running' | 'success' | 'error';
   timestamp: number;
 }
+
+export type { BalanceInfo };
 
 export interface TokenStats {
   total: number;
@@ -52,7 +55,8 @@ function aggregateTokenStats(main: TokenStats, subAgents: SubAgentStatus[]): Tok
     subAgentTotal: sub.total,
     subAgentPrompt: sub.prompt,
     subAgentCompletion: sub.completion,
-    cost: parseFloat((total * 0.000002).toFixed(3)),
+    // DeepSeek 官方定价：deepseek-chat 输入 $0.27/1M，输出 $1.10/1M
+    cost: parseFloat(((main.prompt + sub.prompt) * 0.00000027 + (main.completion + sub.completion) * 0.0000011).toFixed(4)),
   };
 }
 
@@ -103,6 +107,14 @@ interface AgentState {
     unreadDirs?: string[];
     warning?: string;
   } | null;
+  /** 余额信息 */
+  balanceInfo: BalanceInfo | null;
+  balanceLoading: boolean;
+  balanceError: string | null;
+  setBalanceInfo: (info: BalanceInfo) => void;
+  setBalanceLoading: (loading: boolean) => void;
+  setBalanceError: (error: string | null) => void;
+  refreshBalance: () => void;
   setCurrentStep: (step: AgentState['currentStep']) => void;
   addToolCall: (tc: ToolCallEntry) => void;
   updateToolCall: (id: string, update: Partial<ToolCallEntry>) => void;
@@ -123,6 +135,35 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   mainTokenStats: null,
   subAgents: [],
   exploreProgress: null,
+  balanceInfo: null,
+  balanceLoading: false,
+  balanceError: null,
+  setBalanceInfo: (info) => set({ balanceInfo: info, balanceError: null }),
+  setBalanceLoading: (loading) => set({ balanceLoading: loading }),
+  setBalanceError: (error) => set({ balanceError: error, balanceLoading: false }),
+  refreshBalance: () => {
+    const { setBalanceLoading, setBalanceError, setBalanceInfo } = get();
+    setBalanceLoading(true);
+    setBalanceError(null);
+    const api = (window as any).api;
+    if (api?.settings?.getBalance) {
+      api.settings.getBalance()
+        .then((res: { success: boolean; data?: BalanceInfo; error?: string }) => {
+          if (res?.success && res.data) {
+            setBalanceInfo(res.data);
+          } else {
+            setBalanceError(res?.error || '获取余额失败');
+          }
+          set({ balanceLoading: false });
+        })
+        .catch((err: Error) => {
+          setBalanceError(err?.message || '获取余额失败');
+          set({ balanceLoading: false });
+        });
+    } else {
+      setBalanceLoading(false);
+    }
+  },
   setCurrentStep: (step) => set({ currentStep: step }),
   addToolCall: (tc) => set(s => ({ toolCalls: [...s.toolCalls, tc] })),
   updateToolCall: (id, update) => set(s => ({
@@ -170,5 +211,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     mainTokenStats: null,
     subAgents: [],
     exploreProgress: null,
+    // 余额是账户级别数据，不随对话重置
   }),
 }));

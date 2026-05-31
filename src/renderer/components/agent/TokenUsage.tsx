@@ -2,70 +2,98 @@ import React from 'react';
 import { useAgentStore } from '../../stores/agent';
 import styles from './TokenUsage.module.css';
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
-  return n.toString();
+function fmtTokens(n: number): string {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n.toString();
 }
 
 export default function TokenUsage() {
   const { tokenStats } = useAgentStore();
-  const s = tokenStats ?? { total: 0, prompt: 0, completion: 0, toolTokens: 0, contextWindow: 0, contextMax: 100000, cost: 0 };
-  const hasSubAgents = (s.subAgentTotal ?? 0) > 0;
 
-  const promptPct = s.total > 0 ? (s.prompt / s.total * 100).toFixed(1) : '0.0';
-  const completionPct = s.total > 0 ? (s.completion / s.total * 100).toFixed(1) : '0.0';
-  const toolPct = s.total > 0 ? (s.toolTokens ?? 0) / s.total * 100 : 0;
-  const ctxPct = s.contextMax > 0 ? (s.contextWindow / s.contextMax * 100).toFixed(1) : '0.0';
+  if (!tokenStats) {
+    return (
+      <div className={styles.container}>
+        <span className={styles.header}>Token 用量</span>
+        <div className={styles.emptyRow}>暂无数据</div>
+      </div>
+    );
+  }
+
+  const stats = tokenStats;
+  const pct = (x: number): string => stats.total > 0 ? ((x / stats.total) * 100).toFixed(1) : '0';
+  const ctxPct = stats.contextMax > 0 ? (stats.contextWindow / stats.contextMax) * 100 : 0;
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>Token 用量</div>
-      <div className={styles.total}>{fmt(s.total)}</div>
+      <span className={styles.header}>Token 用量</span>
 
-      {hasSubAgents && (
-        <div className={styles.breakdown}>
-          <div className={styles.breakdownRow}>
-            <span>主 Agent</span>
-            <span>{fmt(s.mainTotal ?? 0)}</span>
+      {/* 总 Token 数 + 费用 */}
+      <div className={styles.totalRow}>
+        <span className={styles.totalValue}>{fmtTokens(stats.total)}</span>
+        <span className={styles.totalLabel}>total tokens</span>
+        {stats.cost > 0 && (
+          <span className={styles.costBadge}>≈ $ {stats.cost.toFixed(4)}</span>
+        )}
+      </div>
+
+      {/* 主 Agent / 子代理 拆分 */}
+      {(stats.mainTotal !== undefined || stats.subAgentTotal !== undefined) && (
+        <div className={styles.splitRow}>
+          <div className={styles.splitItem}>
+            <span className={styles.splitVal}>{fmtTokens(stats.mainTotal ?? 0)}</span>
+            <span className={styles.splitLabel}>主 Agent</span>
           </div>
-          <div className={styles.breakdownRow}>
-            <span>子代理</span>
-            <span>{fmt(s.subAgentTotal ?? 0)}</span>
+          <div className={styles.splitDivider} />
+          <div className={styles.splitItem}>
+            <span className={styles.splitVal}>{fmtTokens(stats.subAgentTotal ?? 0)}</span>
+            <span className={styles.splitLabel}>子代理</span>
           </div>
         </div>
       )}
 
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>提示词 Tokens</span>
-        <span>{fmt(s.prompt)} ({promptPct}%)</span>
-      </div>
-      <div className={styles.bar}>
-        <div className={styles.barFill} style={{ width: `${s.total > 0 ? promptPct : 0}%`, background: '#6366f1' }} />
+      {/* 各类 token 消耗条 */}
+      <div className={styles.barsSection}>
+        <div className={styles.barRow}>
+          <span className={styles.barLabel}>提示词</span>
+          <div className={styles.barTrack}>
+            <div className={styles.barFill} style={{ width: `${pct(stats.prompt)}%`, background: '#6366f1' }} />
+          </div>
+          <span className={styles.barVal}>{fmtTokens(stats.prompt)} ({pct(stats.prompt)}%)</span>
+        </div>
+
+        <div className={styles.barRow}>
+          <span className={styles.barLabel}>回复</span>
+          <div className={styles.barTrack}>
+            <div className={styles.barFill} style={{ width: `${pct(stats.completion)}%`, background: '#22c55e' }} />
+          </div>
+          <span className={styles.barVal}>{fmtTokens(stats.completion)} ({pct(stats.completion)}%)</span>
+        </div>
+
+        {(stats.toolTokens ?? 0) > 0 && (
+          <div className={styles.barRow}>
+            <span className={styles.barLabel}>工具</span>
+            <div className={styles.barTrack}>
+              <div className={styles.barFill} style={{ width: `${pct(stats.toolTokens!)}%`, background: '#f59e0b' }} />
+            </div>
+            <span className={styles.barVal}>{fmtTokens(stats.toolTokens!)} ({pct(stats.toolTokens!)}%)</span>
+          </div>
+        )}
       </div>
 
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>回复 Tokens</span>
-        <span>{fmt(s.completion)} ({completionPct}%)</span>
-      </div>
-      <div className={styles.bar}>
-        <div className={styles.barFill} style={{ width: `${s.total > 0 ? completionPct : 0}%`, background: '#22c55e' }} />
-      </div>
-
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>工具 Tokens</span>
-        <span>{fmt(s.toolTokens ?? 0)} ({toolPct.toFixed(1)}%)</span>
-      </div>
-      <div className={styles.bar}>
-        <div className={styles.barFill} style={{ width: `${Math.min(toolPct, 100)}%`, background: '#f59e0b' }} />
-      </div>
-
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>上下文窗口</span>
-        <span>{fmt(s.contextWindow)} / {fmt(s.contextMax)}</span>
-      </div>
-      <div className={styles.bar}>
-        <div className={styles.barFill} style={{ width: `${ctxPct}%`, background: 'var(--accent)' }} />
+      {/* 上下文窗口用量条 */}
+      <div className={styles.ctxSection}>
+        <div className={styles.ctxLabels}>
+          <span className={styles.ctxLabel}>上下文窗口</span>
+          <span className={styles.ctxVal}>{fmtTokens(stats.contextWindow)} / {fmtTokens(stats.contextMax)}</span>
+        </div>
+        <div className={styles.ctxBar}>
+          <div
+            className={styles.ctxFill}
+            style={{
+              width: `${Math.min(ctxPct, 100)}%`,
+              background: ctxPct >= 90 ? '#ef4444' : ctxPct >= 70 ? '#f59e0b' : 'var(--accent)',
+            }}
+          />
+        </div>
       </div>
     </div>
   );

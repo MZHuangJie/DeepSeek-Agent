@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useAgentStore } from '../../stores/agent';
 import CurrentStep from './CurrentStep';
 import ToolTimeline from './ToolTimeline';
 import ExploreProgress from './ExploreProgress';
+import BalanceSection from './BalanceSection';
 import TokenUsage from './TokenUsage';
 import styles from './AgentPanel.module.css';
 
 export default function AgentPanel() {
-  const { currentStep, toolCalls } = useAgentStore();
+  const { currentStep, toolCalls, balanceInfo, balanceLoading, balanceError, refreshBalance } = useAgentStore();
   const hasData = currentStep || toolCalls.length > 0;
+
+  const handleRefreshBalance = useCallback(() => {
+    refreshBalance();
+  }, [refreshBalance]);
 
   return (
     <div className={styles.panel}>
@@ -32,6 +37,14 @@ export default function AgentPanel() {
           </>
         )}
       </div>
+
+      {/* DeepSeek 账户余额（独立区块，在 TokenUsage 上方） */}
+      <BalanceSection
+        data={balanceInfo}
+        loading={balanceLoading}
+        error={balanceError}
+        onRefresh={handleRefreshBalance}
+      />
 
       <div className={styles.tokenFooter}>
         <TokenUsage />

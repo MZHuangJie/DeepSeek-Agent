@@ -121,6 +121,7 @@ const api = {
     set: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
     getApiKey: () => ipcRenderer.invoke('settings:getApiKey'),
     setApiKey: (key: string) => ipcRenderer.invoke('settings:setApiKey', key),
+    getBalance: () => ipcRenderer.invoke('settings:getBalance'),
   },
   auth: {
     getApiBase: () => ipcRenderer.invoke('auth:getApiBase'),

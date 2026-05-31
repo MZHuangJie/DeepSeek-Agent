@@ -1,6 +1,5 @@
 .container {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 10px 4px;
 }
 
 .header {

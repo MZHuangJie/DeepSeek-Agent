@@ -118,9 +118,12 @@ export function getToolsForMode(mode: string | undefined, projectDir: string): T
   return getAllTools(projectDir);
 }
 
+/** 返回按函数名排序的工具 schema，确保每次序列化结果一致，有利于 DeepSeek 缓存前缀命中 */
 export function getToolSchemas(tools: ToolDef[]) {
-  return tools.map(t => ({
-    type: 'function' as const,
-    function: { name: t.name, description: t.description, parameters: t.parameters },
-  }));
+  return tools
+    .map(t => ({
+      type: 'function' as const,
+      function: { name: t.name, description: t.description, parameters: t.parameters },
+    }))
+    .sort((a, b) => a.function.name.localeCompare(b.function.name));
 }

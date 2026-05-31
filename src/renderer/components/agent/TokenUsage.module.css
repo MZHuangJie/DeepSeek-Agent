@@ -1,60 +1,170 @@
 .container {
-  padding: 10px;
+  padding: 10px 12px;
 }
 
 .header {
   font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 6px;
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: block;
 }
 
-.total {
+.emptyRow {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  padding: 6px 0;
+}
+
+/* ---- 总 Token 数 + 费用 ---- */
+.totalRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.totalValue {
   font-size: 18px;
   font-weight: 700;
-  margin-bottom: 8px;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
 }
 
-.breakdown {
-  margin-bottom: 8px;
+.totalLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.costBadge {
+  font-size: 10px;
+  font-weight: 500;
+  color: #f0c040;
+  background: rgba(240, 192, 64, 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.2px;
+  margin-left: auto;
+}
+
+/* ---- 主Agent/子代理 拆分 ---- */
+.splitRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 6px 8px;
   background: var(--bg-tertiary);
-  border-radius: 6px;
-}
-
-.breakdownRow {
-  font-size: 10px;
-  display: flex;
-  justify-content: space-between;
-  color: var(--text-secondary);
-}
-
-.breakdownRow + .breakdownRow {
-  margin-top: 4px;
-}
-
-.row {
-  font-size: 11px;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2px;
-}
-
-.rowLabel {
-  color: var(--text-secondary);
-}
-
-.bar {
-  background: var(--bg-tertiary);
   border-radius: 4px;
-  height: 4px;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+.splitItem {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.splitVal {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.splitLabel {
+  font-size: 9px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.splitDivider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ---- 分类进度条 ---- */
+.barsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.barRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.barLabel {
+  width: 34px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.barTrack {
+  flex: 1;
+  height: 5px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .barFill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.barVal {
+  width: 68px;
+  color: var(--text-secondary);
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 上下文窗口条 ---- */
+.ctxSection {
+  margin-top: 2px;
+}
+
+.ctxLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-bottom: 3px;
+}
+
+.ctxLabel {
+  color: var(--text-secondary);
+}
+
+.ctxVal {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ctxBar {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ctxFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease, background 0.4s ease;
+  min-width: 2px;
 }
