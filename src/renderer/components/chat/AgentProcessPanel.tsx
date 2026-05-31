@@ -65,6 +65,7 @@ function SubAgentCard({ sa, now }: { sa: SubAgentStatus; now: number }) {
 export default function AgentProcessPanel() {
   const { subAgents } = useAgentStore();
   const [collapsed, setCollapsed] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   const hasRunning = subAgents.some(sa => sa.status === 'running' || sa.status === 'spawning');
@@ -74,7 +75,7 @@ export default function AgentProcessPanel() {
     return () => window.clearInterval(timer);
   }, [hasRunning]);
 
-  if (subAgents.length === 0) return null;
+  if (subAgents.length === 0 || dismissed) return null;
 
   const { running, completed, failed, total, avgProgress } = summarizeSubAgents(subAgents);
   const waveCount = new Set(subAgents.map(sa => sa.waveIndex ?? 1)).size;
@@ -100,9 +101,12 @@ export default function AgentProcessPanel() {
                 : `已完成 (${total}/${total})${waveCount > 1 ? ` · ${waveCount} 批` : ''}`}
           </div>
         </div>
-        <button type="button" className={styles.collapseBtn} onClick={() => setCollapsed(v => !v)}>
-          {collapsed ? '展开详情' : '收起详情'}
-        </button>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.collapseBtn} onClick={() => setCollapsed(v => !v)}>
+            {collapsed ? '展开详情' : '收起详情'}
+          </button>
+          <button type="button" className={styles.closeBtn} onClick={() => setDismissed(true)} title="关闭面板">✕</button>
+        </div>
       </div>
 
       {!collapsed && (
