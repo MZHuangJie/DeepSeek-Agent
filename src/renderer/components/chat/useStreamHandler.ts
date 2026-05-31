@@ -119,6 +119,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       if (activeSessionId) {
         void summarizeSessionTitleIfNeeded(activeSessionId);
       }
+      useAgentStore.getState().refreshBalance();
       onDone?.();
     } else if (chunk.type === 'explore-progress') {
       const agentStore = useAgentStore.getState();
