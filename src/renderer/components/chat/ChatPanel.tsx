@@ -302,6 +302,7 @@ export default function ChatPanel() {
   }, [activeSessionId, apiKey, resetStreamBuffers, updateLastAssistant, setStreaming, buildHistory, invokeAgent]);
 
   const targetSessionRef = useRef<string | null>(null);
+  const isMySessionStreaming = isStreaming && targetSessionRef.current === activeSessionId;
   const handleStreamChunk = useStreamHandler({
     currentStepRef, totalContentRef, totalThinkingRef,
     pendingContentRef, pendingThinkingRef, targetSessionRef, flushRafBuffer,
@@ -391,12 +392,12 @@ export default function ChatPanel() {
   }, [apiKey, resetStreamBuffers, addMessage, setStreaming, invokeAgent]);
 
   useEffect(() => {
-    if (!activeSessionId || isStreaming || !apiKey) return;
+    if (!activeSessionId || isMySessionStreaming || !apiKey) return;
     const target = sessions.find(s => s.id === activeSessionId);
     if (!target?.pendingOpening || target.messages.length > 0) return;
     if (mode !== 'roleplay') return;
     void sendCharacterOpening(activeSessionId);
-  }, [activeSessionId, sessions, isStreaming, apiKey, mode, sendCharacterOpening]);
+  }, [activeSessionId, sessions, isMySessionStreaming, apiKey, mode, sendCharacterOpening]);
 
   const handleSend = useCallback(async (content: string, command?: Command, images?: PastedImage[]) => {
     if (!activeSessionId) return;
@@ -499,9 +500,9 @@ export default function ChatPanel() {
             <div className={styles.emptyLogo}><img src="/assets/logo.png" alt="ai" className={styles.emptyLogoImg} /></div>
             {mode === 'roleplay' && session?.pendingOpening ? (
               <>
-                <div className={styles.emptyTitle}>{isStreaming ? '正在生成开场…' : apiKey ? '即将开始角色扮演' : '请先配置 API Key'}</div>
+                <div className={styles.emptyTitle}>{isMySessionStreaming ? '正在生成开场…' : apiKey ? '即将开始角色扮演' : '请先配置 API Key'}</div>
                 <div className={styles.emptyHint}>
-                  {isStreaming ? '模型正在根据开场故事撰写第一条消息' : apiKey ? '角色将先发送开场白，之后由你回复' : '保存 API Key 后将自动生成开场'}
+                  {isMySessionStreaming ? '模型正在根据开场故事撰写第一条消息' : apiKey ? '角色将先发送开场白，之后由你回复' : '保存 API Key 后将自动生成开场'}
                 </div>
               </>
             ) : (
@@ -513,7 +514,7 @@ export default function ChatPanel() {
           </div>
         )}
         {messages.map(msg => <MessageBubble key={msg.id} message={msg} />)}
-        {isStreaming && (
+        {isMySessionStreaming && (
           <div className={styles.thinkingHint}>
             <span className={styles.thinkingIcon}><img src="/assets/8.png" alt="thinking" className={styles.thinkingIconImg} /></span>
             <span>思考中...</span>
@@ -558,7 +559,7 @@ export default function ChatPanel() {
           <PlanTodoPanel
             todos={session.planTodos}
             planDocPath={session.planDocPath}
-            executing={isStreaming}
+            executing={isMySessionStreaming}
             onExecute={() => void handleExecutePlan()}
             onStop={() => void handleStop()}
             onClose={() => clearPlanTodos()}
@@ -569,7 +570,7 @@ export default function ChatPanel() {
             <div className={styles.webPreviewBar}>
               <span className={styles.webPreviewLabel}>
                 🌐 网页预览
-                {isStreaming && <span className={styles.webPreviewBuilding}> 🔨 构建中...</span>}
+                {isMySessionStreaming && <span className={styles.webPreviewBuilding}> 🔨 构建中...</span>}
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {webPreviewFile && (
@@ -619,7 +620,7 @@ export default function ChatPanel() {
             }}
           />
         )}
-        <ChatInput onSend={handleSend} disabled={isStreaming} isStreaming={isStreaming} onStop={handleStop} />
+        <ChatInput onSend={handleSend} disabled={isMySessionStreaming} isStreaming={isMySessionStreaming} onStop={handleStop} />
       </div>
     </div>
   );
