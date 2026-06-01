@@ -13,6 +13,7 @@ import {
   getCharacter,
 } from '../services/roleplay-storage';
 import { generateCharacterPortrait } from '../services/roleplay-portrait';
+import { generateRandomTemplate, generateRandomCharacter } from '../services/roleplay-generate';
 import { portraitInfo, portraitError } from '../services/portrait-log';
 
 export function setupRoleplayHandlers() {
@@ -137,6 +138,52 @@ export function setupRoleplayHandlers() {
       const error = err instanceof Error ? err.message : String(err);
       portraitError('ipc-generate-failed', { ownerId, error });
       return { success: false as const, error };
+    }
+  });
+
+  ipcMain.handle('roleplay:generateRandomTemplate', async (_event, keywords: string) => {
+    try {
+      const data = await generateRandomTemplate(keywords);
+      if (!data) throw new Error('AI 生成模版失败，请重试');
+      const id = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const now = Date.now();
+      const template = saveTemplate({
+        id, name: data.name, gender: data.gender, occupation: data.occupation,
+        personality: data.personality, background: data.background,
+        body: data.body as any, openingStory: data.openingStory,
+        statusFields: data.statusFields,
+        createdAt: now, updatedAt: now,
+      });
+      return { success: true as const, template };
+    } catch (err: unknown) {
+      return { success: false as const, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  ipcMain.handle('roleplay:generateRandomCharacter', async (_event, templateId: string) => {
+    try {
+      const template = listTemplates().find(t => t.id === templateId);
+      if (!template) throw new Error('模版不存在');
+      const data = await generateRandomCharacter(template as any);
+      if (!data) throw new Error('AI 生成角色失败，请重试');
+      const id = `char-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const now = Date.now();
+      const character = saveCharacter({
+        id, templateId,
+        name: data.name, gender: data.gender || template.gender,
+        occupation: data.occupation || template.occupation,
+        personality: data.personality || template.personality,
+        background: data.background || template.background,
+        body: (data.body || template.body) as any,
+        openingStory: template.openingStory,
+        statusFieldEnabled: template.statusFields?.length
+          ? Object.fromEntries(template.statusFields.map(f => [f.key, f.enabled !== false]))
+          : {},
+        createdAt: now, updatedAt: now,
+      });
+      return { success: true as const, character };
+    } catch (err: unknown) {
+      return { success: false as const, error: err instanceof Error ? err.message : String(err) };
     }
   });
 }

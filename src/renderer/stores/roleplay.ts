@@ -13,6 +13,8 @@ interface RoleplayState {
   saveCharacter: (data: CharacterFormData) => Promise<RoleplayCharacter | null>;
   deleteCharacter: (id: string) => Promise<boolean>;
   createFromTemplate: (templateId: string) => Promise<RoleplayCharacter | null>;
+  generateRandomTemplate: (keywords: string) => Promise<RoleplayTemplate | null>;
+  generateRandomCharacter: (templateId: string) => Promise<RoleplayCharacter | null>;
   saveTemplate: (data: CharacterFormData & { id?: string }) => Promise<RoleplayTemplate | null>;
   deleteTemplate: (id: string) => Promise<boolean>;
   setActiveCharacter: (id: string | null) => Promise<void>;
@@ -87,6 +89,29 @@ export const useRoleplayStore = create<RoleplayState>((set, get) => ({
 
   createFromTemplate: async (templateId) => {
     const res = await window.api.roleplay.createFromTemplate(templateId);
+    if (!res.success) {
+      set({ error: res.error });
+      return null;
+    }
+    set(s => ({
+      characters: [res.character, ...s.characters.filter(c => c.id !== res.character.id)],
+      error: '',
+    }));
+    return res.character;
+  },
+
+  generateRandomTemplate: async (keywords) => {
+    const res = await window.api.roleplay.generateRandomTemplate(keywords);
+    if (!res.success) {
+      set({ error: res.error });
+      return null;
+    }
+    await get().loadAll();
+    return res.template;
+  },
+
+  generateRandomCharacter: async (templateId) => {
+    const res = await window.api.roleplay.generateRandomCharacter(templateId);
     if (!res.success) {
       set({ error: res.error });
       return null;

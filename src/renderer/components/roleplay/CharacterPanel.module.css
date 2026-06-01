@@ -44,6 +44,9 @@
 
 .toolbar {
   padding: 8px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .primaryBtn {
@@ -54,6 +57,33 @@
   font-size: 11px;
   padding: 6px 10px;
   cursor: pointer;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.genKeywordsInput {
+  flex: 1;
+  min-width: 120px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 6px 8px;
+  font-family: inherit;
 }
 
 .list {

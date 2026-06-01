@@ -257,6 +257,8 @@ const api = {
     saveCharacter: (payload: Record<string, unknown>) => ipcRenderer.invoke('roleplay:saveCharacter', payload),
     deleteCharacter: (id: string) => ipcRenderer.invoke('roleplay:deleteCharacter', id),
     createFromTemplate: (templateId: string) => ipcRenderer.invoke('roleplay:createFromTemplate', templateId),
+	    generateRandomTemplate: (keywords: string) => ipcRenderer.invoke('roleplay:generateRandomTemplate', keywords),
+	    generateRandomCharacter: (templateId: string) => ipcRenderer.invoke('roleplay:generateRandomCharacter', templateId),
     setActiveCharacter: (id: string | null) => ipcRenderer.invoke('roleplay:setActiveCharacter', id),
     pickPortrait: (ownerId: string, copy?: boolean) => ipcRenderer.invoke('roleplay:pickPortrait', ownerId, copy),
     generatePortrait: async (

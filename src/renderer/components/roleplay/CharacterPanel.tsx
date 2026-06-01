@@ -85,6 +85,8 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
     setActiveCharacter,
     pickPortrait,
     generatePortrait,
+    generateRandomTemplate,
+    generateRandomCharacter,
   } = useRoleplayStore();
   const setMode = useModeStore(s => s.setMode);
   const bindSessionCharacter = useChatStore(s => s.setSessionCharacter);
@@ -103,6 +105,9 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
   >(null);
 
   const [playerName, setPlayerName] = useState('');
+  const [genKeywords, setGenKeywords] = useState('');
+  const [showGenInput, setShowGenInput] = useState(false);
+  const [generating, setGenerating] = useState(false);
   useEffect(() => { void loadAll(); }, [loadAll]);
 
   // 加载玩家名称
@@ -145,6 +150,25 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
         statusFieldEnabled: buildCharacterStatusEnabledMap(character, template),
       },
     });
+  };
+
+  const doGenerateTemplate = async () => {
+    const kw = genKeywords.trim();
+    if (!kw) return;
+    setGenerating(true);
+    useToastStore.getState().show('正在生成模版…', 'info');
+    try {
+      const tpl = await generateRandomTemplate(kw);
+      if (tpl) {
+        setShowGenInput(false);
+        setGenKeywords('');
+        useToastStore.getState().show(`模版「${tpl.name}」已生成`, 'success');
+      } else {
+        useToastStore.getState().show('生成失败，请重试', 'error');
+      }
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const openNewTemplate = () => {
@@ -313,6 +337,35 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
         <>
           <div className={styles.toolbar}>
             <button type="button" className={styles.primaryBtn} onClick={openNewTemplate}>+ 新建模板</button>
+            {showGenInput ? (
+              <>
+                <input
+                  type="text"
+                  className={styles.genKeywordsInput}
+                  placeholder="输入关键词，如：赛博朋克 女杀手"
+                  value={genKeywords}
+                  onChange={e => setGenKeywords(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && genKeywords.trim()) { void doGenerateTemplate(); } }}
+                />
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  disabled={!genKeywords.trim() || generating}
+                  onClick={() => void doGenerateTemplate()}
+                >
+                  {generating ? '生成中…' : '生成'}
+                </button>
+                <button type="button" className={styles.secondaryBtn} onClick={() => { setShowGenInput(false); setGenKeywords(''); }}>取消</button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                onClick={() => setShowGenInput(true)}
+              >
+                🎲 随机生成
+              </button>
+            )}
           </div>
           <div className={styles.list}>
             {templates.map(t => (
@@ -324,6 +377,18 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                   <div className={styles.cardActions}>
                     <button type="button" className={styles.actionBtn} onClick={() => void createFromTemplate(t.id).then(c => c && openEditCharacter(c))}>
                       用模板创建
+                    </button>
+                    <button type="button" className={styles.actionBtn} onClick={async () => {
+                      useToastStore.getState().show('正在生成角色…', 'info');
+                      const c = await generateRandomCharacter(t.id);
+                      if (c) {
+                        useToastStore.getState().show(`角色「${c.name}」已生成`, 'success');
+                        openEditCharacter(c);
+                      } else {
+                        useToastStore.getState().show('生成失败，请重试', 'error');
+                      }
+                    }}>
+                      🎲 随机角色
                     </button>
                     <button type="button" className={styles.actionBtn} onClick={() => openEditTemplate(t)}>编辑</button>
                     <button type="button" className={styles.actionBtn} onClick={() => openDuplicateTemplate(t)}>复制</button>
