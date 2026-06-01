@@ -34,6 +34,7 @@ export interface GenerateImageArgs {
   size?: string;
   quality?: string;
   n?: number;
+  referenceImages?: string[];
 }
 
 export interface GenerateImageResult {
@@ -201,6 +202,30 @@ export async function generateImage(
   logContext = 'imageGen',
 ): Promise<GenerateImageResult> {
   const useChatApi = config.apiType === 'chat';
+  const hasRefImages = args.referenceImages && args.referenceImages.length > 0;
+
+  let chatContent: string | Array<
+    { type: 'text'; text: string }
+    | { type: 'image_url'; image_url: { url: string } }
+  > = args.prompt;
+
+  if (useChatApi && hasRefImages) {
+    chatContent = [
+      { type: 'text', text: args.prompt },
+      ...args.referenceImages!.map(url => ({
+        type: 'image_url' as const,
+        image_url: { url },
+      })),
+    ];
+  }
+
+  if (!useChatApi && hasRefImages) {
+    warnLog('imageGen', 'ref-images-ignored', {
+      context: logContext,
+      reason: 'images API 不支持多模态参考图，将只使用文本 prompt',
+    });
+  }
+
   const base = config.baseUrl.replace(/\/+$/, '');
   const path = useChatApi
     ? (base.endsWith('/v1') ? '/chat/completions' : '/v1/chat/completions')
@@ -215,7 +240,7 @@ export async function generateImage(
     ...(useChatApi
       ? (extra.messages || extra.contents
           ? {}  // extraParams 已提供 messages/contents，不重复设置
-          : { messages: [{ role: 'user', content: args.prompt }] })
+          : { messages: [{ role: 'user', content: chatContent }] })
       : (extra.prompt
           ? {}  // extraParams 已提供 prompt，不重复设置
           : {
