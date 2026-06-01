@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import https from 'https';
 import http from 'http';
 import { completeChat, type ModelConfig } from '../agent/client';
@@ -10,11 +8,7 @@ import {
 } from './image-model-config';
 import { getSetting } from '../db/settings';
 import { getApiKey } from '../security/keystore';
-import { getCurrentWorkspace } from '../ipc/files';
-import {
-  getPortraitFilePath,
-  readAgentImageAsDataUrl,
-} from './agent-images';
+import { uploadPortrait } from './portrait-upload';
 import type { BodyMeasurements } from './roleplay-storage';
 import { resolvePortraitStyle } from '../../common/portrait-styles';
 import {
@@ -182,25 +176,6 @@ async function generatePortraitPrompt(
   return fallback;
 }
 
-function savePortraitFromBuffer(ownerId: string, data: Buffer, ext = '.png'): string {
-  const dest = getPortraitFilePath(getCurrentWorkspace(), ownerId, ext);
-  fs.writeFileSync(dest, data);
-  portraitInfo('portrait-saved', {
-    ownerId,
-    path: dest,
-    bytes: data.length,
-    ext,
-  });
-  return dest;
-}
-
-function extFromMime(mime: string): string {
-  if (mime.includes('jpeg') || mime.includes('jpg')) return '.jpg';
-  if (mime.includes('webp')) return '.webp';
-  if (mime.includes('gif')) return '.gif';
-  return '.png';
-}
-
 function downloadUrl(url: string, authToken?: string): Promise<Buffer> {
   portraitInfo('download-start', {
     url: summarizeUrl(url),
@@ -272,22 +247,6 @@ function downloadUrl(url: string, authToken?: string): Promise<Buffer> {
     });
     req.end();
   });
-}
-
-async function savePortraitFromGeneratedUrl(
-  url: string,
-  ownerId: string,
-  authToken?: string,
-): Promise<string> {
-  if (url.startsWith('data:')) {
-    const match = url.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) throw new Error('无效的图片数据');
-    return savePortraitFromBuffer(ownerId, Buffer.from(match[2], 'base64'), extFromMime(match[1]));
-  }
-  const buffer = await downloadUrl(url, authToken);
-  const ext = url.toLowerCase().includes('.jpg') || url.toLowerCase().includes('.jpeg') ? '.jpg'
-    : url.toLowerCase().includes('.webp') ? '.webp' : '.png';
-  return savePortraitFromBuffer(ownerId, buffer, ext);
 }
 
 export async function generateCharacterPortrait(
@@ -365,17 +324,25 @@ export async function generateCharacterPortrait(
       revisedPromptPreview: result.revisedPrompt ? truncateText(result.revisedPrompt, 200) : undefined,
     });
 
-    const portraitPath = await savePortraitFromGeneratedUrl(url, ownerId, imageConfig.apiKey);
-    const dataUrl = readAgentImageAsDataUrl(portraitPath, getCurrentWorkspace());
+    let base64ForUpload: string;
+    if (url.startsWith('data:')) {
+      base64ForUpload = url;
+    } else {
+      const buffer = await downloadUrl(url, imageConfig.apiKey);
+      const mime = url.toLowerCase().includes('.jpg') || url.toLowerCase().includes('.jpeg') ? 'image/jpeg'
+        : url.toLowerCase().includes('.webp') ? 'image/webp' : 'image/png';
+      base64ForUpload = `data:${mime};base64,${buffer.toString('base64')}`;
+    }
+
+    const portraitPath = await uploadPortrait(base64ForUpload);
 
     portraitInfo('generate-success', {
       ownerId,
       portraitPath,
-      dataUrlLength: dataUrl.length,
       ms: Date.now() - flowStarted,
     });
 
-    return { portraitPath, prompt: result.revisedPrompt || imagePrompt, dataUrl };
+    return { portraitPath, prompt: result.revisedPrompt || imagePrompt, dataUrl: base64ForUpload };
   } catch (err: unknown) {
     portraitError('generate-failed', {
       ownerId,

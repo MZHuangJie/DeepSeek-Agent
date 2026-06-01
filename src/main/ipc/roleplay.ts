@@ -74,7 +74,7 @@ export function setupRoleplayHandlers() {
 
   ipcMain.handle('roleplay:createFromTemplate', async (_event, templateId: string) => {
     try {
-      const character = createCharacterFromTemplate(templateId);
+      const character = await createCharacterFromTemplate(templateId);
       return { success: true as const, character };
     } catch (err: unknown) {
       return { success: false as const, error: err instanceof Error ? err.message : String(err) };
@@ -103,9 +103,7 @@ export function setupRoleplayHandlers() {
       return { success: false as const, error: '已取消' };
     }
     try {
-      const portraitPath = copy
-        ? copyPortraitFromFile(result.filePaths[0], ownerId)
-        : result.filePaths[0];
+      const portraitPath = await copyPortraitFromFile(result.filePaths[0]);
       return { success: true as const, portraitPath };
     } catch (err: unknown) {
       return { success: false as const, error: err instanceof Error ? err.message : String(err) };

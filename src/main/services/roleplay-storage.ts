@@ -271,25 +271,38 @@ export function setActiveCharacterId(id: string | null) {
   else setSetting(ACTIVE_CHARACTER_KEY, '');
 }
 
-export function copyPortraitFromFile(sourcePath: string, ownerId: string, projectDir = getCurrentWorkspace()): string {
-  const ext = path.extname(sourcePath) || '.png';
-  const dest = getPortraitFilePath(projectDir, ownerId, ext);
-  fs.copyFileSync(sourcePath, dest);
-  return dest;
+export async function copyPortraitFromFile(sourcePath: string): Promise<string> {
+  if (sourcePath.startsWith('http://') || sourcePath.startsWith('https://')) {
+    return sourcePath;
+  }
+  const buf = fs.readFileSync(sourcePath);
+  const ext = path.extname(sourcePath).toLowerCase();
+  const mimeMap: Record<string, string> = {
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp', '.gif': 'image/gif',
+  };
+  const mime = mimeMap[ext] || 'image/png';
+  const base64 = `data:${mime};base64,${buf.toString('base64')}`;
+  const { uploadPortrait } = await import('./portrait-upload');
+  return uploadPortrait(base64);
 }
 
-export function createCharacterFromTemplate(templateId: string): RoleplayCharacter {
+export async function createCharacterFromTemplate(templateId: string): Promise<RoleplayCharacter> {
   const template = listTemplates().find(t => t.id === templateId);
   if (!template) throw new Error('模板不存在');
   const id = newId('char');
-  let portraitPath: string | undefined;
-  if (template.portraitPath && fs.existsSync(template.portraitPath)) {
-    portraitPath = copyPortraitFromFile(template.portraitPath, id);
-  }
-  let portraitFullPath: string | undefined;
-  if (template.portraitFullPath && fs.existsSync(template.portraitFullPath)) {
-    portraitFullPath = copyPortraitFromFile(template.portraitFullPath, `${id}-full`);
-  }
+  const hasPortrait = template.portraitPath && (
+    template.portraitPath.startsWith('http') || fs.existsSync(template.portraitPath)
+  );
+  const portraitPath = hasPortrait
+    ? await copyPortraitFromFile(template.portraitPath!)
+    : undefined;
+  const hasFullPortrait = template.portraitFullPath && (
+    template.portraitFullPath.startsWith('http') || fs.existsSync(template.portraitFullPath)
+  );
+  const portraitFullPath = hasFullPortrait
+    ? await copyPortraitFromFile(template.portraitFullPath!)
+    : undefined;
   return saveCharacter({
     id,
     templateId,

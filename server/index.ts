@@ -1,9 +1,11 @@
 import 'dotenv/config';
+import path from 'path';
 import express from 'express';
 import { initDb } from './db';
 import authRouter from './routes/auth';
 import syncRouter from './routes/sync';
 import squareRouter from './routes/square';
+import imagesRouter from './routes/images';
 
 const BASE_PATH = '/ds';
 const API_PREFIX = `${BASE_PATH}/api`;
@@ -11,6 +13,7 @@ const PORT = Number(process.env.PORT) || 8787;
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
+app.use('/ds/images', express.static(path.join(import.meta.dirname, 'public', 'images')));
 
 const jwtSecret = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
 if (jwtSecret.length < 16 || jwtSecret.includes('change-me')) {
@@ -24,6 +27,7 @@ app.get(`${API_PREFIX}/health`, (_req, res) => {
 app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/sync`, syncRouter);
 app.use(`${API_PREFIX}/square`, squareRouter);
+app.use(`${API_PREFIX}/images`, imagesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

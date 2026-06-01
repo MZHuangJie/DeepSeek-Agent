@@ -73,6 +73,9 @@ export function setupFileHandlers() {
   });
 
   ipcMain.handle('files:readBinary', async (_event, filePath: string) => {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
     const safePath = safeResolve(currentWorkspace, filePath);
     const buf = fs.readFileSync(safePath);
     const ext = path.extname(safePath).toLowerCase();
