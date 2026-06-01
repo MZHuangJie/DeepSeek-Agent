@@ -77,6 +77,7 @@ export function setupFileHandlers() {
       return filePath;
     }
     const safePath = safeResolve(currentWorkspace, filePath);
+    if (!fs.existsSync(safePath)) return null;
     const buf = fs.readFileSync(safePath);
     const ext = path.extname(safePath).toLowerCase();
     const mimeMap: Record<string, string> = {
