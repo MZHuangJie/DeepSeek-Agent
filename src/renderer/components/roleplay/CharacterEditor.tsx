@@ -183,13 +183,25 @@ export default function CharacterEditor({
   };
 
   const handlePickPortrait = async () => {
+    setPortraitGenError('');
     const path = await onPickPortrait(form.id || draftId);
-    if (path) setForm(f => ({ ...f, portraitPath: path }));
+    if (path) {
+      setForm(f => ({ ...f, portraitPath: path }));
+    } else {
+      const msg = useRoleplayStore.getState().error;
+      if (msg) setPortraitGenError(msg);
+    }
   };
 
   const handlePickFullPortrait = async () => {
+    setPortraitGenError('');
     const path = await onPickPortrait(`${form.id || draftId}-full`, false);
-    if (path) setForm(f => ({ ...f, portraitFullPath: path }));
+    if (path) {
+      setForm(f => ({ ...f, portraitFullPath: path }));
+    } else {
+      const msg = useRoleplayStore.getState().error;
+      if (msg) setPortraitGenError(msg);
+    }
   };
 
   const handleAddRefFile = (e: React.ChangeEvent<HTMLInputElement>) => {
