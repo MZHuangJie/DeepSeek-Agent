@@ -31,20 +31,27 @@
 .titleBar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-secondary);
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-primary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  min-height: 44px;
 }
 
 .titleText {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .titleBadge {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }

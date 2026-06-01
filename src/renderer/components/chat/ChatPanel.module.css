@@ -3,12 +3,13 @@
   flex-direction: column;
   height: 100%;
   position: relative;
+  background: var(--bg-primary);
 }
 
 .scrollArea {
   flex: 1;
   overflow: auto;
-  padding: 12px 16px;
+  padding: 8px 0;
   position: relative;
 }
 
@@ -42,7 +43,7 @@
   align-items: center;
   color: var(--text-secondary);
   font-size: 12px;
-  padding: 4px 0;
+  padding: 4px 16px;
 }
 
 .thinkingIcon {

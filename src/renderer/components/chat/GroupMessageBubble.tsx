@@ -2,6 +2,7 @@
 import React from 'react';
 import type { Message } from '../../../common/conversation';
 import { formatRelativeTime } from '../../utils/relativeTime';
+import { MessageContent } from './MessageBubble';
 import styles from './GroupMessageBubble.module.css';
 
 interface Props {
@@ -29,7 +30,7 @@ export default function GroupMessageBubble({ message }: Props) {
           </div>
         )}
         <div className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleOther}`}>
-          {message.content}
+          <MessageContent content={message.content} />
         </div>
         <div className={styles.time}>{formatRelativeTime(message.timestamp)}</div>
       </div>

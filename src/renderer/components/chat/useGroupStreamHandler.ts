@@ -14,6 +14,21 @@ export function useGroupStreamHandler() {
         if (chunk.speaker) {
           setActiveSpeaker(chunk.speaker.name);
           setTyping(chunk.speaker.roleId, true);
+
+          // 防御：如果最后一条已经是同一个 speaker 的空占位消息，不重复创建
+          const convs = store.conversations;
+          const activeId = store.activeId;
+          const conv = convs.find(c => c.id === activeId);
+          const lastMsg = conv?.messages[conv.messages.length - 1];
+          if (
+            lastMsg &&
+            lastMsg.role === 'assistant' &&
+            lastMsg.senderId === chunk.speaker.roleId &&
+            lastMsg.content === ''
+          ) {
+            break;
+          }
+
           // Create placeholder message for this speaker
           store.addMessage({
             id: `msg-${Date.now()}`,

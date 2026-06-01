@@ -583,4 +583,5 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
   );
 });
 
+export { MessageContent };
 export default MessageBubble;
