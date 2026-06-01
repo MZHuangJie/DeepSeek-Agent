@@ -156,6 +156,11 @@ const api = {
   groupChat: {
     send: (convJson: string, userMessage: string) => ipcRenderer.invoke('group-chat:send', convJson, userMessage),
     cancel: (convId: string) => ipcRenderer.invoke('group-chat:cancel', convId),
+    onChunk: (cb: (convId: string, chunk: unknown) => void) => {
+      const handler = (_: unknown, convId: string, chunk: unknown) => cb(convId, chunk);
+      ipcRenderer.on('group-chat:chunk', handler);
+      return () => ipcRenderer.removeListener('group-chat:chunk', handler);
+    },
   },
   sync: {
     listSessions: () => ipcRenderer.invoke('sync:listSessions'),

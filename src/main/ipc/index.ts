@@ -11,6 +11,7 @@ import { setupRoleplayHandlers } from './roleplay';
 import { setupAuthHandlers } from './auth';
 import { setupSyncHandlers } from './sync';
 import { setupConversationHandlers } from './conversation';
+import { setupGroupChatHandlers } from './groupChat';
 
 export function registerAllHandlers() {
   setupWindowHandlers();
@@ -25,4 +26,5 @@ export function registerAllHandlers() {
   setupGitHandlers();
   setupRoleplayHandlers();
   setupConversationHandlers();
+  setupGroupChatHandlers();
 }
