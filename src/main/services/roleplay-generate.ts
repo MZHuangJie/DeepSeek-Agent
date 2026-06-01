@@ -97,7 +97,7 @@ export async function generateRandomTemplate(keywords: string): Promise<Generate
         { role: 'user', content: `关键词：${keywords}` },
       ],
       modelConfig,
-      { maxTokens: 2000, temperature: 1.0, log: { module: 'roleplay-generate', tag: 'template' } },
+      { maxTokens: 2000, temperature: 1.0, timeoutMs: 60_000, log: { module: 'roleplay-generate', tag: 'template' } },
     );
 
     const json = JSON.parse(cleanJsonResponse(content));
@@ -156,7 +156,7 @@ export async function generateRandomCharacter(template: GeneratedTemplateData): 
         { role: 'user', content: `模版信息：\n${templateDesc}\n\n请随机生成一个符合该模版的具体角色。` },
       ],
       modelConfig,
-      { maxTokens: 1000, temperature: 1.0, log: { module: 'roleplay-generate', tag: 'character' } },
+      { maxTokens: 1000, temperature: 1.0, timeoutMs: 45_000, log: { module: 'roleplay-generate', tag: 'character' } },
     );
 
     const json = JSON.parse(cleanJsonResponse(content));

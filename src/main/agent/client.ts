@@ -246,6 +246,7 @@ export async function completeChat(
     maxTokens?: number;
     temperature?: number;
     signal?: AbortSignal;
+    timeoutMs?: number;
     /** 传入后在 logs/debug-*.log 记录请求与原始响应摘要（脱敏） */
     log?: { module: string; tag: string };
   },
@@ -363,8 +364,9 @@ export async function completeChat(
       }
     }
 
-    req.setTimeout(20_000, () => {
-      req.destroy(new Error('标题生成请求超时'));
+    const timeoutMs = options?.timeoutMs ?? 20_000;
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`请求超时（${Math.round(timeoutMs / 1000)}秒）`));
     });
 
     req.write(body);
