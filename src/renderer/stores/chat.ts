@@ -392,3 +392,45 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setWebPreviewHtml: (html) => set({ webPreviewHtml: html }),
   setWebPreviewFile: (file) => set({ webPreviewFile: file }),
 }));
+
+// 适配层 —— 让现有组件通过 chatStore 接口访问 conversationStore
+// 逐步废弃：新组件应直接使用 useConversationStore
+import { useConversationStore } from './conversationStore';
+
+export function useChatStoreCompat() {
+  const conv = useConversationStore();
+  return {
+    sessions: conv.conversations.map(c => ({
+      id: c.id,
+      title: c.title,
+      messages: c.messages,
+      characterId: c.characterId,
+      characterIds: c.characterIds,
+      userCharacterId: undefined,
+      pendingOpening: c.pendingOpening,
+      sessionMode: c.sessionMode,
+      planTodos: c.planTodos,
+      planDocPath: c.planDocPath,
+    })),
+    activeSessionId: conv.activeId,
+    isStreaming: conv.isStreaming,
+    loadSessions: conv.loadAll,
+    createSession: conv.createSolo,
+    switchSession: conv.switchTo,
+    deleteSession: conv.delete,
+    addMessage: conv.addMessage,
+    setStreaming: conv.setStreaming,
+    updateLastAssistant: conv.updateLastAssistant,
+    newAssistantMessage: conv.newAssistantMessage,
+    updateSessionTitle: conv.updateTitle,
+    setSessionCharacter: () => {},
+    setSessionCast: () => {},
+    setPlanTodos: () => {},
+    clearPlanTodos: () => {},
+    clearPendingOpening: () => {},
+    webPreviewHtml: conv.webPreviewHtml,
+    webPreviewFile: conv.webPreviewFile,
+    setWebPreviewHtml: conv.setWebPreviewHtml,
+    setWebPreviewFile: conv.setWebPreviewFile,
+  };
+}
