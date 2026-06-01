@@ -97,7 +97,7 @@ export async function generateRandomTemplate(keywords: string): Promise<Generate
         { role: 'user', content: `关键词：${keywords}` },
       ],
       modelConfig,
-      { maxTokens: 2000, temperature: 1.0, timeoutMs: 60_000, log: { module: 'roleplay-generate', tag: 'template' } },
+      { maxTokens: 4000, temperature: 1.0, timeoutMs: 90_000, log: { module: 'roleplay-generate', tag: 'template' } },
     );
 
     const json = JSON.parse(cleanJsonResponse(content));
