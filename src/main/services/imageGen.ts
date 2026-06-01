@@ -390,7 +390,7 @@ export async function generateImage(
       });
     });
 
-    req.on('socket', (sock) => { sock.setKeepAlive(true, 30000); });
+    req.on('socket', (sock) => { sock.setKeepAlive(true, 60000); });
     req.setTimeout(300000, () => {
       signal?.removeEventListener('abort', onAbort);
       errorLog('imageGen', 'timeout', {
