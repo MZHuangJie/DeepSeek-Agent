@@ -15,13 +15,37 @@ export function createGenerateImageTool(): ToolDef {
       properties: {
         prompt: { type: 'string' }, size: { type: 'string', enum: ['1024x1024', '1792x1024', '1024x1792'] },
         quality: { type: 'string', enum: ['low', 'medium', 'high', 'auto'] }, n: { type: 'number' },
+        referenceImages: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '参考图列表，支持本地文件路径或URL',
+        },
       },
       required: ['prompt'],
     },
     execute: async (args, context) => {
       const cfg = (context as any)?.imageModelConfig as ImageModelConfig | undefined;
       if (!cfg) throw new Error('未配置生图模型');
-      const r = await generateImage(cfg, { prompt: args.prompt as string, size: args.size as string, quality: args.quality as string, n: args.n as number }, context?.signal);
+      // 解析参考图：本地路径转 base64 data URI，URL 透传
+      const rawRefs = (args.referenceImages as string[] | undefined) || [];
+      const referenceImages: string[] = [];
+      for (const ref of rawRefs) {
+        if (ref.startsWith('http://') || ref.startsWith('https://') || ref.startsWith('data:')) {
+          referenceImages.push(ref);
+        } else {
+          const ext = path.extname(ref).toLowerCase().replace('.', '');
+          const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext || 'png'}`;
+          const buf = fs.readFileSync(ref);
+          referenceImages.push(`data:${mime};base64,${buf.toString('base64')}`);
+        }
+      }
+      const r = await generateImage(cfg, {
+        prompt: args.prompt as string,
+        size: args.size as string,
+        quality: args.quality as string,
+        n: args.n as number,
+        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+      }, context?.signal);
       if (r.urls.length === 0) throw new Error('生图 API 未返回 URL');
       const displayUrls: string[] = [];
       for (let i = 0; i < r.urls.length; i++) {
