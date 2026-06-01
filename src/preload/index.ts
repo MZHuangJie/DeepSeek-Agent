@@ -146,6 +146,13 @@ const api = {
       apiKey?: string;
     }) => ipcRenderer.invoke('sessions:generateTitle', payload),
   },
+  conversations: {
+    save: (id: string, title: string, payload: string) => ipcRenderer.invoke('conversations:save', id, title, payload),
+    loadAll: () => ipcRenderer.invoke('conversations:loadAll'),
+    delete: (id: string) => ipcRenderer.invoke('conversations:delete', id),
+    getMigrated: () => ipcRenderer.invoke('conversations:getMigrated'),
+    setMigrated: () => ipcRenderer.invoke('conversations:setMigrated'),
+  },
   sync: {
     listSessions: () => ipcRenderer.invoke('sync:listSessions'),
     getSession: (sessionId: string) => ipcRenderer.invoke('sync:getSession', sessionId),

@@ -50,6 +50,16 @@ class MemDb implements DbLike {
             sessions.set(args[0], row);
           }
           self.tables.set('sessions', sessions);
+        } else if (sql.includes('INSERT INTO conversations') || sql.includes('INSERT OR REPLACE INTO conversations')) {
+          const row = { id: args[0], title: args[1], payload: args[2], created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+          const conversations = getMap('conversations');
+          const existing = conversations.get(args[0]);
+          if (existing) {
+            conversations.set(args[0], { ...row, created_at: existing.created_at });
+          } else {
+            conversations.set(args[0], row);
+          }
+          self.tables.set('conversations', conversations);
         } else if (sql.includes('INSERT INTO settings')) {
           const key = args[0];
           const value = args[1];
@@ -59,6 +69,9 @@ class MemDb implements DbLike {
         } else if (sql.includes('DELETE FROM sessions')) {
           const sessions = getMap('sessions');
           sessions.delete(args[0]);
+        } else if (sql.includes('DELETE FROM conversations')) {
+          const conversations = getMap('conversations');
+          conversations.delete(args[0]);
         } else if (sql.includes('INTO marketplaces')) {
           const table = getMap('marketplaces');
           table.set(args[0], { id: args[0], name: args[1], url: args[2], type: args[3] || 'github-repo', added_at: args[4] });
@@ -85,6 +98,10 @@ class MemDb implements DbLike {
         if (sql.includes('FROM sessions')) {
           const sessions = getMap('sessions');
           return Array.from(sessions.values()).sort((a: any, b: any) => (a.created_at || 0) - (b.created_at || 0));
+        }
+        if (sql.includes('FROM conversations')) {
+          const conversations = getMap('conversations');
+          return Array.from(conversations.values()).sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
         }
         if (sql.includes('FROM settings')) {
           const key = args[0];
@@ -142,6 +159,8 @@ export function getDb(): DbLike {
   }
 }
 
+export { getDb as getDatabase };
+
 function initSchema() {
   db!.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -150,6 +169,13 @@ function initSchema() {
       messages TEXT NOT NULL DEFAULT '[]',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      payload TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,

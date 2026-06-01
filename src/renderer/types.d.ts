@@ -21,6 +21,13 @@ declare global {
           apiKey?: string;
         }) => Promise<{ success: true; title: string } | { success: false; error: string }>;
       };
+      conversations: {
+        save: (id: string, title: string, payload: string) => Promise<{ success: boolean }>;
+        loadAll: () => Promise<Array<{ id: string; title: string; payload: string }>>;
+        delete: (id: string) => Promise<{ success: boolean }>;
+        getMigrated: () => Promise<boolean>;
+        setMigrated: () => Promise<{ success: boolean }>;
+      };
     };
   }
   namespace JSX {

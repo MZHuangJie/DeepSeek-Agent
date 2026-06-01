@@ -10,6 +10,7 @@ import { setupGitHandlers } from './git';
 import { setupRoleplayHandlers } from './roleplay';
 import { setupAuthHandlers } from './auth';
 import { setupSyncHandlers } from './sync';
+import { setupConversationHandlers } from './conversation';
 
 export function registerAllHandlers() {
   setupWindowHandlers();
@@ -23,4 +24,5 @@ export function registerAllHandlers() {
   setupBrowserHandlers();
   setupGitHandlers();
   setupRoleplayHandlers();
+  setupConversationHandlers();
 }
