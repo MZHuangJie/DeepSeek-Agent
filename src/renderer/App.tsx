@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import styles from './styles/components.module.css';
 import Sidebar from './components/sidebar/Sidebar';
-import SessionList from './components/sidebar/SessionList';
+import ChatList from './components/sidebar/ChatList';
 import ModifyPanel from './components/agent/ModifyPanel';
 import GitPanel from './components/sidebar/GitPanel';
 import ActivityBar, { PanelView, SystemMenuAction } from './components/sidebar/ActivityBar';
@@ -26,7 +26,7 @@ import GitPassphraseDialog from './components/git/GitPassphraseDialog';
 import QuickOpen from './components/chat/QuickOpen';
 import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
-import { useChatStore } from './stores/chat';
+import { useConversationStore } from './stores/conversationStore';
 import { useLayoutStore, SIDEBAR_MIN_WIDTH } from './stores/layout';
 import { useBrowserStore } from './stores/browser';
 import { useModeStore } from './stores/mode';
@@ -40,7 +40,6 @@ import SidebarResizeHandle from './components/layout/SidebarResizeHandle';
 export default function App() {
   const { activeTab, openTabs, updateTabContent, saveFile } = useFilesStore();
   const { activeTermId, createTerminal } = useTerminalStore();
-  const { loadSessions } = useChatStore();
   const {
     sidebarWidth, agentPanelWidth, terminalHeight, chatPanelWidth,
     bottomExpanded, bottomClosed, setBottomClosed, setBottomExpanded,
@@ -139,7 +138,15 @@ export default function App() {
   useEffect(() => {
     if (hasInitRef.current) return;
     hasInitRef.current = true;
-    loadSessions();
+    (async () => {
+      const convStore = useConversationStore.getState();
+      await convStore.migrateFromSessions();
+      await convStore.loadAll();
+      const { conversations, activeId } = useConversationStore.getState();
+      if (conversations.length === 0 && !activeId) {
+        useConversationStore.getState().createSolo();
+      }
+    })();
     if (!activeTermId) {
       createTerminal();
     }
@@ -250,7 +257,7 @@ export default function App() {
         }}>
           <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
             {!isBrowserVisible && openView === 'files' && <Sidebar />}
-            {!isBrowserVisible && openView === 'sessions' && <SessionList onOpenLogin={() => setShowAccountCenter(true)} />}
+            {!isBrowserVisible && openView === 'sessions' && <ChatList />}
             {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
             {!isBrowserVisible && openView === 'git' && <GitPanel />}
             {!isBrowserVisible && openView === 'roleplay' && <CharacterPickerPanel />}

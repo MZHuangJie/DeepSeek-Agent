@@ -1,33 +1,40 @@
+// src/renderer/components/chat/ChatWorkspace.tsx
 import React from 'react';
 import { useAgentStore } from '../../stores/agent';
-import { useChatStore } from '../../stores/chat';
-import SessionTabs from './SessionTabs';
+import { useConversationStore } from '../../stores/conversationStore';
 import ChatPanel from './ChatPanel';
 import AgentProcessPanel from './AgentProcessPanel';
 import styles from './ChatWorkspace.module.css';
 
 export default function ChatWorkspace() {
   const { subAgents, processPanelDismissed, dismissProcessPanel } = useAgentStore();
-  const { activeSessionId } = useChatStore();
+  const { conversations, activeId } = useConversationStore();
   const showProcessPanel = subAgents.length > 0 && !processPanelDismissed;
+  const activeConv = conversations.find(c => c.id === activeId);
 
   return (
     <div className={styles.workspace}>
-      <SessionTabs />
+      <div className={styles.titleBar}>
+        {activeConv ? (
+          <>
+            <span className={styles.titleText}>{activeConv.title}</span>
+            {activeConv.type === 'group_npc' && <span className={styles.titleBadge}>🎭 NPC 群聊 · {activeConv.members.length}人</span>}
+            {activeConv.type === 'group_agent' && <span className={styles.titleBadge}>💼 Agent 群聊 · {activeConv.members.length}人</span>}
+          </>
+        ) : (
+          <span className={styles.titleText}>新建会话</span>
+        )}
+      </div>
       <div className={styles.body}>
         <div className={styles.chatColumn}>
-          {activeSessionId ? (
+          {activeId ? (
             <ChatPanel />
           ) : (
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: 'var(--text-secondary)',
-              fontSize: 13,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              height: '100%', color: 'var(--text-secondary)', fontSize: 13,
             }}>
-              点击上方 + 新建会话开始对话
+              选择或创建一个会话开始对话
             </div>
           )}
         </div>
