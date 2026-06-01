@@ -29,6 +29,7 @@ const api = {
     saveClipboardImage: (base64: string, mimeType: string) => ipcRenderer.invoke('files:save-clipboard-image', base64, mimeType),
     saveBase64Image: (base64DataUrl: string, targetPath: string) => ipcRenderer.invoke('files:saveBase64Image', base64DataUrl, targetPath),
     downloadImage: (base64DataUrl: string, defaultName: string) => ipcRenderer.invoke('files:downloadImage', base64DataUrl, defaultName),
+    fetchAsDataUrl: (url: string) => ipcRenderer.invoke('files:fetchAsDataUrl', url),
     searchContent: (
       query: string,
       filter: 'all' | 'code' | 'document',

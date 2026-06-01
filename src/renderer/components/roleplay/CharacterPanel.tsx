@@ -226,13 +226,19 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                           let portraitFullBase64: string | undefined;
                           if (c.portraitPath) {
                             try {
-                              const raw = await window.api.files.readBinary(c.portraitPath);
+                              let raw = await window.api.files.readBinary(c.portraitPath);
+                              if (raw.startsWith('http')) {
+                                raw = await window.api.files.fetchAsDataUrl(raw);
+                              }
                               portraitBase64 = await compressPortrait(raw, 512);
                             } catch (e) { console.warn('读取头像失败', e); }
                           }
                           if (c.portraitFullPath) {
                             try {
-                              const raw = await window.api.files.readBinary(c.portraitFullPath);
+                              let raw = await window.api.files.readBinary(c.portraitFullPath);
+                              if (raw.startsWith('http')) {
+                                raw = await window.api.files.fetchAsDataUrl(raw);
+                              }
                               portraitFullBase64 = await compressPortrait(raw, 1024);
                             } catch (e) { console.warn('读取全身像失败', e); }
                           }
@@ -328,13 +334,19 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                           let portraitFullBase64: string | undefined;
                           if (t.portraitPath) {
                             try {
-                              const raw = await window.api.files.readBinary(t.portraitPath);
+                              let raw = await window.api.files.readBinary(t.portraitPath);
+                              if (raw.startsWith('http')) {
+                                raw = await window.api.files.fetchAsDataUrl(raw);
+                              }
                               portraitBase64 = await compressPortrait(raw, 512);
                             } catch (e) { console.warn('读取头像失败', e); }
                           }
                           if (t.portraitFullPath) {
                             try {
-                              const raw = await window.api.files.readBinary(t.portraitFullPath);
+                              let raw = await window.api.files.readBinary(t.portraitFullPath);
+                              if (raw.startsWith('http')) {
+                                raw = await window.api.files.fetchAsDataUrl(raw);
+                              }
                               portraitFullBase64 = await compressPortrait(raw, 512);
                             } catch (e) { console.warn('读取全身像失败', e); }
                           }

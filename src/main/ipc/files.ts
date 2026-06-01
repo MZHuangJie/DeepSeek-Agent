@@ -1,6 +1,8 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
+import http from 'http';
 import { getSetting, setSetting } from '../db/settings';
 import { syncTerminalCwd } from '../ipc/terminal';
 import { safeResolve, checkSensitiveFile } from '../agent/tools/security';
@@ -199,6 +201,22 @@ export function setupFileHandlers() {
     const buffer = Buffer.from(base64, 'base64');
     fs.writeFileSync(filePath, buffer);
     return filePath;
+  });
+
+  ipcMain.handle('files:fetchAsDataUrl', async (_event, url: string) => {
+    const mod = url.startsWith('https') ? https : http;
+    return new Promise<string>((resolve, reject) => {
+      mod.get(url, { headers: { 'User-Agent': 'MyCLI/1.0' } }, (res) => {
+        const contentType = res.headers['content-type'] || 'image/png';
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => {
+          const buf = Buffer.concat(chunks);
+          resolve(`data:${contentType};base64,${buf.toString('base64')}`);
+        });
+        res.on('error', reject);
+      }).on('error', reject);
+    });
   });
 
   ipcMain.handle('files:saveBase64Image', async (_event, base64DataUrl: string, targetPath: string) => {
