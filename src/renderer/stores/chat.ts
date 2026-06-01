@@ -1,17 +1,13 @@
-import { create } from 'zustand';
 import { deriveFallbackSessionTitle, extractPlainUserText } from '../utils/sessionTitle';
-import { useRoleplayStore } from './roleplay';
-import { useModeStore } from './mode';
 import type {
   PlanTodoStatus,
   PlanTodo,
   ToolCall,
   Message,
 } from '../../common/conversation';
+import { useConversationStore } from './conversationStore';
 
 export type { PlanTodoStatus, PlanTodo, ToolCall, Message };
-
-let sessionCounter = 0;
 
 export interface RoleplayTurnMeta {
   characterId: string;
@@ -31,387 +27,35 @@ export interface Session {
   id: string;
   title: string;
   messages: Message[];
-  /** 首轮对话结束后需生成摘要标题 */
   titlePending?: boolean;
-  /** 角色扮演：绑定的角色 ID（单角色兼容） */
-  characterId?: string;
-  /** 群像角色扮演：在场角色 ID 列表 */
-  characterIds?: string[];
-  /** @deprecated 旧版群聊字段，新会话不再写入 */
-  userCharacterId?: string;
-  /** 新建 roleplay 会话后待自动生成开场白 */
-  pendingOpening?: boolean;
-  /** 会话绑定的 Agent 模式（角色相关会话） */
-  sessionMode?: 'roleplay';
-  /** Plan 模式产出的任务清单（用于一键执行计划） */
-  planTodos?: PlanTodo[];
-  /** Plan 模式写入的计划文档相对路径 */
-  planDocPath?: string;
-}
-
-interface ChatState {
-  sessions: Session[];
-  activeSessionId: string | null;
-  isStreaming: boolean;
-  loadSessions: () => Promise<void>;
-  createSession: () => void;
-  clearPendingOpening: (sessionId: string) => void;
-  switchSession: (id: string) => void;
-  deleteSession: (id: string) => void;
-  addMessage: (msg: Message) => void;
-  setStreaming: (v: boolean) => void;
-  updateLastAssistant: (update: Partial<Message>, sessionId?: string) => void;
-  newAssistantMessage: (sessionId?: string) => void;
-  updateSessionTitle: (id: string, title: string, titlePending?: boolean) => void;
-  setSessionCharacter: (
-    characterId: string | null,
-    options?: { sessionMode?: 'roleplay'; pendingOpening?: boolean },
-  ) => void;
-  setSessionCast: (characterIds: string[]) => void;
-  setPlanTodos: (todos: PlanTodo[], planDocPath?: string) => void;
-  clearPlanTodos: () => void;
-  /** present_web inline 全局预览（不受消息轮次影响） */
-  webPreviewHtml: string | null;
-  webPreviewFile: string | null;
-  setWebPreviewHtml: (html: string | null) => void;
-  setWebPreviewFile: (file: string | null) => void;
-}
-
-function parseSessionPayload(raw: string): {
-  messages: Message[];
   characterId?: string;
   characterIds?: string[];
+  /** @deprecated */
   userCharacterId?: string;
   pendingOpening?: boolean;
   sessionMode?: 'roleplay';
   planTodos?: PlanTodo[];
   planDocPath?: string;
-} {
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { messages: parsed };
-    if (parsed && Array.isArray(parsed.messages)) {
-      return {
-        messages: parsed.messages,
-        characterId: parsed.characterId,
-        characterIds: parsed.characterIds,
-        userCharacterId: parsed.userCharacterId,
-        pendingOpening: parsed.pendingOpening,
-        sessionMode: parsed.sessionMode === 'dzmm' ? 'roleplay' : parsed.sessionMode,
-        planTodos: Array.isArray(parsed.planTodos) ? parsed.planTodos : undefined,
-        planDocPath: parsed.planDocPath,
-      };
-    }
-  } catch { /* fall through */ }
-  return { messages: [] };
 }
 
-function serializeSessionPayload(session: Session): string {
-  return JSON.stringify({
-    messages: session.messages,
-    characterId: session.characterId,
-    characterIds: session.characterIds,
-    userCharacterId: session.userCharacterId,
-    pendingOpening: session.pendingOpening,
-    sessionMode: session.sessionMode,
-    planTodos: session.planTodos,
-    planDocPath: session.planDocPath,
-  });
-}
-
-function persistSession(session: Session) {
-  window.api.sessions.save(session.id, session.title, serializeSessionPayload(session));
-}
-
-function persistAll(sessions: Session[]) {
-  for (const s of sessions) persistSession(s);
-}
-
-export const useChatStore = create<ChatState>((set, get) => ({
-  sessions: [],
-  activeSessionId: null,
-  isStreaming: false,
-
-  loadSessions: async () => {
-    try {
-      const raw = await window.api.sessions.loadAll();
-      if (raw && Array.isArray(raw)) {
-        const sessions: Session[] = raw.map((r: any) => {
-          const payload = parseSessionPayload(r.messages);
-          return {
-            id: r.id,
-            title: r.title,
-            messages: payload.messages,
-            characterId: payload.characterId,
-            characterIds: payload.characterIds,
-            userCharacterId: payload.userCharacterId,
-            pendingOpening: payload.pendingOpening,
-            sessionMode: payload.sessionMode,
-            planTodos: payload.planTodos,
-            planDocPath: payload.planDocPath,
-          };
-        });
-        if (sessions.length > 0) {
-          const maxCounter = sessions.reduce((max, s) => {
-            const match = s.title.match(/会话 #(\d+)/);
-            return match ? Math.max(max, parseInt(match[1])) : max;
-          }, 0);
-          sessionCounter = maxCounter;
-          // 只在当前没有激活会话时才设置 activeSessionId，避免后台恢复时切走当前会话
-          const currentActive = get().activeSessionId;
-          if (currentActive === null || !sessions.find(s => s.id === currentActive)) {
-            set({ sessions, activeSessionId: sessions[0].id });
-          } else {
-            set({ sessions });
-          }
-        }
-      }
-    } catch {
-      // use empty state on load failure
-    }
-  },
-
-  createSession: () => {
-    sessionCounter++;
-    const roleplayState = useRoleplayStore.getState();
-    const activeCharacterId = roleplayState.activeCharacterId;
-    const draftParticipantIds = roleplayState.draftParticipantIds;
-    const currentMode = useModeStore.getState().mode;
-    const isRoleplay = currentMode === 'roleplay';
-    const useMulti = isRoleplay && draftParticipantIds.length >= 2;
-    const participantIds = useMulti
-      ? draftParticipantIds
-      : activeCharacterId
-        ? [activeCharacterId]
-        : [];
-    const sessionMode: Session['sessionMode'] | undefined = isRoleplay ? 'roleplay' : undefined;
-    const session: Session = {
-      id: `session-${Date.now()}`,
-      title: `会话 #${sessionCounter}`,
-      messages: [],
-      characterId: participantIds[0],
-      characterIds: participantIds.length > 0 ? participantIds : undefined,
-      pendingOpening: Boolean(isRoleplay && participantIds.length > 0),
-      sessionMode,
-    };
-    set(s => ({
-      sessions: [...s.sessions, session],
-      activeSessionId: session.id,
-    }));
-    persistSession(session);
-  },
-
-  clearPendingOpening: (sessionId) => {
-    const { sessions, isStreaming } = get();
-    const newSessions = sessions.map(s =>
-      s.id === sessionId ? { ...s, pendingOpening: false } : s,
-    );
-    set({ sessions: newSessions });
-    if (!isStreaming) persistAll(newSessions);
-  },
-
-  switchSession: (id) => {
-    const session = get().sessions.find(s => s.id === id);
-    set({ activeSessionId: id, webPreviewHtml: null, webPreviewFile: null });
-    const participantIds = session?.characterIds?.length
-      ? session.characterIds
-      : session?.characterId
-        ? [session.characterId]
-        : [];
-    if (participantIds.length > 0) {
-      void useRoleplayStore.getState().setSessionCast(participantIds);
-    }
-    if (session?.sessionMode === 'roleplay') {
-      useModeStore.getState().setMode('roleplay');
-    }
-  },
-
-  deleteSession: (id) => {
-    window.api.sessions.delete(id);
-    const { activeSessionId, sessions } = get();
-    const newSessions = sessions.filter(s => s.id !== id);
-    set({
-      sessions: newSessions,
-      activeSessionId: activeSessionId === id ? (newSessions[0]?.id ?? null) : activeSessionId,
-    });
-  },
-
-  addMessage: (msg) => {
-    const { activeSessionId, sessions, isStreaming } = get();
-    let modifiedSession: Session | null = null;
-    const newSessions = sessions.map(s => {
-      if (s.id !== activeSessionId) return s;
-      const newMessages = [...s.messages, msg];
-      let title = s.title;
-      let titlePending = s.titlePending;
-      if (!s.messages.some(m => m.role === 'user') && msg.role === 'user') {
-        title = deriveFallbackSessionTitle(extractPlainUserText(msg));
-        titlePending = true;
-      }
-      modifiedSession = { ...s, title, titlePending, messages: newMessages };
-      return modifiedSession;
-    });
-    const ordered = modifiedSession
-      ? newSessions.map(s => s.id === activeSessionId ? modifiedSession! : s)
-      : newSessions;
-    set({ sessions: ordered });
-    if (!isStreaming) persistAll(ordered);
-  },
-
-  setStreaming: (v) => {
-    const wasStreaming = get().isStreaming;
-    set({ isStreaming: v });
-    if (wasStreaming && !v) persistAll(get().sessions);
-  },
-
-  newAssistantMessage: (sessionId?) => {
-    const { activeSessionId, sessions } = get();
-    const targetId = sessionId || activeSessionId;
-    if (!targetId) return;
-    const msg: Message = { id: `msg-${Date.now()}`, role: 'assistant', content: '', timestamp: Date.now() };
-    const newSessions = sessions.map(s => {
-      if (s.id !== targetId) return s;
-      return { ...s, messages: [...s.messages, msg] };
-    });
-    set({ sessions: newSessions });
-  },
-
-  updateLastAssistant: (update, sessionId?) => {
-    const { activeSessionId, sessions, isStreaming } = get();
-    const targetId = sessionId || activeSessionId;
-    if (!targetId) return;
-    let modified = false;
-    const newSessions = sessions.map(s => {
-      if (s.id !== targetId) return s;
-      const msgs = [...s.messages];
-      const last = msgs[msgs.length - 1];
-      if (last && last.role === 'assistant') {
-        msgs[msgs.length - 1] = { ...last, ...update };
-        modified = true;
-      }
-      return { ...s, messages: msgs };
-    });
-    set({ sessions: newSessions });
-    if (!isStreaming) persistAll(newSessions);
-  },
-
-  updateSessionTitle: (id, title, titlePending = false) => {
-    const { sessions, isStreaming } = get();
-    const newSessions = sessions.map(s =>
-      s.id === id ? { ...s, title, titlePending } : s,
-    );
-    set({ sessions: newSessions });
-    if (!isStreaming) persistAll(newSessions);
-    else {
-      const session = newSessions.find(s => s.id === id);
-      if (session) persistSession(session);
-    }
-  },
-
-  setSessionCharacter: (characterId, options) => {
-    const { activeSessionId, sessions, isStreaming } = get();
-    if (!activeSessionId) return;
-    const newSessions = sessions.map(s =>
-      s.id === activeSessionId
-        ? {
-            ...s,
-            characterId: characterId || undefined,
-            characterIds: characterId ? [characterId] : undefined,
-            userCharacterId: undefined,
-            sessionMode: options?.sessionMode ?? s.sessionMode,
-            pendingOpening: options?.pendingOpening ?? (
-              characterId && s.messages.length === 0 ? true : s.pendingOpening
-            ),
-          }
-        : s,
-    );
-    set({ sessions: newSessions });
-    if (!isStreaming) persistAll(newSessions);
-    else {
-      const session = newSessions.find(s => s.id === activeSessionId);
-      if (session) persistSession(session);
-    }
-  },
-
-  setSessionCast: (characterIds) => {
-    const { activeSessionId, sessions, isStreaming } = get();
-    if (!activeSessionId) return;
-    const ids = characterIds.filter(Boolean);
-    const newSessions = sessions.map(s =>
-      s.id === activeSessionId
-        ? {
-            ...s,
-            characterIds: ids.length > 0 ? ids : undefined,
-            characterId: ids[0],
-            userCharacterId: undefined,
-            pendingOpening: ids.length > 0 ? s.pendingOpening : false,
-          }
-        : s,
-    );
-    set({ sessions: newSessions });
-    if (!isStreaming) persistAll(newSessions);
-    else {
-      const session = newSessions.find(s => s.id === activeSessionId);
-      if (session) persistSession(session);
-    }
-  },
-
-  webPreviewHtml: null as string | null,
-  webPreviewFile: null as string | null,
-
-  setPlanTodos: (todos, planDocPath) => {
-    const { activeSessionId, sessions } = get();
-    if (!activeSessionId) return;
-    const newSessions = sessions.map(s =>
-      s.id === activeSessionId
-        ? {
-            ...s,
-            planTodos: todos,
-            planDocPath: planDocPath ?? s.planDocPath,
-          }
-        : s,
-    );
-    set({ sessions: newSessions });
-    const session = newSessions.find(s => s.id === activeSessionId);
-    if (session) persistSession(session);
-  },
-
-  clearPlanTodos: () => {
-    const { activeSessionId, sessions } = get();
-    if (!activeSessionId) return;
-    const newSessions = sessions.map(s =>
-      s.id === activeSessionId
-        ? { ...s, planTodos: undefined, planDocPath: undefined }
-        : s,
-    );
-    set({ sessions: newSessions });
-    const session = newSessions.find(s => s.id === activeSessionId);
-    if (session) persistSession(session);
-  },
-
-  setWebPreviewHtml: (html) => set({ webPreviewHtml: html }),
-  setWebPreviewFile: (file) => set({ webPreviewFile: file }),
-}));
-
-// 适配层 —— 让现有组件通过 chatStore 接口访问 conversationStore
-// 逐步废弃：新组件应直接使用 useConversationStore
-import { useConversationStore } from './conversationStore';
-
-export function useChatStoreCompat() {
-  const conv = useConversationStore();
+function mapConversationToSession(c: any): Session {
   return {
-    sessions: conv.conversations.map(c => ({
-      id: c.id,
-      title: c.title,
-      messages: c.messages,
-      characterId: c.characterId,
-      characterIds: c.characterIds,
-      userCharacterId: undefined,
-      pendingOpening: c.pendingOpening,
-      sessionMode: c.sessionMode,
-      planTodos: c.planTodos,
-      planDocPath: c.planDocPath,
-    })),
+    id: c.id,
+    title: c.title,
+    messages: c.messages,
+    characterId: c.characterId,
+    characterIds: c.characterIds,
+    userCharacterId: undefined,
+    pendingOpening: c.pendingOpening,
+    sessionMode: c.sessionMode,
+    planTodos: c.planTodos,
+    planDocPath: c.planDocPath,
+  };
+}
+
+function mapState(conv: ReturnType<typeof useConversationStore.getState>) {
+  return {
+    sessions: conv.conversations.map(mapConversationToSession),
     activeSessionId: conv.activeId,
     isStreaming: conv.isStreaming,
     loadSessions: conv.loadAll,
@@ -422,15 +66,34 @@ export function useChatStoreCompat() {
     setStreaming: conv.setStreaming,
     updateLastAssistant: conv.updateLastAssistant,
     newAssistantMessage: conv.newAssistantMessage,
-    updateSessionTitle: conv.updateTitle,
-    setSessionCharacter: () => {},
-    setSessionCast: () => {},
-    setPlanTodos: () => {},
-    clearPlanTodos: () => {},
-    clearPendingOpening: () => {},
+    updateSessionTitle: (id: string, title: string, _titlePending?: boolean) => { conv.updateTitle(id, title); },
+    setSessionCharacter: (..._args: any[]) => {},
+    setSessionCast: (..._args: any[]) => {},
+    setPlanTodos: (..._args: any[]) => {},
+    clearPlanTodos: (..._args: any[]) => {},
+    clearPendingOpening: (..._args: any[]) => {},
     webPreviewHtml: conv.webPreviewHtml,
     webPreviewFile: conv.webPreviewFile,
     setWebPreviewHtml: conv.setWebPreviewHtml,
     setWebPreviewFile: conv.setWebPreviewFile,
   };
 }
+
+// useChatStore 现在是 conversationStore 的代理
+// 所有组件透明地通过旧接口读写 conversationStore
+// 兼容 zustand selector 模式：useChatStore(s => s.sessions)
+type ChatStateMapped = ReturnType<typeof mapState>;
+function useChatStoreImpl<T = ChatStateMapped>(selector?: (state: ChatStateMapped) => T): T {
+  const conv = useConversationStore();
+  const state = mapState(conv);
+  if (selector) return selector(state);
+  return state as unknown as T;
+}
+
+// 支持 .getState() 调用（ChatPanel 等组件大量使用）
+useChatStoreImpl.getState = () => {
+  return mapState(useConversationStore.getState());
+};
+
+export const useChatStore = useChatStoreImpl;
+export const useChatStoreCompat = useChatStoreImpl;
