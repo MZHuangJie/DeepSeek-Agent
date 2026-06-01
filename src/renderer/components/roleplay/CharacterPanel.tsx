@@ -231,7 +231,10 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                                 raw = await window.api.files.fetchAsDataUrl(raw);
                               }
                               portraitBase64 = await compressPortrait(raw, 512);
-                            } catch (e) { console.warn('读取头像失败', e); }
+                            } catch (e) {
+                              console.warn('读取头像失败', e);
+                              useToastStore.getState().show('头像处理失败，将同步不含立绘的数据', 'info');
+                            }
                           }
                           if (c.portraitFullPath) {
                             try {
@@ -240,7 +243,10 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                                 raw = await window.api.files.fetchAsDataUrl(raw);
                               }
                               portraitFullBase64 = await compressPortrait(raw, 1024);
-                            } catch (e) { console.warn('读取全身像失败', e); }
+                            } catch (e) {
+                              console.warn('读取全身像失败', e);
+                              useToastStore.getState().show('全身像处理失败，将同步不含立绘的数据', 'info');
+                            }
                           }
                           const payload = JSON.stringify({
                             name: c.name,
@@ -339,7 +345,10 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                                 raw = await window.api.files.fetchAsDataUrl(raw);
                               }
                               portraitBase64 = await compressPortrait(raw, 512);
-                            } catch (e) { console.warn('读取头像失败', e); }
+                            } catch (e) {
+                              console.warn('读取头像失败', e);
+                              useToastStore.getState().show('头像处理失败，将同步不含立绘的数据', 'info');
+                            }
                           }
                           if (t.portraitFullPath) {
                             try {
@@ -348,7 +357,10 @@ export default function CharacterPanel({ embedded, onClose }: Props) {
                                 raw = await window.api.files.fetchAsDataUrl(raw);
                               }
                               portraitFullBase64 = await compressPortrait(raw, 512);
-                            } catch (e) { console.warn('读取全身像失败', e); }
+                            } catch (e) {
+                              console.warn('读取全身像失败', e);
+                              useToastStore.getState().show('全身像处理失败，将同步不含立绘的数据', 'info');
+                            }
                           }
                           const payload = JSON.stringify({
                             name: t.name,
