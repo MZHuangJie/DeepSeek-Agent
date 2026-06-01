@@ -193,6 +193,8 @@ export type CharacterFormData = Omit<RoleplayCharacter, 'id' | 'createdAt' | 'up
   statusFields?: StatusFieldDef[];
   /** 仅 AI 生成立绘时使用，不持久化 */
   portraitStyle?: PortraitStyleId;
+  /** 仅 AI 生成立绘时使用，不持久化 */
+  referenceImages?: string[];
 };
 
 export const BODY_FIELDS: Array<{ key: keyof BodyMeasurements; label: string }> = [

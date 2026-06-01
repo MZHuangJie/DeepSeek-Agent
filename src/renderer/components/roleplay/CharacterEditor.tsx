@@ -74,6 +74,8 @@ export default function CharacterEditor({
   const [fullPortraitDataUrl, setFullPortraitDataUrl] = useState<string | null>(null);
   const [showBody, setShowBody] = useState(() => Boolean(formatBodyHasValue(initial.body)));
   const [showStatusFields, setShowStatusFields] = useState(false);
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
+  const [refUrlInput, setRefUrlInput] = useState('');
 
   const isTemplateMode = editorMode === 'template';
   const templateFieldDefs = getTemplateStatusFieldDefs(template);
@@ -190,6 +192,30 @@ export default function CharacterEditor({
     if (path) setForm(f => ({ ...f, portraitFullPath: path }));
   };
 
+  const handleAddRefFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setReferenceImages(prev => [...prev, reader.result as string]);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleAddRefUrl = () => {
+    const url = refUrlInput.trim();
+    if (!url) return;
+    setReferenceImages(prev => [...prev, url]);
+    setRefUrlInput('');
+  };
+
+  const handleRemoveRef = (index: number) => {
+    setReferenceImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleGeneratePortrait = async () => {
     if (!onGeneratePortrait || !form.name.trim()) return;
     setPortraitGenError('');
@@ -198,7 +224,7 @@ export default function CharacterEditor({
     try {
       const result = await onGeneratePortrait(
         form.id || draftId,
-        { ...form, portraitStyle },
+        { ...form, portraitStyle, referenceImages },
         stage => {
           setPortraitGenStage(stage);
         },
@@ -267,6 +293,54 @@ export default function CharacterEditor({
               </button>
               {form.portraitFullPath && (
                 <span className={styles.genHint}>已设置查看大图</span>
+              )}
+              {onGeneratePortrait && (
+                <div className={styles.refImagesBlock}>
+                  <span className={styles.refImagesLabel}>参考图（可选）</span>
+                  <div className={styles.refImagesInputs}>
+                    <label className={styles.refFileBtn}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className={styles.refFileInput}
+                        onChange={handleAddRefFile}
+                      />
+                      选择文件
+                    </label>
+                    <input
+                      type="text"
+                      className={styles.refUrlInput}
+                      value={refUrlInput}
+                      onChange={e => setRefUrlInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddRefUrl(); }}
+                      placeholder="图片 URL"
+                    />
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      onClick={handleAddRefUrl}
+                      disabled={!refUrlInput.trim()}
+                    >
+                      添加
+                    </button>
+                  </div>
+                  {referenceImages.length > 0 && (
+                    <div className={styles.refImagesList}>
+                      {referenceImages.map((ref, i) => (
+                        <div key={i} className={styles.refImageTag}>
+                          <img src={ref} alt={`参考图 ${i + 1}`} className={styles.refImageThumb} />
+                          <button
+                            type="button"
+                            className={styles.refImageRemove}
+                            onClick={() => handleRemoveRef(i)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               {onGeneratePortrait && (
                 <button

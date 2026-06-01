@@ -300,3 +300,88 @@
   margin-top: 4px;
 }
 
+/* 参考图 */
+.refImagesBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.refImagesLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.refImagesInputs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.refFileBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.refFileInput {
+  display: none;
+}
+
+.refUrlInput {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-width: 0;
+  font-family: inherit;
+}
+
+.refImagesList {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.refImageTag {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.refImageThumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.refImageRemove {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+}
+
