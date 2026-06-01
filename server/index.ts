@@ -12,7 +12,7 @@ const API_PREFIX = `${BASE_PATH}/api`;
 const PORT = Number(process.env.PORT) || 8787;
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use('/ds/images', express.static(path.join(import.meta.dirname, 'public', 'images')));
 
 const jwtSecret = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';

@@ -28,8 +28,8 @@ router.post('/upload', requireAuth, async (req, res) => {
     const b64 = match[2];
     const buf = Buffer.from(b64, 'base64');
 
-    if (buf.length > 10 * 1024 * 1024) {
-      res.status(413).json({ error: '图片不能超过 10MB' });
+    if (buf.length > 50 * 1024 * 1024) {
+      res.status(413).json({ error: '图片不能超过 50MB' });
       return;
     }
 
