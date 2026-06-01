@@ -3,6 +3,7 @@ import React from 'react';
 import type { Message } from '../../../common/conversation';
 import { formatRelativeTime } from '../../utils/relativeTime';
 import { MessageContent } from './MessageBubble';
+import { useAuthStore } from '../../stores/auth';
 import styles from './GroupMessageBubble.module.css';
 
 interface Props {
@@ -11,6 +12,11 @@ interface Props {
 
 export default function GroupMessageBubble({ message }: Props) {
   const isUser = message.role === 'user';
+  const authAvatar = useAuthStore(s => s.user?.avatar);
+
+  const userAvatar = authAvatar
+    ? <img src={authAvatar} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+    : '👤';
 
   return (
     <div className={`${styles.wrapper} ${isUser ? styles.wrapperUser : ''}`}>
@@ -19,7 +25,7 @@ export default function GroupMessageBubble({ message }: Props) {
           ? 'linear-gradient(135deg, #888, #666)'
           : `linear-gradient(135deg, ${(message.senderName?.charCodeAt(0) || 0) % 2 ? '#667eea' : '#f5576c'}, ${(message.senderName?.charCodeAt(1) || 0) % 2 ? '#764ba2' : '#4facfe'})`
       }}>
-        {isUser ? '👤' : (message.senderAvatar
+        {isUser ? userAvatar : (message.senderAvatar
           ? <img src={message.senderAvatar} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
           : message.senderName?.[0] || '?' )}
       </div>
