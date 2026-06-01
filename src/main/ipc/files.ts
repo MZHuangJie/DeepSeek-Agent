@@ -215,6 +215,26 @@ export function setupFileHandlers() {
     return destPath;
   });
 
+  ipcMain.handle('files:downloadImage', async (event, base64DataUrl: string, defaultName: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) throw new Error('窗口不可用');
+    const result = await dialog.showSaveDialog(win, {
+      title: '保存图片',
+      defaultPath: defaultName,
+      filters: [
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
+      ],
+    });
+    if (result.canceled || !result.filePath) return null;
+    const match = base64DataUrl.match(/^data:(.+?);base64,(.+)$/);
+    if (!match) throw new Error('Invalid base64 data URL');
+    const [, mimeType, base64] = match;
+    const ext = (mimeType.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
+    const destPath = result.filePath.endsWith(`.${ext}`) ? result.filePath : `${result.filePath}.${ext}`;
+    fs.writeFileSync(destPath, Buffer.from(base64, 'base64'));
+    return destPath;
+  });
+
   const activeContentSearches = new Map<string, AbortController>();
 
   ipcMain.handle(

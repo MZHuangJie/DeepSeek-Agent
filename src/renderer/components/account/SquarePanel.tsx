@@ -160,6 +160,22 @@ function CharacterDetail({ item, alreadyLocal, restoringId, onClose, onToggleFav
               🔖
             </button>
 
+            {(item.portraitBase64 || item.portraitFullBase64) && (
+              <button
+                type="button"
+                className={styles.detailDownloadBtn}
+                onClick={async () => {
+                  const base64 = item.portraitBase64 || item.portraitFullBase64;
+                  if (!base64) return;
+                  const ext = base64.match(/^data:image\/(\w+);/)?.[1] || 'png';
+                  await window.api.files.downloadImage(base64, `${item.name}-portrait.${ext}`);
+                }}
+                title="下载立绘"
+              >
+                📥 下载立绘
+              </button>
+            )}
+
             {alreadyLocal ? (
               <button
                 type="button"
