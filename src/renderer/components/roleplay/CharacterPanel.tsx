@@ -40,7 +40,7 @@ function compressPortrait(dataUrl: string, maxPx: number): Promise<string> {
       const ctx = canvas.getContext('2d');
       if (!ctx) { reject(new Error('canvas error')); return; }
       ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.8));
+      resolve(canvas.toDataURL('image/png'));
     };
     img.onerror = () => reject(new Error('image load error'));
     img.src = dataUrl;
