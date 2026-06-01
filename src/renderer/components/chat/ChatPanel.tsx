@@ -8,6 +8,8 @@ import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
 import { useAuthStore } from '../../stores/auth';
 import { useAgentRolesStore, resolveSendableRoles } from '../../stores/agentRoles';
+import { useConversationStore } from '../../stores/conversationStore';
+import { useGroupChatStore } from '../../stores/groupChatStore';
 import { getEffectiveStatusFields, getTemplateById } from '../../utils/roleplay';
 import {
   buildSessionRoleplayPrompt,
@@ -25,6 +27,8 @@ import {
   shouldRetryMultiRoleplayStatus,
 } from '../../utils/parseRoleplayResponse';
 import MessageBubble from './MessageBubble';
+import GroupMessageBubble from './GroupMessageBubble';
+import TypingIndicator from './TypingIndicator';
 import PlanTodoPanel from './PlanTodoPanel';
 import ChatInput, { PastedImage } from './ChatInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -56,6 +60,11 @@ export default function ChatPanel() {
   const session = sessions.find(s => s.id === activeSessionId);
   const messages = session?.messages ?? [];
   const mode = useModeStore(s => s.mode);
+
+  const { conversations, activeId: convActiveId } = useConversationStore();
+  const groupChat = useGroupChatStore();
+  const activeConv = conversations.find(c => c.id === convActiveId);
+  const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
 
   useEffect(() => {
     if (isAtBottomRef.current) {
@@ -279,10 +288,18 @@ export default function ChatPanel() {
   };
 
   const handleStop = useCallback(async () => {
+    if (isGroup) {
+      if (convActiveId) {
+        await window.api.groupChat.cancel(convActiveId);
+      }
+      groupChat.setGroupActive(false);
+      setStreaming(false);
+      return;
+    }
     targetSessionRef.current = null;
     await window.api.agent.cancel(activeSessionId || undefined);
     setStreaming(false);
-  }, [activeSessionId]);
+  }, [activeSessionId, isGroup, convActiveId]);
 
   const sendCharacterOpening = useCallback(async (sessionId: string) => {
     const modelConfig = getActiveModel();
@@ -340,10 +357,37 @@ export default function ChatPanel() {
   }, [activeSessionId, sessions, isMySessionStreaming, apiKey, mode, sendCharacterOpening]);
 
   const handleSend = useCallback(async (content: string, command?: Command, images?: PastedImage[]) => {
-    if (!activeSessionId) return;
+    if (!activeSessionId && !convActiveId) return;
     if (!apiKey) { setShowKeyInput(true); return; }
     setErrorMsg('');
     statusRetryUsedRef.current = false;
+
+    // Group chat path
+    if (isGroup) {
+      setErrorMsg('');
+      const currentActiveId = useConversationStore.getState().activeId;
+      if (!currentActiveId) return;
+      addMessage({
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content,
+        senderName: '我',
+        timestamp: Date.now(),
+      });
+      groupChat.setGroupActive(true);
+      setStreaming(true);
+      try {
+        const convJson = JSON.stringify(activeConv);
+        await window.api.groupChat.send(convJson, content);
+      } catch (err: unknown) {
+        setStreaming(false);
+        groupChat.setGroupActive(false);
+        setErrorMsg(err instanceof Error ? err.message : '群聊请求失败');
+      }
+      return;
+    }
+
+    if (!activeSessionId) return;
 
     const displayContent = command ? `/${command.name} ${content}` : content;
     const hasImages = images && images.length > 0;
@@ -453,7 +497,16 @@ export default function ChatPanel() {
             )}
           </div>
         )}
-        {messages.map(msg => <MessageBubble key={msg.id} message={msg} />)}
+        {isGroup
+  ? messages.map(msg => <GroupMessageBubble key={msg.id} message={msg} />)
+  : messages.map(msg => <MessageBubble key={msg.id} message={msg} />)
+}
+{isGroup && groupChat.isGroupActive && groupChat.activeSpeaker && (
+  <TypingIndicator
+    speakerName={groupChat.activeSpeaker}
+    speakerAvatar={activeConv?.members.find(m => m.name === groupChat.activeSpeaker)?.avatar}
+  />
+)}
         {isMySessionStreaming && (
           <div className={styles.thinkingHint}>
             <span className={styles.thinkingIcon}><img src="/assets/8.png" alt="thinking" className={styles.thinkingIconImg} /></span>

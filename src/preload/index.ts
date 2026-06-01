@@ -153,6 +153,10 @@ const api = {
     getMigrated: () => ipcRenderer.invoke('conversations:getMigrated'),
     setMigrated: () => ipcRenderer.invoke('conversations:setMigrated'),
   },
+  groupChat: {
+    send: (convJson: string, userMessage: string) => ipcRenderer.invoke('group-chat:send', convJson, userMessage),
+    cancel: (convId: string) => ipcRenderer.invoke('group-chat:cancel', convId),
+  },
   sync: {
     listSessions: () => ipcRenderer.invoke('sync:listSessions'),
     getSession: (sessionId: string) => ipcRenderer.invoke('sync:getSession', sessionId),
