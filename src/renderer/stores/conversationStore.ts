@@ -86,6 +86,10 @@ interface ConversationState {
   setStreaming: (v: boolean) => void;
   updateTitle: (id: string, title: string) => void;
 
+  setCharacter: (characterId: string | null, options?: { sessionMode?: 'roleplay'; pendingOpening?: boolean }) => void;
+  setCast: (characterIds: string[]) => void;
+  clearPendingOpening: (convId?: string) => void;
+
   webPreviewHtml: string | null;
   webPreviewFile: string | null;
   setWebPreviewHtml: (html: string | null) => void;
@@ -312,4 +316,64 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   setWebPreviewHtml: (html) => set({ webPreviewHtml: html }),
   setWebPreviewFile: (file) => set({ webPreviewFile: file }),
+
+  setCharacter: (characterId, options) => {
+    const { activeId, conversations, isStreaming } = get();
+    if (!activeId) return;
+    const newConvs = conversations.map(c =>
+      c.id === activeId
+        ? {
+            ...c,
+            characterId: characterId || undefined,
+            characterIds: characterId ? [characterId] : undefined,
+            sessionMode: options?.sessionMode ?? c.sessionMode,
+            pendingOpening: options?.pendingOpening ?? (
+              characterId && c.messages.length === 0 ? true : c.pendingOpening
+            ),
+          }
+        : c,
+    );
+    set({ conversations: newConvs });
+    if (!isStreaming) {
+      const updated = newConvs.find(c => c.id === activeId);
+      if (updated) persistConversation(updated);
+    }
+  },
+
+  setCast: (characterIds) => {
+    const { activeId, conversations, isStreaming } = get();
+    if (!activeId) return;
+    const ids = characterIds.filter(Boolean);
+    const isRoleplay = useModeStore.getState().mode === 'roleplay';
+    const newConvs = conversations.map(c =>
+      c.id === activeId
+        ? {
+            ...c,
+            characterIds: ids.length > 0 ? ids : undefined,
+            characterId: ids[0],
+            sessionMode: isRoleplay ? 'roleplay' as const : c.sessionMode,
+            pendingOpening: ids.length > 0 && c.messages.length === 0 ? true : (ids.length > 0 ? c.pendingOpening : false),
+          }
+        : c,
+    );
+    set({ conversations: newConvs });
+    if (!isStreaming) {
+      const updated = newConvs.find(c => c.id === activeId);
+      if (updated) persistConversation(updated);
+    }
+  },
+
+  clearPendingOpening: (convId?) => {
+    const { activeId, conversations, isStreaming } = get();
+    const targetId = convId || activeId;
+    if (!targetId) return;
+    const newConvs = conversations.map(c =>
+      c.id === targetId ? { ...c, pendingOpening: false } : c,
+    );
+    set({ conversations: newConvs });
+    if (!isStreaming) {
+      const updated = newConvs.find(c => c.id === targetId);
+      if (updated) persistConversation(updated);
+    }
+  },
 }));

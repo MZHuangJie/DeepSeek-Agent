@@ -6,6 +6,8 @@ import type {
   Message,
 } from '../../common/conversation';
 import { useConversationStore } from './conversationStore';
+import { useRoleplayStore } from './roleplay';
+import { useModeStore } from './mode';
 
 export type { PlanTodoStatus, PlanTodo, ToolCall, Message };
 
@@ -59,7 +61,22 @@ function mapState(conv: ReturnType<typeof useConversationStore.getState>) {
     activeSessionId: conv.activeId,
     isStreaming: conv.isStreaming,
     loadSessions: conv.loadAll,
-    createSession: conv.createSolo,
+    createSession: () => {
+      const currentMode = useModeStore.getState().mode;
+      const isRoleplay = currentMode === 'roleplay';
+      conv.createSolo();
+      if (isRoleplay) {
+        const rp = useRoleplayStore.getState();
+        const participantIds = rp.draftParticipantIds.length >= 2
+          ? rp.draftParticipantIds
+          : rp.activeCharacterId ? [rp.activeCharacterId] : [];
+        if (participantIds.length >= 2) {
+          conv.setCast(participantIds);
+        } else if (participantIds.length === 1) {
+          conv.setCharacter(participantIds[0], { sessionMode: 'roleplay', pendingOpening: true });
+        }
+      }
+    },
     switchSession: conv.switchTo,
     deleteSession: conv.delete,
     addMessage: conv.addMessage,
@@ -67,11 +84,17 @@ function mapState(conv: ReturnType<typeof useConversationStore.getState>) {
     updateLastAssistant: conv.updateLastAssistant,
     newAssistantMessage: conv.newAssistantMessage,
     updateSessionTitle: (id: string, title: string, _titlePending?: boolean) => { conv.updateTitle(id, title); },
-    setSessionCharacter: (..._args: any[]) => {},
-    setSessionCast: (..._args: any[]) => {},
+    setSessionCharacter: (characterId: string | null, options?: { sessionMode?: 'roleplay'; pendingOpening?: boolean }) => {
+      conv.setCharacter(characterId, options);
+    },
+    setSessionCast: (characterIds: string[]) => {
+      conv.setCast(characterIds);
+    },
     setPlanTodos: (..._args: any[]) => {},
     clearPlanTodos: (..._args: any[]) => {},
-    clearPendingOpening: (..._args: any[]) => {},
+    clearPendingOpening: (convId?: string) => {
+      conv.clearPendingOpening(convId);
+    },
     webPreviewHtml: conv.webPreviewHtml,
     webPreviewFile: conv.webPreviewFile,
     setWebPreviewHtml: conv.setWebPreviewHtml,
