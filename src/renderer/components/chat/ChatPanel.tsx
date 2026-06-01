@@ -35,6 +35,7 @@ import ConfirmDialog from './ConfirmDialog';
 import ChoiceDialog from './ChoiceDialog';
 import { Command } from '../../commands';
 import { useStreamHandler } from './useStreamHandler';
+import { useGroupStreamHandler } from './useGroupStreamHandler';
 import shared from '../../styles/components.module.css';
 import styles from './ChatPanel.module.css';
 
@@ -261,6 +262,18 @@ export default function ChatPanel() {
     const unsubscribe = window.api.agent.onStreamChunk((chunk) => handleStreamChunkRef.current(chunk));
     return () => { unsubscribe(); };
   }, []);
+
+  const handleGroupChunk = useGroupStreamHandler();
+
+  useEffect(() => {
+    const unsubscribe = window.api.groupChat.onChunk((convId: string, chunk: any) => {
+      const currentId = useConversationStore.getState().activeId;
+      if (convId === currentId) {
+        handleGroupChunk(convId, chunk);
+      }
+    });
+    return () => { unsubscribe(); };
+  }, [handleGroupChunk]);
 
   useEffect(() => {
     const unsubscribe = window.api.agent.onConfirmRequest((req) => {
