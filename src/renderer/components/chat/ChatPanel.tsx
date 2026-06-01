@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { useChatStore } from '../../stores/chat';
+import { useChatStore, type RoleplayMessageMeta } from '../../stores/chat';
 import { useModelStore, PROVIDERS } from '../../stores/model';
 import { useAgentStore } from '../../stores/agent';
 import { useLayoutStore } from '../../stores/layout';
@@ -99,20 +99,21 @@ export default function ChatPanel() {
     const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
     const history: any[] = [];
     for (const m of sourceMessages) {
+      const meta = m.roleplayMeta as RoleplayMessageMeta | undefined;
       let messageContent: string | typeof m.contentParts = m.content;
       if (m.role === 'user' && m.contentParts?.length) {
         messageContent = m.contentParts;
-      } else if (sendMode === 'roleplay' && m.role === 'assistant' && m.roleplayMeta?.turns?.length) {
+      } else if (sendMode === 'roleplay' && m.role === 'assistant' && meta?.turns?.length) {
         messageContent = formatMultiRoleplayMessageForHistory(
-          m.roleplayMeta.turns.map(turn => ({
+          meta.turns.map(turn => ({
             character: turn.characterName,
             reply: turn.reply,
             status: turn.status,
             statusComplete: Boolean(turn.statusComplete && turn.status),
           })),
         );
-      } else if (sendMode === 'roleplay' && m.role === 'assistant' && m.roleplayMeta?.status) {
-        messageContent = formatRoleplayMessageForHistory(m.content, m.roleplayMeta.status);
+      } else if (sendMode === 'roleplay' && m.role === 'assistant' && meta?.status) {
+        messageContent = formatRoleplayMessageForHistory(m.content, meta.status);
       }
       const entry: any = {
         role: m.role,

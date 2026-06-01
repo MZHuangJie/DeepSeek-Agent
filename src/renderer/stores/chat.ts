@@ -2,16 +2,16 @@ import { create } from 'zustand';
 import { deriveFallbackSessionTitle, extractPlainUserText } from '../utils/sessionTitle';
 import { useRoleplayStore } from './roleplay';
 import { useModeStore } from './mode';
+import type {
+  PlanTodoStatus,
+  PlanTodo,
+  ToolCall,
+  Message,
+} from '../../common/conversation';
+
+export type { PlanTodoStatus, PlanTodo, ToolCall, Message };
 
 let sessionCounter = 0;
-
-export interface ToolCall {
-  name: string;
-  args: Record<string, unknown>;
-  result?: string;
-  timestamp: number;
-  status: 'running' | 'success' | 'error';
-}
 
 export interface RoleplayTurnMeta {
   characterId: string;
@@ -25,28 +25,6 @@ export interface RoleplayMessageMeta {
   status?: Record<string, unknown>;
   statusComplete?: boolean;
   turns?: RoleplayTurnMeta[];
-}
-
-export type PlanTodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
-
-export interface PlanTodo {
-  id: string;
-  content: string;
-  status: PlanTodoStatus;
-}
-
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  /** 多模态用户消息：用于重建 API 历史时保留 image_url */
-  contentParts?: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }>;
-  thinkingContent?: string;
-  toolCalls?: ToolCall[];
-  roleplayMeta?: RoleplayMessageMeta;
-  /** roleplay 原始流式输出，用于解析失败时的回退 */
-  rawContent?: string;
-  timestamp: number;
 }
 
 export interface Session {

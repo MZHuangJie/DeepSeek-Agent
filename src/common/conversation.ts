@@ -1,9 +1,23 @@
 // src/common/conversation.ts
 // Shared Conversation types for main and renderer processes
 
-import type { PlanTodo } from '../renderer/stores/chat';
-
 export type ConversationType = 'solo' | 'group_npc' | 'group_agent';
+
+export type PlanTodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface PlanTodo {
+  id: string;
+  content: string;
+  status: PlanTodoStatus;
+}
+
+export interface ToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  result?: string;
+  timestamp: number;
+  status: 'running' | 'success' | 'error';
+}
 
 export interface ConversationMember {
   roleId: string;
@@ -52,13 +66,7 @@ export interface Message {
   content: string;
   contentParts?: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }>;
   thinkingContent?: string;
-  toolCalls?: Array<{
-    name: string;
-    args: Record<string, unknown>;
-    result?: string;
-    timestamp: number;
-    status: 'running' | 'success' | 'error';
-  }>;
+  toolCalls?: ToolCall[];
   roleplayMeta?: Record<string, unknown>;
   rawContent?: string;
   timestamp: number;

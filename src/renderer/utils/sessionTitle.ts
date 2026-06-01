@@ -1,4 +1,4 @@
-import type { Message } from '../stores/chat';
+import type { Message } from '../../common/conversation';
 
 export function extractPlainUserText(message: Pick<Message, 'content' | 'contentParts'>): string {
   if (message.contentParts?.length) {

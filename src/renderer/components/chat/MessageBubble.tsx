@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Message, useChatStore } from '../../stores/chat';
+import type { Message, ToolCall } from '../../../common/conversation';
+import { useChatStore, type RoleplayMessageMeta } from '../../stores/chat';
 import { useRefsStore } from '../../stores/refs';
 import { useModeStore } from '../../stores/mode';
 import { useRoleplayStore } from '../../stores/roleplay';
@@ -271,7 +272,7 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
-function ToolCallCard({ tc }: { tc: import('../../stores/chat').ToolCall }) {
+function ToolCallCard({ tc }: { tc: ToolCall }) {
   const [expanded, setExpanded] = useState(false);
   const isRunning = tc.status === 'running';
   const isError = tc.status === 'error';
@@ -317,11 +318,11 @@ function ToolCallCard({ tc }: { tc: import('../../stores/chat').ToolCall }) {
   );
 }
 
-function isSuccess(tc: import('../../stores/chat').ToolCall): boolean {
+function isSuccess(tc: ToolCall): boolean {
   return tc.status === 'success';
 }
 
-function ToolCallProgress({ toolCalls }: { toolCalls?: import('../../stores/chat').ToolCall[] }) {
+function ToolCallProgress({ toolCalls }: { toolCalls?: ToolCall[] }) {
   const [expanded, setExpanded] = useState(false);
   if (!toolCalls || toolCalls.length === 0) return null;
 
@@ -404,8 +405,9 @@ function AssistantRoleplayDebug({ message, hasStatusPanel, expectedStatus }: {
 
   const rawBody = useMemo(() => {
     if (message.rawContent) return message.rawContent;
-    if (message.roleplayMeta?.status) {
-      return formatRoleplayMessageForHistory(message.content, message.roleplayMeta.status);
+    const meta = message.roleplayMeta as RoleplayMessageMeta | undefined;
+    if (meta?.status) {
+      return formatRoleplayMessageForHistory(message.content, meta.status);
     }
     return message.content;
   }, [message.rawContent, message.content, message.roleplayMeta?.status]);
@@ -490,7 +492,8 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
 
   const roleplayTurns = useMemo(() => {
     if (isUser || !isRoleplayChat || !isMultiRoleplay) return [];
-    if (message.roleplayMeta?.turns?.length) return message.roleplayMeta.turns;
+    const meta = message.roleplayMeta as RoleplayMessageMeta | undefined;
+    if (meta?.turns?.length) return meta.turns;
     const raw = message.rawContent || message.content;
     if (/<turn\s+character=|<scene\s*>/i.test(raw)) {
       const parsed = parseMultiRoleplayResponse(raw);
@@ -503,7 +506,8 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
 
   const roleplayStatus = useMemo(() => {
     if (isUser || !isRoleplayChat) return null;
-    if (message.roleplayMeta?.status) return message.roleplayMeta.status;
+    const meta = message.roleplayMeta as RoleplayMessageMeta | undefined;
+    if (meta?.status) return meta.status;
     const raw = message.rawContent || message.content;
     if (raw.includes('<status>') || raw.includes('<reply>')) {
       const parsed = parseRoleplayResponse(raw);

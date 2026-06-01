@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { PlanTodo } from '../../stores/chat';
+import type { PlanTodo } from '../../../common/conversation';
 import styles from './PlanTodoPanel.module.css';
 
 interface Props {
