@@ -2,22 +2,15 @@
 // Plan 模式写完计划文档后输出可执行的任务清单；执行阶段也用它更新各项状态（实时勾选）
 // 实际的前端同步由 ipc/agent.ts 在工具调用后转发 plan-todos 事件完成
 import type { ToolDef } from './index';
-
-export type PlanTodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
-
-export interface NormalizedPlanTodo {
-  id: string;
-  content: string;
-  status: PlanTodoStatus;
-}
+import type { PlanTodo, PlanTodoStatus } from '../../../common/conversation';
 
 const VALID_STATUS: PlanTodoStatus[] = ['pending', 'in_progress', 'completed', 'cancelled'];
 
 /** 规范化工具入参中的 todos：补全 id 与默认 status */
-export function normalizePlanTodos(raw: unknown): NormalizedPlanTodo[] {
+export function normalizePlanTodos(raw: unknown): PlanTodo[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((item, idx): NormalizedPlanTodo | null => {
+    .map((item, idx): PlanTodo | null => {
       if (!item || typeof item !== 'object') return null;
       const obj = item as Record<string, unknown>;
       const content = typeof obj.content === 'string' ? obj.content.trim() : '';
@@ -28,7 +21,7 @@ export function normalizePlanTodos(raw: unknown): NormalizedPlanTodo[] {
       const id = typeof obj.id === 'string' && obj.id.trim() ? obj.id.trim() : `todo-${idx + 1}`;
       return { id, content, status };
     })
-    .filter((t): t is NormalizedPlanTodo => t !== null);
+    .filter((t): t is PlanTodo => t !== null);
 }
 
 export function createWriteTodosTool(): ToolDef {
