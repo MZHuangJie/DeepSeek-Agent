@@ -11,6 +11,8 @@ interface DbLike {
   exec(sql: string): void;
   prepare(sql: string): Stmt;
   pragma(sql: string): void;
+  run(sql: string, params?: any[]): void;
+  all(sql: string, params?: any[]): any[];
 }
 
 let db: DbLike | null = null;
@@ -140,6 +142,14 @@ class MemDb implements DbLike {
   }
 
   pragma(_sql: string) {}
+
+  run(sql: string, params?: any[]) {
+    this.prepare(sql).run(...(params || []));
+  }
+
+  all(sql: string, params?: any[]): any[] {
+    return this.prepare(sql).all(...(params || []));
+  }
 }
 
 export function getDb(): DbLike {
