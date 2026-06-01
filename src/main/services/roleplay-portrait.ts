@@ -34,6 +34,7 @@ export interface PortraitCharacterInput {
   background?: string;
   body?: BodyMeasurements;
   portraitStyle?: string;
+  referenceImages?: string[];
 }
 
 export type PortraitGenerateStage = 'prompt' | 'image';
@@ -335,11 +336,15 @@ export async function generateCharacterPortrait(
       promptLength: imagePrompt.length,
     });
 
+    const imageArgs = {
+      ...buildPortraitImageArgs(imagePrompt),
+      referenceImages: input.referenceImages?.length ? input.referenceImages : undefined,
+    };
     let result;
     try {
       result = await generateImage(
         imageConfig,
-        buildPortraitImageArgs(imagePrompt),
+        imageArgs,
         undefined,
         'roleplay-portrait',
       );
