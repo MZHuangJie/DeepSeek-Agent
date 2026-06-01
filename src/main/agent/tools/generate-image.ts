@@ -1,10 +1,11 @@
 // AI生图 — generate_image 工具
-// 参数: prompt, size, quality, n
+// 参数: prompt, size, quality, n, referenceImages
 // 调用生图模型，base64存项目目录
 import fs from 'fs';
 import path from 'path';
 import { generateImage, ImageModelConfig } from '../../services/imageGen';
 import { getAgentImagesDir, toDisplayPath } from '../../services/agent-images';
+import { safeResolve } from './security';
 import type { ToolDef } from './index';
 
 export function createGenerateImageTool(): ToolDef {
@@ -27,16 +28,29 @@ export function createGenerateImageTool(): ToolDef {
       const cfg = (context as any)?.imageModelConfig as ImageModelConfig | undefined;
       if (!cfg) throw new Error('未配置生图模型');
       // 解析参考图：本地路径转 base64 data URI，URL 透传
-      const rawRefs = (args.referenceImages as string[] | undefined) || [];
+      if (!Array.isArray(args.referenceImages)) {
+        throw new Error('referenceImages 必须是字符串数组');
+      }
+      const rawRefs = args.referenceImages as string[];
       const referenceImages: string[] = [];
+      const projectDir = context?.projectDir || process.cwd();
       for (const ref of rawRefs) {
-        if (ref.startsWith('http://') || ref.startsWith('https://') || ref.startsWith('data:')) {
+        if (typeof ref !== 'string' || !ref.trim()) continue;
+        if (/^https?:\/\//i.test(ref) || ref.startsWith('data:')) {
           referenceImages.push(ref);
         } else {
-          const ext = path.extname(ref).toLowerCase().replace('.', '');
-          const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext || 'png'}`;
-          const buf = fs.readFileSync(ref);
-          referenceImages.push(`data:${mime};base64,${buf.toString('base64')}`);
+          try {
+            const resolved = safeResolve(projectDir, ref);
+            const ext = path.extname(ref).toLowerCase().replace('.', '');
+            const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+              : ext === 'svg' ? 'image/svg+xml'
+              : `image/${ext || 'png'}`;
+            const buf = fs.readFileSync(resolved);
+            referenceImages.push(`data:${mime};base64,${buf.toString('base64')}`);
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`参考图文件不存在或无法读取: ${ref} (${msg})`);
+          }
         }
       }
       const r = await generateImage(cfg, {
