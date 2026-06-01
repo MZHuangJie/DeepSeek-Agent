@@ -157,15 +157,26 @@ export function getDb(): DbLike {
   try {
     const Database = require('better-sqlite3');
     const dbPath = path.join(app.getPath('userData'), 'deepseek-agent.db');
-    db = new Database(dbPath);
-    (db as any).pragma('journal_mode = WAL');
+    const raw = new Database(dbPath);
+    if (typeof raw.prepare !== 'function') {
+      throw new Error('better-sqlite3 instance missing prepare');
+    }
+    (raw as any).pragma('journal_mode = WAL');
+    // 封装为 DbLike，确保 run/all 始终可用（打包版可能丢失便捷方法）
+    db = {
+      exec: (sql: string) => raw.exec(sql),
+      prepare: (sql: string) => raw.prepare(sql),
+      pragma: (sql: string) => (raw as any).pragma(sql),
+      run: (sql: string, params?: any[]) => raw.prepare(sql).run(...(params || [])),
+      all: (sql: string, params?: any[]) => raw.prepare(sql).all(...(params || [])),
+    };
     initSchema();
-    runMigrations(db!);
-    return db!;
+    runMigrations(db);
+    return db;
   } catch {
     db = new MemDb();
     initSchema();
-    return db!;
+    return db;
   }
 }
 
