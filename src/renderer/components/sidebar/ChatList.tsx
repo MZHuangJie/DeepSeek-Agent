@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useConversationStore } from '../../stores/conversationStore';
 import { formatRelativeTime } from '../../utils/relativeTime';
 import CreateGroupDialog from '../chat/CreateGroupDialog';
+import CloudRestoreDialog from './CloudRestoreDialog';
 import styles from './ChatList.module.css';
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -31,6 +32,7 @@ export default function ChatList() {
   const [search, setSearch] = useState('');
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState<'group_npc' | 'group_agent' | null>(null);
+  const [showCloudDialog, setShowCloudDialog] = useState(false);
   const [pinnedIds] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
@@ -137,6 +139,7 @@ export default function ChatList() {
           </svg>
         </button>
         <button className={styles.addBtn} title="新建会话" onClick={createSolo}>+</button>
+        <button className={styles.addBtn} title="云端会话" onClick={() => setShowCloudDialog(true)}>☁</button>
       </div>
 
       <div className={styles.list}>
@@ -235,6 +238,9 @@ export default function ChatList() {
           groupType={showCreateDialog}
           onClose={() => setShowCreateDialog(null)}
         />
+      )}
+      {showCloudDialog && (
+        <CloudRestoreDialog onClose={() => setShowCloudDialog(false)} />
       )}
     </div>
   );

@@ -2,6 +2,17 @@
 import { create } from 'zustand';
 import type { Conversation, ConversationMember, ConversationType, Message, DriverConfig } from '../../common/conversation';
 import { useModeStore } from './mode';
+import type { AgentRole } from './agentRoles';
+
+export interface CloudSessionDeps {
+  sessionId: string;
+  sessionTitle: string;
+  payload: string;
+  missingAgents: ConversationMember[];  // members with roleType === 'agent', not in local roles
+  missingNpcIds: string[];              // characterIds not in local roleplay store
+  cloudNpcIds: string[];                // subset of missingNpcIds that exist on cloud
+  unrecoverableNpcIds: string[];        // not local, not on cloud
+}
 
 let soloCounter = 0;
 
@@ -61,8 +72,18 @@ function parseConversationPayload(raw: string): {
   }
 }
 
+const CLOUD_PUSH_DEBOUNCE = new Map<string, ReturnType<typeof setTimeout>>();
+
 function persistConversation(conv: Conversation) {
   window.api.conversations.save(conv.id, conv.title, serializeConversation(conv));
+  // 防抖推送到云端（避免频繁消息更新时重复请求）
+  const existing = CLOUD_PUSH_DEBOUNCE.get(conv.id);
+  if (existing) clearTimeout(existing);
+  CLOUD_PUSH_DEBOUNCE.set(conv.id, setTimeout(() => {
+    CLOUD_PUSH_DEBOUNCE.delete(conv.id);
+    window.api.sync.pushSession(conv.id, conv.title, serializeConversation(conv))
+      .catch(() => {}); // 静默失败，登录状态会自然阻止
+  }, 3000));
 }
 
 function persistAll(convs: Conversation[]) {
@@ -89,6 +110,10 @@ interface ConversationState {
   setCharacter: (characterId: string | null, options?: { sessionMode?: 'roleplay'; pendingOpening?: boolean }) => void;
   setCast: (characterIds: string[]) => void;
   clearPendingOpening: (convId?: string) => void;
+
+  // 云端恢复
+  checkCloudSessionDeps: (sessionId: string) => Promise<CloudSessionDeps | null>;
+  restoreCloudSession: (sessionId: string) => Promise<Conversation | null>;
 
   webPreviewHtml: string | null;
   webPreviewFile: string | null;
@@ -240,6 +265,8 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   delete: (id) => {
     window.api.conversations.delete(id);
+    // 同时删除云端副本
+    window.api.sync.deleteSession(id).catch(() => {});
     const { activeId, conversations } = get();
     const newConvs = conversations.filter(c => c.id !== id);
     set({
@@ -374,6 +401,93 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     if (!isStreaming) {
       const updated = newConvs.find(c => c.id === targetId);
       if (updated) persistConversation(updated);
+    }
+  },
+
+  checkCloudSessionDeps: async (sessionId) => {
+    try {
+      const res = await window.api.sync.getSession(sessionId);
+      if (!res?.payload) return null;
+      const parsed = parseConversationPayload(res.payload);
+      const { useAgentRolesStore } = await import('./agentRoles');
+      const { useRoleplayStore } = await import('./roleplay');
+      const localRoles = useAgentRolesStore.getState().roles;
+      const localChars = useRoleplayStore.getState().characters;
+
+      // 检测缺失的 Agent 角色
+      const agentMembers = (parsed.members || []).filter(m => m.roleType === 'agent');
+      const missingAgents = agentMembers.filter(m => {
+        if (!m.roleId) return true;
+        return !localRoles.some(r => r.id === m.roleId);
+      });
+
+      // 检测缺失的 NPC
+      const allCharIds = [
+        ...(parsed.characterIds || []),
+        ...(parsed.characterId ? [parsed.characterId] : []),
+      ].filter(Boolean);
+      const uniqueIds = [...new Set(allCharIds)];
+      const missingNpcIds = uniqueIds.filter(id => !localChars.some(c => c.id === id));
+
+      // 检查云端是否有这些 NPC
+      const cloudNpcIds: string[] = [];
+      const unrecoverableNpcIds: string[] = [];
+      for (const id of missingNpcIds) {
+        try {
+          const charRes = await window.api.sync.getCharacter(id);
+          if (charRes?.payload) {
+            cloudNpcIds.push(id);
+          } else {
+            unrecoverableNpcIds.push(id);
+          }
+        } catch {
+          unrecoverableNpcIds.push(id);
+        }
+      }
+
+      return {
+        sessionId,
+        sessionTitle: res.title || '',
+        payload: res.payload,
+        missingAgents,
+        missingNpcIds,
+        cloudNpcIds,
+        unrecoverableNpcIds,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  restoreCloudSession: async (sessionId) => {
+    try {
+      const res = await window.api.sync.getSession(sessionId);
+      if (!res?.payload) return null;
+      const parsed = parseConversationPayload(res.payload);
+      const conv: Conversation = {
+        id: sessionId,
+        title: res.title || sessionId,
+        type: parsed.type,
+        members: parsed.members,
+        messages: parsed.messages,
+        lastMessage: parsed.lastMessage,
+        driver: parsed.driver,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        characterId: parsed.characterId,
+        characterIds: parsed.characterIds,
+        planTodos: parsed.planTodos,
+        planDocPath: parsed.planDocPath,
+        pendingOpening: parsed.pendingOpening,
+        sessionMode: parsed.sessionMode,
+      };
+      persistConversation(conv);
+      set(s => ({
+        conversations: [conv, ...s.conversations.filter(c => c.id !== conv.id)],
+      }));
+      return conv;
+    } catch {
+      return null;
     }
   },
 }));

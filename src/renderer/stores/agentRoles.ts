@@ -222,9 +222,11 @@ interface AgentRolesState {
   loaded: boolean;
   loadRoles: () => Promise<void>;
   saveRoles: (roles: AgentRole[]) => Promise<void>;
+  importRole: (role: AgentRole) => Promise<void>;
+  hasRole: (roleId: string) => boolean;
 }
 
-export const useAgentRolesStore = create<AgentRolesState>((set) => ({
+export const useAgentRolesStore = create<AgentRolesState>((set, get) => ({
   roles: [],
   loaded: false,
 
@@ -248,6 +250,18 @@ export const useAgentRolesStore = create<AgentRolesState>((set) => ({
   saveRoles: async (roles) => {
     set({ roles });
     await window.api.settings.set(SETTINGS_KEY, JSON.stringify(roles));
+  },
+
+  importRole: async (role) => {
+    const { roles } = get();
+    if (roles.some(r => r.id === role.id)) return; // already exists
+    const updated = [...roles, role];
+    set({ roles: updated });
+    await window.api.settings.set(SETTINGS_KEY, JSON.stringify(updated));
+  },
+
+  hasRole: (roleId) => {
+    return get().roles.some(r => r.id === roleId);
   },
 }));
 
