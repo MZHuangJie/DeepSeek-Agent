@@ -1,8 +1,6 @@
-import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
+import { ipcMain, dialog, BrowserWindow, shell, net } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import https from 'https';
-import http from 'http';
 import { getSetting, setSetting } from '../db/settings';
 import { syncTerminalCwd } from '../ipc/terminal';
 import { safeResolve, checkSensitiveFile } from '../agent/tools/security';
@@ -204,18 +202,20 @@ export function setupFileHandlers() {
   });
 
   ipcMain.handle('files:fetchAsDataUrl', async (_event, url: string) => {
-    const mod = url.startsWith('https') ? https : http;
     return new Promise<string>((resolve, reject) => {
-      mod.get(url, { headers: { 'User-Agent': 'MyCLI/1.0' } }, (res) => {
-        const contentType = res.headers['content-type'] || 'image/png';
-        const chunks: Buffer[] = [];
+      const req = net.request({ method: 'GET', url });
+      const chunks: Buffer[] = [];
+      req.on('response', (res) => {
+        const contentType = res.headers['content-type']?.[0] || 'image/png';
         res.on('data', (c: Buffer) => chunks.push(c));
         res.on('end', () => {
           const buf = Buffer.concat(chunks);
           resolve(`data:${contentType};base64,${buf.toString('base64')}`);
         });
         res.on('error', reject);
-      }).on('error', reject);
+      });
+      req.on('error', reject);
+      req.end();
     });
   });
 
