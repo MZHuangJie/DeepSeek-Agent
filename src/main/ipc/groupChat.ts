@@ -45,49 +45,26 @@ export function setupGroupChatHandlers() {
     try {
       // 解析 @mention，只让被 @ 的人发言
       const targets = extractMentions(userMessage, conv.members);
+      const speakers = targets.length > 0 ? targets : conv.members;
+      const context: Array<{ speaker: string; content: string }> = [];
 
-      if (targets.length === 0) {
-        // 没有 @ 任何人：发给全员讨论
-        for (const speaker of conv.members) {
-          if (controller.signal.aborted) break;
-          const memberInfo = { roleId: speaker.roleId, name: speaker.name, avatar: speaker.avatar };
-          onChunk({ type: 'typing', speaker: memberInfo });
-          try {
-            const reply = await streamCharacterReply(
-              speaker.systemPrompt,
-              context,
-              userMessage,
-              { model: directorModelConfig.model, baseUrl: directorModelConfig.baseUrl, apiKey },
-              (text) => onChunk({ type: 'text', speaker: memberInfo, text }),
-              controller.signal,
-            );
-            context.push({ speaker: speaker.name, content: reply });
-            onChunk({ type: 'message-done', speaker: memberInfo, reply });
-          } catch (err) {
-            onChunk({ type: 'error', message: `${speaker.name} 发言失败: ${err instanceof Error ? err.message : String(err)}` });
-          }
-        }
-      } else {
-        const context: Array<{ speaker: string; content: string }> = [];
-        for (const speaker of targets) {
-          if (controller.signal.aborted) break;
-          const memberInfo = { roleId: speaker.roleId, name: speaker.name, avatar: speaker.avatar };
-          onChunk({ type: 'typing', speaker: memberInfo });
-
-          try {
-            const reply = await streamCharacterReply(
-              speaker.systemPrompt,
-              context,
-              userMessage,
-              { model: directorModelConfig.model, baseUrl: directorModelConfig.baseUrl, apiKey },
-              (text) => onChunk({ type: 'text', speaker: memberInfo, text }),
-              controller.signal,
-            );
-            context.push({ speaker: speaker.name, content: reply });
-            onChunk({ type: 'message-done', speaker: memberInfo, reply });
-          } catch (err) {
-            onChunk({ type: 'error', message: `${speaker.name} 发言失败: ${err instanceof Error ? err.message : String(err)}` });
-          }
+      for (const speaker of speakers) {
+        if (controller.signal.aborted) break;
+        const memberInfo = { roleId: speaker.roleId, name: speaker.name, avatar: speaker.avatar };
+        onChunk({ type: 'typing', speaker: memberInfo });
+        try {
+          const reply = await streamCharacterReply(
+            speaker.systemPrompt,
+            context,
+            userMessage,
+            { model: directorModelConfig.model, baseUrl: directorModelConfig.baseUrl, apiKey },
+            (text) => onChunk({ type: 'text', speaker: memberInfo, text }),
+            controller.signal,
+          );
+          context.push({ speaker: speaker.name, content: reply });
+          onChunk({ type: 'message-done', speaker: memberInfo, reply });
+        } catch (err) {
+          onChunk({ type: 'error', message: `${speaker.name} 发言失败: ${err instanceof Error ? err.message : String(err)}` });
         }
       }
     } catch (err) {
