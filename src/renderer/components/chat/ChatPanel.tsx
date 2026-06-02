@@ -37,6 +37,7 @@ import { Command } from '../../commands';
 import { useStreamHandler } from './useStreamHandler';
 import { useGroupStreamHandler } from './useGroupStreamHandler';
 import shared from '../../styles/components.module.css';
+import { Virtuoso } from 'react-virtuoso';
 import styles from './ChatPanel.module.css';
 
 export default function ChatPanel() {
@@ -45,8 +46,7 @@ export default function ChatPanel() {
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
   const agentReset = useAgentStore(s => s.reset);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<any>(null);
   const isAtBottomRef = useRef(true);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [apiKey, setApiKey] = useState('');
@@ -62,13 +62,14 @@ export default function ChatPanel() {
   const messages = session?.messages ?? [];
   const mode = useModeStore(s => s.mode);
 
+  const convActiveId = useConversationStore(s => s.activeId);
   const activeConv = useConversationStore(s => s.conversations.find(c => c.id === s.activeId));
   const groupChat = useGroupChatStore();
   const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
 
   useEffect(() => {
     if (isAtBottomRef.current) {
-      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: 'smooth' });
     }
   }, [messages]);
 
@@ -480,17 +481,8 @@ export default function ChatPanel() {
   return (
     <div className={styles.container}>
       <div
-        ref={scrollRef}
         className={styles.scrollArea}
         data-chat-scroll="true"
-        onScroll={() => {
-          const el = scrollRef.current;
-          if (el) {
-            const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-            isAtBottomRef.current = distFromBottom < 50;
-            setShowScrollDown(distFromBottom > 100);
-          }
-        }}
       >
         {messages.length === 0 && (
           <div className={styles.emptyState}>
@@ -510,10 +502,19 @@ export default function ChatPanel() {
             )}
           </div>
         )}
-        {isGroup
-  ? messages.map(msg => <GroupMessageBubble key={msg.id} message={msg} />)
-  : messages.map(msg => <MessageBubble key={msg.id} message={msg} />)
-}
+                <Virtuoso
+          data={messages}
+          followOutput="smooth"
+          atBottomStateChange={(atBottom) => {
+            isAtBottomRef.current = atBottom;
+            setShowScrollDown(!atBottom);
+          }}
+          itemContent={(_index, msg) => (
+            isGroup
+              ? <GroupMessageBubble key={msg.id} message={msg} />
+              : <MessageBubble key={msg.id} message={msg} />
+          )}
+        />
 {isGroup && groupChat.isGroupActive && groupChat.activeSpeaker && (
   <TypingIndicator
     speakerName={groupChat.activeSpeaker}
@@ -526,9 +527,8 @@ export default function ChatPanel() {
             <span>思考中...</span>
           </div>
         )}
-        <div ref={endRef} />
         {showScrollDown && (
-          <div className={shared.scrollDownBtn} onClick={() => endRef.current?.scrollIntoView({ behavior: 'smooth' })} title="回到底部">
+          <div className={shared.scrollDownBtn} onClick={() => virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: 'smooth' })} title="回到底部">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path className={shared.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
