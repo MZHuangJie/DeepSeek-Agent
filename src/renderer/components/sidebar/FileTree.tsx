@@ -272,9 +272,25 @@ export default function FileTree() {
 
   const handleBlankContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     contextMenuRef.current = null;
     setContextMenu({ x: e.clientX, y: e.clientY, node: null });
   };
+
+  // 原生事件兜底，确保空白区域右键一定触发
+  useEffect(() => {
+    const el = treeAreaRef.current;
+    if (!el) return;
+    const handler = (e: MouseEvent) => {
+      // 只在点击目标就是 treeArea 本身（而非子节点）时触发
+      if (e.target !== el) return;
+      e.preventDefault();
+      contextMenuRef.current = null;
+      setContextMenu({ x: e.clientX, y: e.clientY, node: null });
+    };
+    el.addEventListener('contextmenu', handler);
+    return () => el.removeEventListener('contextmenu', handler);
+  }, []);
 
   const handleDelete = () => {
     const node = contextMenu?.node ?? contextMenuRef.current;
