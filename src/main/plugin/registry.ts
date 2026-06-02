@@ -10,7 +10,7 @@ export interface PluginMeta {
   downloadUrl: string;
 }
 
-const CACHE_DIR = path.join(os.tmpdir(), 'mycli-plugin-cache');
+const CACHE_DIR = path.join(os.tmpdir(), 'ohmydeepseek-plugin-cache');
 
 function execAsync(cmd: string, opts: { cwd: string; timeout?: number }): Promise<void> {
   return new Promise((resolve, reject) => {

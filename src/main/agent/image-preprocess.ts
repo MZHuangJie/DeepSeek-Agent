@@ -16,7 +16,7 @@ export function extractImagePaths(text: string): string[] {
 
   for (const match of text.matchAll(MARKDOWN_IMAGE_RE)) {
     const p = normalizePath(match[1]);
-    if (p && (IMAGE_EXT_RE.test(p) || /\.mycli[/\\]clipboard/i.test(p))) {
+    if (p && (IMAGE_EXT_RE.test(p) || /\.ohmydeepseek[/\\]clipboard/i.test(p))) {
       found.add(p);
     }
   }

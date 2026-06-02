@@ -5,8 +5,8 @@ import { extractOpenAIMessageText } from '../../services/vision';
 
 describe('extractImagePaths', () => {
   it('should extract markdown image paths', () => {
-    const text = '请看\n![image](D:\\proj\\.mycli\\clipboard\\paste-1.png)';
-    expect(extractImagePaths(text)).toEqual(['D:\\proj\\.mycli\\clipboard\\paste-1.png']);
+    const text = '请看\n![image](D:\\proj\\.ohmydeepseek\\clipboard\\paste-1.png)';
+    expect(extractImagePaths(text)).toEqual(['D:\\proj\\.ohmydeepseek\\clipboard\\paste-1.png']);
   });
 
   it('should extract @ image references', () => {

@@ -255,7 +255,7 @@ export function setupFileHandlers() {
   });
 
   ipcMain.handle('files:save-clipboard-image', async (_event, base64: string, mimeType: string) => {
-    const clipboardDir = path.join(currentWorkspace, '.mycli', 'clipboard');
+    const clipboardDir = path.join(currentWorkspace, '.ohmydeepseek', 'clipboard');
     fs.mkdirSync(clipboardDir, { recursive: true });
     const ext = mimeType.split('/')[1] || 'png';
     const filename = `paste-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;

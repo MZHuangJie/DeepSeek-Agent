@@ -12,7 +12,7 @@ describe('contentSearch', () => {
   });
 
   it('should search workspace file contents', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'mycli-search-'));
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'ohmydeepseek-search-'));
     const srcDir = path.join(workspace, 'src');
     fs.mkdirSync(srcDir);
     fs.writeFileSync(path.join(srcDir, 'main.ts'), 'export function helloWorld() {\n  return 1;\n}\n');
