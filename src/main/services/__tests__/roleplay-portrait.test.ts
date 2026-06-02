@@ -33,6 +33,9 @@ describe('resolveImageModelConfig', () => {
       baseUrl: 'https://relay.example.com/v1',
       model: 'gpt-image-1',
       apiKey: 'sk-global',
+      apiType: 'images',
+      extraParams: undefined,
+      promptInstruction: undefined,
     });
   });
 
