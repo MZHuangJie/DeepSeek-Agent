@@ -1,7 +1,7 @@
 {
   "name": "deepseek-agent",
   "version": "1.0.0",
-  "description": "DeepSeek Agent Desktop IDE",
+  "description": "Oh My DeepSeek Desktop IDE",
   "main": "dist/main/index.js",
   "scripts": {
     "start": "npm run build && electron .",
@@ -19,8 +19,8 @@
     "postinstall": "node scripts/setup-monaco.js"
   },
   "build": {
-    "appId": "com.deepseek.agent",
-    "productName": "DeepSeek Agent",
+    "appId": "com.ohmydeepseek.app",
+    "productName": "Oh My DeepSeek",
     "directories": {
       "output": "release"
     },

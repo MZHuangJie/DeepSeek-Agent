@@ -395,7 +395,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={disabled ? 'AI 正在回复，可先输入下一条…' : 'Ask DeepSeek Agent... (/ commands · @ files)'}
+          placeholder={disabled ? 'AI 正在回复，可先输入下一条…' : 'Ask Oh My DeepSeek... (/ commands · @ files)'}
           spellCheck={false}
           className={shared.textarea}
           style={{

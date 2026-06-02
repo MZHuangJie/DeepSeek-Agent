@@ -496,7 +496,7 @@ export default function ChatPanel() {
               </>
             ) : (
               <>
-                <div className={styles.emptyTitle}>开始与 DeepSeek Agent 对话</div>
+                <div className={styles.emptyTitle}>开始与 Oh My DeepSeek 对话</div>
                 <div className={styles.emptyHint}>输入消息或 @ 引用文件</div>
               </>
             )}

@@ -218,7 +218,7 @@ export default function App() {
             <span>角色扮演</span>
           </button>
         </div>
-        <span style={{ flex: 1, textAlign: 'center' }}><img src="/assets/logo.png" alt="" style={{ width: 16, height: 14, marginRight: 6, verticalAlign: 'middle' }} />DeepSeek Agent</span>
+        <span style={{ flex: 1, textAlign: 'center' }}><img src="/assets/logo.png" alt="" style={{ width: 16, height: 14, marginRight: 6, verticalAlign: 'middle' }} />Oh My DeepSeek</span>
         <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' }}>
           <WindowControlBtn onClick={() => window.api.window.minimize()}>
             <img src="/assets/图层 11_w.png" alt="minimize" style={{ width: 12, height: 2 }} />

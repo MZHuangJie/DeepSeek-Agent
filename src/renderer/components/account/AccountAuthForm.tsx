@@ -61,7 +61,7 @@ export default function AccountAuthForm() {
     <div className={styles.authWrap}>
       <div className={styles.authCard}>
         <h2 className={styles.authTitle}>
-          {isLogin ? '登录' : '注册'} DeepSeek Agent
+          {isLogin ? '登录' : '注册'} Oh My DeepSeek
         </h2>
         <p className={styles.authDesc}>
           {isLogin ? '欢迎回来！请登录您的账户' : '创建新账户以开始使用'}

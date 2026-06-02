@@ -31,7 +31,7 @@ const SYSTEM_MENU: Array<{ id: SystemMenuAction; label: string }> = [
   { id: 'model', label: '模型设置' },
   { id: 'characters', label: '角色管理' },
   { id: 'agent-roles', label: 'Multi-Agent 角色' },
-  { id: 'about', label: '关于 DeepSeek-Agent' },
+  { id: 'about', label: '关于 Oh My DeepSeek' },
 ];
 
 function BarBtn({ icon, glyph, title, onClick, active }: { icon?: string; glyph?: string; title: string; onClick: () => void; active?: boolean }) {

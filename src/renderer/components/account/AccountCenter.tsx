@@ -313,7 +313,7 @@ export default function AccountCenter({ onClose }: Props) {
                       <h1 className={styles.profileName}>{user.username}</h1>
                     </div>
                     <div className={styles.profileMeta}>{user.email || '未设置邮箱'}</div>
-                    <div className={styles.profileBio}>DeepSeek Agent 账户</div>
+                    <div className={styles.profileBio}>Oh My DeepSeek 账户</div>
                     <div className={styles.profileJoin}>
                       用户 ID: {user.id}
                     </div>
