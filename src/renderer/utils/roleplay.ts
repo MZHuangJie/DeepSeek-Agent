@@ -365,6 +365,7 @@ function buildStatusOutputPrompt(fields: StatusFieldDef[]): string {
     '- 根据当前情境更新各状态字段，数值字段用 number，列表字段用 string[]',
     '- 不要在 <reply> 内写 JSON 或状态信息',
     '- 不要使用 markdown 代码块包裹 JSON',
+    '- <reply> 内的对话正文可以使用 Markdown 格式：**加粗**、*斜体*、- 列表等，让文本更生动',
   ].join('\n');
 }
 
