@@ -47,8 +47,26 @@ export function setupGroupChatHandlers() {
       const targets = extractMentions(userMessage, conv.members);
 
       if (targets.length === 0) {
-        // 没有 @ 任何人：@ 所有人
-        onChunk({ type: 'text', speaker: { roleId: '', name: '系统' }, text: '请使用 @成员名 指定要对话的成员。例如：@产品经理 你觉得这个方案怎么样？\n\n当前群成员：' + conv.members.map(m => m.name).join('、') });
+        // 没有 @ 任何人：发给全员讨论
+        for (const speaker of conv.members) {
+          if (controller.signal.aborted) break;
+          const memberInfo = { roleId: speaker.roleId, name: speaker.name, avatar: speaker.avatar };
+          onChunk({ type: 'typing', speaker: memberInfo });
+          try {
+            const reply = await streamCharacterReply(
+              speaker.systemPrompt,
+              context,
+              userMessage,
+              { model: directorModelConfig.model, baseUrl: directorModelConfig.baseUrl, apiKey },
+              (text) => onChunk({ type: 'text', speaker: memberInfo, text }),
+              controller.signal,
+            );
+            context.push({ speaker: speaker.name, content: reply });
+            onChunk({ type: 'message-done', speaker: memberInfo, reply });
+          } catch (err) {
+            onChunk({ type: 'error', message: `${speaker.name} 发言失败: ${err instanceof Error ? err.message : String(err)}` });
+          }
+        }
       } else {
         const context: Array<{ speaker: string; content: string }> = [];
         for (const speaker of targets) {
