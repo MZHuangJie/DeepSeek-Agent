@@ -168,8 +168,7 @@ export default function FileTree() {
   const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, openFileDialog, closeWorkspace, removeRecentWorkspace, closeTab, activeTab } = useFilesStore();
   const [showExplorer, setShowExplorer] = useState(true);
   const [showRecent, setShowRecent] = useState(true);
-  const [showFileMenu, setShowFileMenu] = useState(false);
-  const fileMenuRef = useRef<HTMLDivElement>(null);
+  const [fileMenuPos, setFileMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const contextMenuRef = useRef<FileNode | null>(null);
@@ -183,15 +182,6 @@ export default function FileTree() {
   const treeAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadWorkspace(); }, []);
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
-        setShowFileMenu(false);
-      }
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, []);
 
   useEffect(() => {
     if (currentWorkspace) loadProjectTree();
@@ -363,32 +353,9 @@ export default function FileTree() {
         <div onClick={() => setShowExplorer(!showExplorer)} className={styles.sectionHeader}>
           <span><img src="/assets/文件夹.png" alt="" className={styles.sectionIcon} />资源管理器 ({workspaceName})</span>
           <div className={styles.headerActions}>
-            <div className={styles.menuContainer} ref={fileMenuRef}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" onClick={(e) => { e.stopPropagation(); setShowFileMenu(!showFileMenu); }} style={{ cursor: 'pointer', opacity: 0.6 }} title="更多操作">
-                <line x1="4" y1="6" x2="12" y2="6"/><line x1="4" y1="10" x2="12" y2="10"/>
-              </svg>
-              {showFileMenu && (
-                <div className={styles.dropdownMenu}>
-                  <button onClick={() => { setShowFileMenu(false); openFileDialog(); }}>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2h5l3 3h3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M8 7v4M6 9h4"/></svg>
-                    打开文件
-                  </button>
-                  <button onClick={() => { setShowFileMenu(false); selectAndOpenWorkspace(); }}>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3a1 1 0 011-1h3.5l2 2H13a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V3z"/></svg>
-                    打开文件夹
-                  </button>
-                  <div className={styles.menuDivider} />
-                  <button onClick={() => { setShowFileMenu(false); closeTab(activeTab || ''); }} disabled={!activeTab}>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-                    关闭文件
-                  </button>
-                  <button onClick={() => { setShowFileMenu(false); closeWorkspace(); }} disabled={!currentWorkspace}>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-                    关闭文件夹
-                  </button>
-                </div>
-              )}
-            </div>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" onClick={(e) => { e.stopPropagation(); const rect = (e.target as HTMLElement).closest('svg')!.getBoundingClientRect(); setFileMenuPos({ x: rect.left, y: rect.bottom + 2 }); }} style={{ cursor: 'pointer', opacity: 0.8, color: 'var(--text-primary)' }} title="更多操作">
+              <line x1="2" y1="5" x2="14" y2="5"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="11" x2="14" y2="11"/>
+            </svg>
             <img src="/assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" className={styles.refreshIcon} />
             <span>{showExplorer ? '▼' : '▶'}</span>
           </div>
@@ -416,6 +383,32 @@ export default function FileTree() {
               )}
               {creating && (
                 <InlineCreate parentPath={creating.parentPath} isDirectory={creating.isDirectory} onDone={onCreated} onCancel={() => setCreating(null)} onError={reportError} />
+              )}
+
+              {fileMenuPos && createPortal(
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setFileMenuPos(null)} />
+                  <div className={styles.contextMenu} style={{ left: fileMenuPos.x, top: fileMenuPos.y }} onClick={(e) => e.stopPropagation()}>
+                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); openFileDialog(); }}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2h5l3 3h3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M8 7v4M6 9h4"/></svg>
+                      打开文件
+                    </button>
+                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); selectAndOpenWorkspace(); }}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3a1 1 0 011-1h3.5l2 2H13a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V3z"/></svg>
+                      打开文件夹
+                    </button>
+                    <div className={styles.contextDivider} />
+                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); closeTab(activeTab || ''); }} disabled={!activeTab}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+                      关闭文件
+                    </button>
+                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); closeWorkspace(); }} disabled={!currentWorkspace}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+                      关闭文件夹
+                    </button>
+                  </div>
+                </>,
+                document.body
               )}
 
               {contextMenu && createPortal(
