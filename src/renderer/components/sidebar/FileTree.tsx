@@ -372,6 +372,11 @@ export default function FileTree() {
               )}
               {loadingTree ? (
                 <div className={styles.emptyHint}>加载中…</div>
+              ) : !currentWorkspace ? (
+                <div className={styles.emptyHint}>
+                  <div style={{ marginBottom: 8 }}>尚未打开文件夹</div>
+                  <button onClick={selectAndOpenWorkspace} className={styles.openBtn}>打开文件夹</button>
+                </div>
               ) : tree.length === 0 ? (
                 <div className={styles.emptyHint}>工作区无可见文件</div>
               ) : (

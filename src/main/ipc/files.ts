@@ -5,12 +5,17 @@ import { getSetting, setSetting } from '../db/settings';
 import { syncTerminalCwd } from '../ipc/terminal';
 import { safeResolve, checkSensitiveFile } from '../agent/tools/security';
 
-let currentWorkspace = process.cwd();
+let currentWorkspace = getSetting('last_workspace') || '';
 let fileWatcher: fs.FSWatcher | null = null;
 let watchDebounce: ReturnType<typeof setTimeout> | null = null;
 
+function saveWorkspace() {
+  setSetting('last_workspace', currentWorkspace);
+}
+
 function startWatching(win: BrowserWindow) {
   stopWatching();
+  if (!currentWorkspace) return;
   try {
     fileWatcher = fs.watch(currentWorkspace, { recursive: true }, () => {
       if (watchDebounce) clearTimeout(watchDebounce);
@@ -60,6 +65,7 @@ function addToRecentWorkspaces(workspacePath: string) {
 
 export function setupFileHandlers() {
   ipcMain.handle('files:list', async (_event, dirPath: string) => {
+    if (!currentWorkspace) return [];
     const safePath = safeResolve(currentWorkspace, dirPath);
     const entries = fs.readdirSync(safePath, { withFileTypes: true });
     return entries.map(e => ({
@@ -70,6 +76,7 @@ export function setupFileHandlers() {
   });
 
   ipcMain.handle('files:listTree', async () => {
+    if (!currentWorkspace) return [];
     const result: Array<{ name: string; isDirectory: boolean; path: string; children?: typeof result }> = [];
     const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '__pycache__', '.cache']);
     const MAX_DEPTH = 8;
@@ -134,6 +141,7 @@ export function setupFileHandlers() {
     }
     const selectedPath = result.filePaths[0];
     currentWorkspace = selectedPath;
+    saveWorkspace();
     addToRecentWorkspaces(selectedPath);
     syncTerminalCwd(selectedPath);
     startWatching(win);
@@ -143,6 +151,7 @@ export function setupFileHandlers() {
   ipcMain.handle('files:set-workspace', async (event, workspacePath: string) => {
     if (fs.existsSync(workspacePath)) {
       currentWorkspace = workspacePath;
+      saveWorkspace();
       addToRecentWorkspaces(workspacePath);
       syncTerminalCwd(workspacePath);
       const win = BrowserWindow.fromWebContents(event.sender);
