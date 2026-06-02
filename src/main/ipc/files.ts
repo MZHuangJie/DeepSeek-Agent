@@ -66,6 +66,32 @@ export function setupFileHandlers() {
     }));
   });
 
+  ipcMain.handle('files:listTree', async () => {
+    const result: Array<{ name: string; isDirectory: boolean; path: string; children?: typeof result }> = [];
+    const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '__pycache__', '.cache']);
+    const MAX_DEPTH = 8;
+    function walk(dir: string, depth: number) {
+      if (depth > MAX_DEPTH) return [];
+      const entries: typeof result = [];
+      try {
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (e.name.startsWith('.') && e.name !== '.env.example' && e.name !== '.gitignore') continue;
+          if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
+          const fullPath = path.join(dir, e.name);
+          const node: typeof result[number] = { name: e.name, isDirectory: e.isDirectory(), path: fullPath };
+          if (e.isDirectory()) {
+            const children = walk(fullPath, depth + 1);
+            if (children.length > 0) (node as any).children = children;
+          }
+          entries.push(node);
+        }
+      } catch { /* permission errors */ }
+      entries.sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name));
+      return entries;
+    }
+    return walk(currentWorkspace, 0);
+  });
+
   ipcMain.handle('files:read', async (_event, filePath: string) => {
     const safePath = safeResolve(currentWorkspace, filePath);
     checkSensitiveFile(safePath, 'read');

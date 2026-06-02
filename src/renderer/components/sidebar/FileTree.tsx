@@ -154,6 +154,7 @@ export default function FileTree() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FileNode | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [loadingTree, setLoadingTree] = useState(false);
   const deleteConfirmRef = useRef<HTMLButtonElement>(null);
   const treeAreaRef = useRef<HTMLDivElement>(null);
 
@@ -253,26 +254,13 @@ export default function FileTree() {
   };
 
   const loadProjectTree = async () => {
+    setLoadingTree(true);
     try {
-      const entries = await window.api.files.list('.');
-      const buildTree = async (entries: any[]): Promise<FileNode[]> => {
-        const nodes: FileNode[] = [];
-        for (const e of entries) {
-          const node: FileNode = { name: e.name, path: e.path, isDirectory: e.isDirectory };
-          if (e.isDirectory) {
-            try { const children = await window.api.files.list(e.path); node.children = await buildTree(children); } catch {}
-          }
-          nodes.push(node);
-        }
-        nodes.sort((a, b) => {
-          if (a.isDirectory && !b.isDirectory) return -1;
-          if (!a.isDirectory && b.isDirectory) return 1;
-          return a.name.localeCompare(b.name);
-        });
-        return nodes;
-      };
-      setTree(await buildTree(entries));
-    } catch {}
+      const tree = await window.api.files.listTree();
+      setTree(tree as FileNode[]);
+    } catch {} finally {
+      setLoadingTree(false);
+    }
   };
 
   const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
@@ -333,7 +321,9 @@ export default function FileTree() {
               {actionError && (
                 <div className={styles.deleteError}>{actionError}</div>
               )}
-              {tree.length === 0 ? (
+              {loadingTree ? (
+                <div className={styles.emptyHint}>加载中…</div>
+              ) : tree.length === 0 ? (
                 <div className={styles.emptyHint}>工作区无可见文件</div>
               ) : (
                 tree.map(node => (

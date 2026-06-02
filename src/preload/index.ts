@@ -8,6 +8,7 @@ const api = {
   },
   files: {
     list: (dirPath: string) => ipcRenderer.invoke('files:list', dirPath),
+    listTree: () => ipcRenderer.invoke('files:listTree'),
     read: (filePath: string) => ipcRenderer.invoke('files:read', filePath),
     cwd: () => ipcRenderer.invoke('files:cwd'),
     selectWorkspace: () => ipcRenderer.invoke('files:select-workspace'),
