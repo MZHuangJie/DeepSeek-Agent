@@ -433,7 +433,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
             </div>
 
             <ToolbarBtn title="新建会话" onClick={() => createSession()}>
-              <img src="/assets/13.png" alt="new" className={styles.toolbarIcon} />
+              <img src="./assets/13.png" alt="new" className={styles.toolbarIcon} />
             </ToolbarBtn>
 
             {/* Mode / Character selector */}
@@ -443,7 +443,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                 title={mode === 'roleplay' ? '选择扮演角色' : activeMode.description}
                 className={`${styles.modelBtn} ${shared.hoverSubtle}`}
               >
-                <img src={mode === 'roleplay' ? '/assets/role.png' : activeMode.icon} alt="" className={styles.toolbarIcon} style={{ opacity: 1 }} />
+                <img src={mode === 'roleplay' ? './assets/role.png' : activeMode.icon} alt="" className={styles.toolbarIcon} style={{ opacity: 1 }} />
                 <span>{mode === 'roleplay'
                   ? (sessionCast.isMulti ? `群聊 ${sessionCast.participantIds.length} 人` : (activeCharacter?.name ?? '选择角色'))
                   : activeMode.label}</span>
@@ -468,7 +468,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                                 >
                                   <input type="checkbox" checked={inDraft} onChange={() => { /* handled by span onClick */ }} />
                                 </span>
-                                <img src="/assets/role.png" alt="" className={styles.modeIcon} />
+                                <img src="./assets/role.png" alt="" className={styles.modeIcon} />
                                 <div>
                                   <div className={styles.modeName}>{c.name}</div>
                                   <div className={styles.modeDesc}>{c.background?.trim().slice(0, 24) || '点选 1v1，勾选加入群聊'}</div>
@@ -528,7 +528,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                 title="停止生成 (Esc)"
                 className={styles.stopBtn}
               >
-                <img src="/assets/stop.png" alt="stop" className={styles.stopIcon} />
+                <img src="./assets/stop.png" alt="stop" className={styles.stopIcon} />
               </button>
             ) : (
               <button
@@ -537,7 +537,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
                 disabled={disabled || (!value.trim() && images.length === 0)}
                 className={disabled || (!value.trim() && images.length === 0) ? styles.sendBtnDisabled : styles.sendBtn}
               >
-                <img src="/assets/9.png" alt="send" className={styles.sendIcon} />
+                <img src="./assets/9.png" alt="send" className={styles.sendIcon} />
               </button>
             )}
           </div>

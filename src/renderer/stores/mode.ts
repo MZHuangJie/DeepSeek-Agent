@@ -10,11 +10,11 @@ interface ModeConfig {
 }
 
 export const MODES: ModeConfig[] = [
-  { id: 'plan', label: '计划', icon: '/assets/assistan.png', description: '只读分析代码，仅产出计划文档，不修改代码' },
-  { id: 'agent', label: 'Agent', icon: '/assets/assistan.png', description: '单模型全工具：代码编写、调试、项目分析' },
-  { id: 'multi-agent', label: 'Multi-Agent', icon: '/assets/assistan.png', description: '协调者把任务分派给多个配置角色并行执行' },
-  { id: 'chat', label: '聊天', icon: '/assets/chat.png', description: '日常对话、问答' },
-  { id: 'roleplay', label: '角色扮演', icon: '/assets/role.png', description: '本地 prompt + XML 状态，多模型可用' },
+  { id: 'plan', label: '计划', icon: './assets/assistan.png', description: '只读分析代码，仅产出计划文档，不修改代码' },
+  { id: 'agent', label: 'Agent', icon: './assets/assistan.png', description: '单模型全工具：代码编写、调试、项目分析' },
+  { id: 'multi-agent', label: 'Multi-Agent', icon: './assets/assistan.png', description: '协调者把任务分派给多个配置角色并行执行' },
+  { id: 'chat', label: '聊天', icon: './assets/chat.png', description: '日常对话、问答' },
+  { id: 'roleplay', label: '角色扮演', icon: './assets/role.png', description: '本地 prompt + XML 状态，多模型可用' },
 ];
 
 /** 兼容旧持久化值（coding → agent） */

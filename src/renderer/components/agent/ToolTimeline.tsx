@@ -5,10 +5,10 @@ import styles from './ToolTimeline.module.css';
 function ToolCallRow({ tc }: { tc: ToolCallEntry }) {
   const isRunning = tc.status === 'running';
   const statusIcon = isRunning
-    ? <img src="/assets/8.png" alt="running" className={styles.iconImg} />
+    ? <img src="./assets/8.png" alt="running" className={styles.iconImg} />
     : tc.status === 'success'
-      ? <img src="/assets/6.png" alt="success" className={styles.iconImg} />
-      : <img src="/assets/12.png" alt="error" className={styles.iconImg} />;
+      ? <img src="./assets/6.png" alt="success" className={styles.iconImg} />
+      : <img src="./assets/12.png" alt="error" className={styles.iconImg} />;
   const time = new Date(tc.timestamp).toLocaleTimeString();
   const isSubAgentTool = tc.name === 'spawn_sub_agent' || tc.name === 'auto_decompose_task';
 

@@ -218,16 +218,16 @@ export default function App() {
             <span>角色扮演</span>
           </button>
         </div>
-        <span style={{ flex: 1, textAlign: 'center' }}><img src="/assets/logo.png" alt="" style={{ width: 16, height: 14, marginRight: 6, verticalAlign: 'middle' }} />Oh My DeepSeek</span>
+        <span style={{ flex: 1, textAlign: 'center' }}><img src="./assets/logo.png" alt="" style={{ width: 16, height: 14, marginRight: 6, verticalAlign: 'middle' }} />Oh My DeepSeek</span>
         <div style={{ width: 100, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingRight: 12, WebkitAppRegion: 'no-drag' }}>
           <WindowControlBtn onClick={() => window.api.window.minimize()}>
-            <img src="/assets/图层 11_w.png" alt="minimize" style={{ width: 12, height: 2 }} />
+            <img src="./assets/图层 11_w.png" alt="minimize" style={{ width: 12, height: 2 }} />
           </WindowControlBtn>
           <WindowControlBtn onClick={() => window.api.window.maximize()}>
-            <img src="/assets/图层 10_w.png" alt="maximize" style={{ width: 12, height: 12 }} />
+            <img src="./assets/图层 10_w.png" alt="maximize" style={{ width: 12, height: 12 }} />
           </WindowControlBtn>
           <WindowControlBtn onClick={() => window.api.window.close()}>
-            <img src="/assets/图层 12_w.png" alt="close" style={{ width: 12, height: 12 }} />
+            <img src="./assets/图层 12_w.png" alt="close" style={{ width: 12, height: 12 }} />
           </WindowControlBtn>
         </div>
       </div>

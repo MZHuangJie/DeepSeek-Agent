@@ -13,7 +13,7 @@ export default function CharacterSettings({ onClose }: Props) {
         <div className={styles.header}>
           <span className={styles.title}>角色管理</span>
           <button type="button" onClick={onClose} className={styles.closeBtn} aria-label="关闭">
-            <img src="/assets/图层 12_w.png" alt="" className={styles.closeIcon} />
+            <img src="./assets/图层 12_w.png" alt="" className={styles.closeIcon} />
           </button>
         </div>
         <div className={styles.body}>

@@ -57,7 +57,7 @@ export default function MultiAgentSettings({ onClose }: Props) {
         <div className={styles.header}>
           <span className={styles.title}>Multi-Agent 角色</span>
           <button onClick={onClose} className={styles.closeBtn}>
-            <img src="/assets/图层 12_w.png" alt="close" className={styles.closeIcon} />
+            <img src="./assets/图层 12_w.png" alt="close" className={styles.closeIcon} />
           </button>
         </div>
 

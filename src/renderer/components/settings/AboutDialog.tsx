@@ -9,7 +9,7 @@ export default function AboutDialog({ onClose }: Props) {
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
-        <img src="/assets/logo.png" alt="" className={styles.logo} />
+        <img src="./assets/logo.png" alt="" className={styles.logo} />
         <div className={styles.title}>Oh My DeepSeek</div>
         <div className={styles.version}>版本 1.0.0</div>
         <div className={styles.desc}>

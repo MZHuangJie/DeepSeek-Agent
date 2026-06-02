@@ -53,7 +53,7 @@ export default function SessionTabs() {
           </button>
         )}
         <button type="button" className={styles.newBtn} onClick={createSession} title="新建会话">
-          <img src="/assets/13.png" alt="new" className={styles.newBtnIcon} />
+          <img src="./assets/13.png" alt="new" className={styles.newBtnIcon} />
         </button>
       </div>
     </div>

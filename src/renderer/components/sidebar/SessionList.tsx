@@ -23,7 +23,7 @@ export default function SessionList({ onOpenLogin }: { onOpenLogin: () => void }
             </svg>
           </button>
           <button onClick={createSession} className={styles.newBtn}>
-            <img src="/assets/13.png" alt="new" className={styles.newBtnIcon} />
+            <img src="./assets/13.png" alt="new" className={styles.newBtnIcon} />
           </button>
         </div>
       </div>

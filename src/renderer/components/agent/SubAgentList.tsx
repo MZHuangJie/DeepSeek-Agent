@@ -18,12 +18,12 @@ const TYPE_COLORS: Record<SubAgentStatus['type'], string> = {
 
 function statusIcon(status: SubAgentStatus['status']) {
   if (status === 'spawning' || status === 'running') {
-    return <img src="/assets/8.png" alt="running" className={styles.iconImg} />;
+    return <img src="./assets/8.png" alt="running" className={styles.iconImg} />;
   }
   if (status === 'completed') {
-    return <img src="/assets/6.png" alt="ok" className={styles.iconImg} />;
+    return <img src="./assets/6.png" alt="ok" className={styles.iconImg} />;
   }
-  return <img src="/assets/12.png" alt="failed" className={styles.iconImg} />;
+  return <img src="./assets/12.png" alt="failed" className={styles.iconImg} />;
 }
 
 function formatDuration(start: number, end?: number): string {

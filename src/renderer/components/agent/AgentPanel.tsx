@@ -18,7 +18,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <img src="/assets/logo.png" alt="agent" className={styles.headerIcon} />
+        <img src="./assets/logo.png" alt="agent" className={styles.headerIcon} />
         <span className={styles.headerTitle}>Agent 观测</span>
         <button onClick={onClose} className={styles.closeBtn} title="关闭面板">✕</button>
       </div>

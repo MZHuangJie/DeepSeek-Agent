@@ -486,7 +486,7 @@ export default function ChatPanel() {
       >
         {messages.length === 0 && (
           <div className={styles.emptyState}>
-            <div className={styles.emptyLogo}><img src="/assets/logo.png" alt="ai" className={styles.emptyLogoImg} /></div>
+            <div className={styles.emptyLogo}><img src="./assets/logo.png" alt="ai" className={styles.emptyLogoImg} /></div>
             {mode === 'roleplay' && session?.pendingOpening ? (
               <>
                 <div className={styles.emptyTitle}>{isMySessionStreaming ? '正在生成开场…' : apiKey ? '即将开始角色扮演' : '请先配置 API Key'}</div>
@@ -523,7 +523,7 @@ export default function ChatPanel() {
 )}
         {isMySessionStreaming && (
           <div className={styles.thinkingHint}>
-            <span className={styles.thinkingIcon}><img src="/assets/8.png" alt="thinking" className={styles.thinkingIconImg} /></span>
+            <span className={styles.thinkingIcon}><img src="./assets/8.png" alt="thinking" className={styles.thinkingIconImg} /></span>
             <span>思考中...</span>
           </div>
         )}

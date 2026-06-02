@@ -17,12 +17,12 @@ interface Props {
 }
 
 const ITEMS: Array<{ id: PanelView; label: string; icon?: string; glyph?: string }> = [
-  { id: 'files', label: '文件', icon: '/assets/file.png' },
-  { id: 'sessions', label: '会话', icon: '/assets/session.png' },
-  { id: 'git', label: 'Git', icon: '/assets/git.png' },
-  { id: 'browser', label: '浏览器', icon: '/assets/web.png' },
-  { id: 'agent', label: 'AGENT', icon: '/assets/usaged.png' },
-  { id: 'modify', label: '文件修改', icon: '/assets/modify.png' },
+  { id: 'files', label: '文件', icon: './assets/file.png' },
+  { id: 'sessions', label: '会话', icon: './assets/session.png' },
+  { id: 'git', label: 'Git', icon: './assets/git.png' },
+  { id: 'browser', label: '浏览器', icon: './assets/web.png' },
+  { id: 'agent', label: 'AGENT', icon: './assets/usaged.png' },
+  { id: 'modify', label: '文件修改', icon: './assets/modify.png' },
 ];
 
 const SYSTEM_MENU: Array<{ id: SystemMenuAction; label: string }> = [
@@ -100,7 +100,7 @@ export default function ActivityBar({ openView, onToggle, onSystemAction, onOpen
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, paddingBottom: 8 }}>
         {mode === 'roleplay' && (
           <BarBtn
-            icon="/assets/role.png"
+            icon="./assets/role.png"
             title="角色"
             active={openView === 'roleplay'}
             onClick={() => onToggle('roleplay')}
@@ -141,7 +141,7 @@ export default function ActivityBar({ openView, onToggle, onSystemAction, onOpen
         </div>
         <div ref={menuRef} className={barStyles.menuAnchor}>
         <BarBtn
-          icon="/assets/5.png"
+          icon="./assets/5.png"
           title="系统设置"
           active={menuOpen}
           onClick={() => setMenuOpen(v => !v)}

@@ -93,7 +93,7 @@ const TreeNode = React.memo(function TreeNode({ node, depth = 0, onContextMenu, 
       >
         <span className={styles.nodeIcon}>
           {node.isDirectory ? (
-            <img src={expanded ? "/assets/展开.png" : "/assets/收起.png"} alt={expanded ? 'expanded' : 'collapsed'}
+            <img src={expanded ? "./assets/展开.png" : "./assets/收起.png"} alt={expanded ? 'expanded' : 'collapsed'}
               className={styles.nodeIconImg} style={{ width: expanded ? 14 : 10, height: expanded ? 8 : 14 }} />
           ) : (
             <FileIcon name={node.name} />
@@ -151,7 +151,7 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel, onError }: { 
 
   return (
     <div className={styles.createRow}>
-      <span className={styles.createIcon}><img src={isDirectory ? '/assets/文件夹.png' : '/assets/file.png'} alt="" style={{ width: 14, height: 14 }} /></span>
+      <span className={styles.createIcon}><img src={isDirectory ? './assets/文件夹.png' : './assets/file.png'} alt="" style={{ width: 14, height: 14 }} /></span>
       <input
         ref={inputRef}
         value={value}
@@ -364,12 +364,12 @@ export default function FileTree() {
     <div className={styles.container}>
       <div className={`${styles.mainSection} ${showExplorer ? styles.mainSectionExpanded : styles.mainSectionCollapsed}`}>
         <div onClick={() => setShowExplorer(!showExplorer)} className={styles.sectionHeader}>
-          <span><img src="/assets/文件夹.png" alt="" className={styles.sectionIcon} />资源管理器 ({workspaceName})</span>
+          <span><img src="./assets/文件夹.png" alt="" className={styles.sectionIcon} />资源管理器 ({workspaceName})</span>
           <div className={styles.headerActions}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" onClick={(e) => { e.stopPropagation(); const rect = (e.target as HTMLElement).closest('svg')!.getBoundingClientRect(); openMenu('file', { x: rect.left, y: rect.bottom + 2 }); }} style={{ cursor: 'pointer', opacity: 0.8, color: 'var(--text-primary)' }} title="更多操作">
               <line x1="2" y1="5" x2="14" y2="5"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="11" x2="14" y2="11"/>
             </svg>
-            <img src="/assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" className={styles.refreshIcon} />
+            <img src="./assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" className={styles.refreshIcon} />
             <span>{showExplorer ? '▼' : '▶'}</span>
           </div>
         </div>
@@ -508,7 +508,7 @@ export default function FileTree() {
       {/* RECENT WORKSPACES */}
       <div className={`${styles.recentSection} ${showRecent ? styles.recentSectionExpanded : styles.recentSectionCollapsed}`}>
         <div onClick={() => setShowRecent(!showRecent)} className={styles.sectionHeader}>
-          <span><img src="/assets/recent.png" alt="" className={styles.sectionIcon} />最近打开的工作区</span>
+          <span><img src="./assets/recent.png" alt="" className={styles.sectionIcon} />最近打开的工作区</span>
           <span>{showRecent ? '▼' : '▶'}</span>
         </div>
         {showRecent && (
@@ -523,7 +523,7 @@ export default function FileTree() {
                   <div key={p} className={styles.recentRow}>
                     <div onClick={() => openWorkspace(p)} className={`${shared.recentItem} ${isActive ? shared.recentItemActive : ''}`}
                     title={p}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14 }} /> {name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><img src="./assets/文件夹.png" alt="" style={{ width: 14, height: 14 }} /> {name}</div>
                     <div className={styles.recentPath}>{p}</div>
                   </div>
                   <span onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }} className={`${shared.chipClose} ${styles.recentRemove}`}

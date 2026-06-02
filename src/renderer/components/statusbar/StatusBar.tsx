@@ -18,7 +18,7 @@ export default function StatusBar({ language }: Props) {
     <div className={shared.statusBar}>
       <div className={styles.leftGroup}>
         <StatusItem>
-          <img src="/assets/error.png" alt="errors" className={styles.statusIcon} />
+          <img src="./assets/error.png" alt="errors" className={styles.statusIcon} />
           <span>{errorCount}</span>
         </StatusItem>
         <StatusItem>

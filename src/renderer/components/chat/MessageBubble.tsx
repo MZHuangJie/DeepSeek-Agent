@@ -380,13 +380,13 @@ function UserActions({ message, visible }: { message: Message; visible: boolean 
   return (
     <div className={styles.actions} style={{ opacity: visible ? 1 : 0 }}>
       <ActionBtn onClick={handleCopy} title="复制">
-        <img src="/assets/file.png" alt="复制" className={styles.actionIcon} />
+        <img src="./assets/file.png" alt="复制" className={styles.actionIcon} />
       </ActionBtn>
       <ActionBtn onClick={handleResend} title="重新发送">
-        <img src="/assets/refresh.png" alt="重新发送" className={styles.actionIcon} />
+        <img src="./assets/refresh.png" alt="重新发送" className={styles.actionIcon} />
       </ActionBtn>
       <ActionBtn onClick={handleAddToContext} title="添加到对话">
-        <img src="/assets/add.png" alt="添加到对话" className={styles.actionIcon} />
+        <img src="./assets/add.png" alt="添加到对话" className={styles.actionIcon} />
       </ActionBtn>
     </div>
   );
@@ -472,7 +472,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
     () => getEffectiveStatusFields(primaryCharacter, activeTemplate),
     [primaryCharacter, activeTemplate],
   );
-  const [assistantAvatar, setAssistantAvatar] = useState('/assets/ai_avater.png');
+  const [assistantAvatar, setAssistantAvatar] = useState('./assets/ai_avater.png');
 
   const displayContent = useMemo(() => {
     if (isUser) return message.content;
@@ -518,14 +518,14 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
 
   useEffect(() => {
     if (isUser || !isCharacterChat || !primaryCharacter?.portraitPath) {
-      setAssistantAvatar('/assets/ai_avater.png');
+      setAssistantAvatar('./assets/ai_avater.png');
       return;
     }
     let cancelled = false;
     void window.api.files.readBinary(primaryCharacter.portraitPath).then(url => {
       if (!cancelled) setAssistantAvatar(url);
     }).catch(() => {
-      if (!cancelled) setAssistantAvatar('/assets/ai_avater.png');
+      if (!cancelled) setAssistantAvatar('./assets/ai_avater.png');
     });
     return () => { cancelled = true; };
   }, [isUser, isCharacterChat, primaryCharacter?.portraitPath]);
@@ -540,7 +540,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: Props) {
       style={{ flexDirection: isUser ? 'row-reverse' : 'row' }}
     >
       <div className={`${styles.avatar} ${isUser ? styles.avatarUser : styles.avatarAi}`}>
-        <img src={isUser ? '/assets/head.png' : assistantAvatar} alt={isUser ? 'user' : 'ai'} className={styles.avatarImg} />
+        <img src={isUser ? './assets/head.png' : assistantAvatar} alt={isUser ? 'user' : 'ai'} className={styles.avatarImg} />
       </div>
       <div className={styles.contentWrap}>
         {hasThinking && (

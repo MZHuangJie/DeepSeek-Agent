@@ -58,7 +58,7 @@ export default function EditorTabs() {
               <span>{tab.name}</span>
               <span className={shared.dirtyDot} style={{ background: isDirty ? 'var(--accent)' : 'transparent' }} title={isDirty ? '未保存' : ''} />
               <span onClick={(e) => { e.stopPropagation(); closeTab(tab.path); }} title="关闭" className={shared.closeTab}>
-                <img src="/assets/图层 12_w.png" alt="close" className={styles.closeIcon} />
+                <img src="./assets/图层 12_w.png" alt="close" className={styles.closeIcon} />
               </span>
             </div>
           );
