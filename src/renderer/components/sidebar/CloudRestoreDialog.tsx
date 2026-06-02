@@ -91,9 +91,9 @@ export default function CloudRestoreDialog({ onClose }: Props) {
       // 从云端拉取 NPC 角色
       for (const charId of deps.cloudNpcIds) {
         const charRes = await window.api.sync.getCharacter(charId);
-        if (charRes?.payload) {
+        if (charRes?.character?.payload) {
           try {
-            const parsed = JSON.parse(charRes.payload);
+            const parsed = JSON.parse(charRes.character.payload);
             await window.api.roleplay.saveCharacter({
               id: charId,
               templateId: parsed.templateId,

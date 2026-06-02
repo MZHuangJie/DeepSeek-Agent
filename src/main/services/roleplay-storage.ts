@@ -7,6 +7,7 @@ import {
   getPortraitFilePath,
   readAgentImageAsDataUrl,
 } from './agent-images';
+import { portraitInfo } from './portrait-log';
 
 export interface BodyMeasurements {
   height?: string;
@@ -195,7 +196,14 @@ export function saveTemplate(input: Omit<RoleplayTemplate, 'id' | 'createdAt' | 
 
 export function deleteTemplate(id: string): void {
   const custom = loadJson<RoleplayTemplate[]>(TEMPLATES_KEY, []);
+  const target = custom.find(t => t.id === id);
   saveJson(TEMPLATES_KEY, custom.filter(t => t.id !== id));
+  if (target?.portraitPath && fs.existsSync(target.portraitPath)) {
+    try { fs.unlinkSync(target.portraitPath); } catch { /* ignore */ }
+  }
+  if (target?.portraitFullPath && fs.existsSync(target.portraitFullPath)) {
+    try { fs.unlinkSync(target.portraitFullPath); } catch { /* ignore */ }
+  }
 }
 
 export function listCharacters(): RoleplayCharacter[] {
@@ -269,6 +277,57 @@ export function getActiveCharacterId(): string | null {
 export function setActiveCharacterId(id: string | null) {
   if (id) setSetting(ACTIVE_CHARACTER_KEY, id);
   else setSetting(ACTIVE_CHARACTER_KEY, '');
+}
+
+/**
+ * 扫描 portraits/ 目录，删除未被任何角色或模板引用的孤儿立绘文件。
+ * 返回被删除的文件名列表。
+ */
+export function cleanupOrphanPortraits(): { deleted: string[] } {
+  const workspace = getCurrentWorkspace();
+  const portraitsDir = path.join(workspace, 'portraits');
+  if (!fs.existsSync(portraitsDir)) return { deleted: [] };
+
+  // 收集所有被引用的本地立绘路径（排除云端 URL 和 data: URL）
+  const referenced = new Set<string>();
+  const addIfLocal = (p: string | undefined) => {
+    if (!p) return;
+    if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('data:')) return;
+    referenced.add(path.resolve(p));
+  };
+
+  for (const t of listTemplates()) {
+    addIfLocal(t.portraitPath);
+    addIfLocal(t.portraitFullPath);
+  }
+  for (const c of listCharacters()) {
+    addIfLocal(c.portraitPath);
+    addIfLocal(c.portraitFullPath);
+  }
+
+  // 扫描并删除孤儿
+  const deleted: string[] = [];
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(portraitsDir);
+  } catch {
+    return { deleted: [] };
+  }
+  for (const entry of entries) {
+    const fullPath = path.resolve(portraitsDir, entry);
+    if (!referenced.has(fullPath)) {
+      try {
+        fs.unlinkSync(fullPath);
+        deleted.push(entry);
+      } catch { /* 权限问题等，跳过 */ }
+    }
+  }
+
+  if (deleted.length > 0) {
+    portraitInfo('cleanup-orphans', { count: deleted.length, files: deleted });
+  }
+
+  return { deleted };
 }
 
 export async function copyPortraitFromFile(sourcePath: string): Promise<string> {

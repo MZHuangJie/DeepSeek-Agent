@@ -407,8 +407,8 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   checkCloudSessionDeps: async (sessionId) => {
     try {
       const res = await window.api.sync.getSession(sessionId);
-      if (!res?.payload) return null;
-      const parsed = parseConversationPayload(res.payload);
+      if (!res?.session?.payload) return null;
+      const parsed = parseConversationPayload(res.session.payload);
       const { useAgentRolesStore } = await import('./agentRoles');
       const { useRoleplayStore } = await import('./roleplay');
       const localRoles = useAgentRolesStore.getState().roles;
@@ -435,7 +435,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       for (const id of missingNpcIds) {
         try {
           const charRes = await window.api.sync.getCharacter(id);
-          if (charRes?.payload) {
+          if (charRes?.character?.payload) {
             cloudNpcIds.push(id);
           } else {
             unrecoverableNpcIds.push(id);
@@ -447,8 +447,8 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
       return {
         sessionId,
-        sessionTitle: res.title || '',
-        payload: res.payload,
+        sessionTitle: res.session.title || '',
+        payload: res.session.payload,
         missingAgents,
         missingNpcIds,
         cloudNpcIds,
@@ -462,11 +462,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   restoreCloudSession: async (sessionId) => {
     try {
       const res = await window.api.sync.getSession(sessionId);
-      if (!res?.payload) return null;
-      const parsed = parseConversationPayload(res.payload);
+      if (!res?.session?.payload) return null;
+      const parsed = parseConversationPayload(res.session.payload);
       const conv: Conversation = {
         id: sessionId,
-        title: res.title || sessionId,
+        title: res.session.title || sessionId,
         type: parsed.type,
         members: parsed.members,
         messages: parsed.messages,

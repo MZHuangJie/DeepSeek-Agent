@@ -3,6 +3,7 @@ import path from 'path';
 import { registerAllHandlers } from './ipc';
 import { infoLog, errorLog } from './logger';
 import { patchProcessEnv } from './utils/shellEnv';
+import { cleanupOrphanPortraits } from './services/roleplay-storage';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -52,6 +53,19 @@ app.whenReady().then(() => {
   registerAllHandlers();
   createWindow();
   infoLog('app', 'window-created');
+
+  // 清理未被引用的孤儿立绘文件
+  try {
+    const { deleted } = cleanupOrphanPortraits();
+    if (deleted.length > 0) {
+      infoLog('app', 'orphan-portraits-cleaned', { count: deleted.length });
+    }
+  } catch (err: unknown) {
+    // 启动时的清理失败不应阻塞 app
+    errorLog('app', 'orphan-portraits-cleanup-error', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 });
 
 app.on('window-all-closed', () => {

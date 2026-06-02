@@ -2,6 +2,10 @@
 import { useCallback } from 'react';
 import { useConversationStore } from '../../stores/conversationStore';
 import { useGroupChatStore } from '../../stores/groupChatStore';
+import {
+  parseRoleplayResponse,
+  stripRoleplayReplyTags,
+} from '../../utils/parseRoleplayResponse';
 import type { GroupChunk } from '../../../common/conversation';
 
 export function useGroupStreamHandler() {
@@ -63,6 +67,28 @@ export function useGroupStreamHandler() {
         setActiveSpeaker(null);
         if (chunk.speaker) {
           setTyping(chunk.speaker.roleId, false);
+        }
+        // Parse roleplay XML from the completed reply: extract display content and status meta
+        if (chunk.reply && /<reply\s*>|<\/reply\s*>|<status\s*>/i.test(chunk.reply)) {
+          const convs = store.conversations;
+          const activeId = store.activeId;
+          const conv = convs.find(c => c.id === activeId);
+          const lastMsg = conv?.messages[conv.messages.length - 1];
+          if (
+            lastMsg &&
+            lastMsg.role === 'assistant' &&
+            lastMsg.senderId === chunk.speaker?.roleId
+          ) {
+            const parsed = parseRoleplayResponse(chunk.reply);
+            const upd: Record<string, unknown> = {
+              rawContent: chunk.reply,
+              content: parsed.reply || stripRoleplayReplyTags(chunk.reply),
+            };
+            if (parsed.status) {
+              upd.roleplayMeta = { status: parsed.status, statusComplete: parsed.statusComplete };
+            }
+            store.updateLastAssistant(upd);
+          }
         }
         break;
 
