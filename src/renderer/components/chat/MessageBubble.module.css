@@ -1,5 +1,6 @@
 .wrapper {
   display: flex; gap: 8px; margin-bottom: 12px;
+  padding: 0 20px;
 }
 
 .avatar {
