@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useFilesStore } from '../../stores/files';
 import { useModelStore } from '../../stores/model';
 import { useChatStore } from '../../stores/chat';
+import { useConversationStore } from '../../stores/conversationStore';
 import ModelSettings from '../settings/ModelSettings';
 import PluginManager from '../plugins/PluginManager';
 import { usePluginStore } from '../../stores/plugin';
@@ -42,7 +43,12 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   const [images, setImages] = useState<PastedImage[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { openTabs } = useFilesStore();
-  const showMention = value.includes('@') && openTabs.length > 0;
+  const activeConv = useConversationStore(s => s.conversations.find(c => c.id === s.activeId));
+  const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
+  const groupMembers = isGroup ? (activeConv?.members || []) : [];
+  const inMention = value.includes('@') && !value.includes(' ');
+  const showMemberMention = inMention && isGroup && groupMembers.length > 0;
+  const showFileMention = inMention && !isGroup && openTabs.length > 0;
   const { models, activeModelId, setActiveModel } = useModelStore();
   const { createSession, setSessionCharacter, setSessionCast: bindSessionCast } = useChatStore();
   const setActiveCharacter = useRoleplayStore(s => s.setActiveCharacter);
@@ -147,9 +153,10 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
   }, [value, showCommandPalette, pluginCommands]);
 
   const cmdFocusIdx = useDropdownNav(filteredCommands.length, (i) => selectCommand(filteredCommands[i]), () => {}, showCommandPalette && filteredCommands.length > 0);
-  const mentionFocusIdx = useDropdownNav(openTabs.length, (i) => insertMention(openTabs[i].path), () => {}, showMention);
+  const mentionFocusIdx = useDropdownNav(openTabs.length, (i) => insertMention(openTabs[i].path), () => {}, showFileMention);
+  const memberFocusIdx = useDropdownNav(groupMembers.length, (i) => insertMemberMention(groupMembers[i].name), () => {}, showMemberMention);
 
-  const hasDropdownOpen = showCommandPalette || showMention || showModelSelect || showModeSelect;
+  const hasDropdownOpen = showCommandPalette || showFileMention || showMemberMention || showModelSelect || showModeSelect;
 
   const removeImage = useCallback((id: string) => {
     setImages(prev => prev.filter(img => img.id !== id));
@@ -236,6 +243,15 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     textareaRef.current?.focus();
   };
 
+  const insertMemberMention = (name: string) => {
+    setValue(v => {
+      const idx = v.lastIndexOf('@');
+      if (idx < 0) return v;
+      return v.slice(0, idx) + '@' + name + ' ' + v.slice(idx + 1).replace(/^\S*\s?/, '');
+    });
+    textareaRef.current?.focus();
+  };
+
   const handleSend = () => {
     if (isStreaming) return;
     const trimmed = value.trim();
@@ -297,8 +313,25 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         </div>
       )}
 
-      {/* @ mention popup */}
-      {showMention && (
+      {/* @ mention popup — 群成员 */}
+      {showMemberMention && (
+        <div className={shared.mentionPopup}>
+          {groupMembers.map((m, i) => (
+            <MentionItem
+              key={m.roleId}
+              focused={memberFocusIdx === i}
+              onClick={() => insertMemberMention(m.name)}
+            >
+              <span className={shared.mentionIcon}>💬</span>
+              <span className={shared.mentionName}>{m.name}</span>
+              <span className={shared.mentionDetail}>{m.roleType === 'agent' ? 'Agent' : 'NPC'}</span>
+            </MentionItem>
+          ))}
+        </div>
+      )}
+
+      {/* @ mention popup — 文件 */}
+      {showFileMention && (
         <div className={shared.mentionPopup}>
           {openTabs.map((t, i) => (
             <MentionItem
