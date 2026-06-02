@@ -56,25 +56,26 @@
 }
 
 .toolbar {
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border);
   display: flex;
-  gap: 8px;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .openBtn {
-  flex: 1;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 5px 10px;
   border-radius: 4px;
   font-size: 11px;
-  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
+  gap: 6px;
+  width: 100%;
+}
   justify-content: center;
   gap: 6px;
   transition: opacity 0.2s;

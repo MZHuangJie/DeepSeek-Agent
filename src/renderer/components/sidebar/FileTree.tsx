@@ -360,13 +360,18 @@ export default function FileTree() {
         {showExplorer && (
           <div className={styles.mainSection}>
             <div className={styles.toolbar}>
-              <button onClick={openFileDialog} className={styles.openBtn}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-                📄 打开文件
+              <button onClick={openFileDialog} className={styles.openBtn}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 2h5l3 3h3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+                  <path d="M8 7v4M6 9h4" />
+                </svg>
+                打开文件
               </button>
-              <button onClick={selectAndOpenWorkspace} className={styles.openBtn}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-                📁 打开文件夹
+              <button onClick={selectAndOpenWorkspace} className={styles.openBtn}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3a1 1 0 0 1 1-1h3.5l2 2H13a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3z" />
+                </svg>
+                打开文件夹
               </button>
             </div>
 
