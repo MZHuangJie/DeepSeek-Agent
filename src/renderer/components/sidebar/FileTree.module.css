@@ -67,7 +67,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 4px;
-  z-index: 1000;
+  z-index: 9999;
   min-width: 140px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -84,6 +84,9 @@
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .dropdownMenu button:hover {
