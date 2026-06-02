@@ -24,7 +24,7 @@ interface ContextMenuState {
   node: FileNode | null;
 }
 
-function TreeNode({ node, depth = 0, onContextMenu, onRefresh, onError, renamingPath, setRenamingPath, selectedPath, onSelect }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void; onError: (msg: string) => void; renamingPath: string | null; setRenamingPath: (p: string | null) => void; selectedPath: string | null; onSelect: (path: string) => void }) {
+const TreeNode = React.memo(function TreeNode({ node, depth = 0, onContextMenu, onRefresh, onError, renamingPath, setRenamingPath, selectedPath, onSelect }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void; onError: (msg: string) => void; renamingPath: string | null; setRenamingPath: (p: string | null) => void; selectedPath: string | null; onSelect: (path: string) => void }) {
   const { openFile } = useFilesStore();
   const [expanded, setExpanded] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
@@ -100,7 +100,7 @@ function TreeNode({ node, depth = 0, onContextMenu, onRefresh, onError, renaming
       ))}
     </div>
   );
-}
+});
 
 function InlineCreate({ parentPath, isDirectory, onDone, onCancel, onError }: { parentPath: string; isDirectory: boolean; onDone: () => void; onCancel: () => void; onError: (msg: string) => void }) {
   const [value, setValue] = useState('');
@@ -199,12 +199,12 @@ export default function FileTree() {
     return () => window.removeEventListener('keydown', handler);
   }, [pendingDelete]);
 
-  const handleRefresh = () => setRefreshKey(k => k + 1);
+  const handleRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
-  const reportError = (msg: string) => {
+  const reportError = useCallback((msg: string) => {
     setActionError(msg);
     focusChatInput();
-  };
+  }, []);
 
   const cleanupAfterDelete = (node: FileNode) => {
     const { openTabs } = useFilesStore.getState();
@@ -275,12 +275,12 @@ export default function FileTree() {
     } catch {}
   };
 
-  const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
     e.stopPropagation();
     contextMenuRef.current = node;
     setContextMenu({ x: e.clientX, y: e.clientY, node });
-  };
+  }, []);
 
   const handleBlankContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

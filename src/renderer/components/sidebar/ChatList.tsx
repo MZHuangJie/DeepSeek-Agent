@@ -28,7 +28,11 @@ function getTimeGroup(timestamp: number): string {
 }
 
 export default function ChatList() {
-  const { conversations, activeId, createSolo, switchTo, delete: deleteConv } = useConversationStore();
+  const conversations = useConversationStore(s => s.conversations);
+  const activeId = useConversationStore(s => s.activeId);
+  const createSolo = useConversationStore(s => s.createSolo);
+  const switchTo = useConversationStore(s => s.switchTo);
+  const deleteConv = useConversationStore(s => s.delete);
   const [search, setSearch] = useState('');
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState<'group_npc' | 'group_agent' | null>(null);
