@@ -362,7 +362,7 @@ export default function FileTree() {
             <div className={styles.toolbar}>
               <button onClick={selectAndOpenWorkspace} className={styles.openBtn}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-                <img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14, marginRight: 4, verticalAlign: 'middle' }} /> 打开其他文件夹
+                <img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14, marginRight: 4, verticalAlign: 'middle' }} /> 打开文件夹
               </button>
             </div>
 
@@ -373,10 +373,7 @@ export default function FileTree() {
               {loadingTree ? (
                 <div className={styles.emptyHint}>加载中…</div>
               ) : !currentWorkspace ? (
-                <div className={styles.emptyHint}>
-                  <div style={{ marginBottom: 8 }}>尚未打开文件夹</div>
-                  <button onClick={selectAndOpenWorkspace} className={styles.openBtn}>打开文件夹</button>
-                </div>
+                <div className={styles.emptyHint}>尚未打开文件夹</div>
               ) : tree.length === 0 ? (
                 <div className={styles.emptyHint}>工作区无可见文件</div>
               ) : (
