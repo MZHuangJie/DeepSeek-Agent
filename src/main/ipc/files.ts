@@ -37,7 +37,10 @@ export function getCurrentWorkspace(): string {
 function getRecentWorkspaces(): string[] {
   try {
     const raw = getSetting('recent_workspaces');
-    return raw ? JSON.parse(raw) : [];
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    return list.filter(p => {
+      try { return fs.existsSync(p); } catch { return false; }
+    });
   } catch {
     return [];
   }
