@@ -44,7 +44,7 @@ export default function ChatPanel() {
   const { loadModels, getActiveModel, loadImageModel, loadVisionModel } = useModelStore();
   const { currentWorkspace, loadWorkspace } = useFilesStore();
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
-  const agentStore = useAgentStore();
+  const agentReset = useAgentStore(s => s.reset);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -62,9 +62,8 @@ export default function ChatPanel() {
   const messages = session?.messages ?? [];
   const mode = useModeStore(s => s.mode);
 
-  const { conversations, activeId: convActiveId } = useConversationStore();
+  const activeConv = useConversationStore(s => s.conversations.find(c => c.id === s.activeId));
   const groupChat = useGroupChatStore();
-  const activeConv = conversations.find(c => c.id === convActiveId);
   const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
 
   useEffect(() => {
@@ -161,9 +160,9 @@ export default function ChatPanel() {
   const resetStreamBuffers = useCallback(() => {
     // 锁定当前会话 ID，防止切换会话后流式输出串到其他会话
     targetSessionRef.current = useChatStore.getState().activeSessionId;
-    agentStore.reset();
+    agentReset();
     isAtBottomRef.current = true;
-  }, [agentStore]);
+  }, [agentReset]);
 
   const invokeAgent = useCallback(async (opts: {
     history: any[];
