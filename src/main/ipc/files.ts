@@ -133,19 +133,22 @@ export function setupFileHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
     const result = await dialog.showOpenDialog(win, {
-      title: '选择工作区文件夹',
-      properties: ['openDirectory'],
+      title: '打开文件或文件夹',
+      properties: ['openFile', 'openDirectory'],
     });
     if (result.canceled || result.filePaths.length === 0) {
       return null;
     }
     const selectedPath = result.filePaths[0];
-    currentWorkspace = selectedPath;
+    const isFile = fs.statSync(selectedPath).isFile();
+    const workspacePath = isFile ? path.dirname(selectedPath) : selectedPath;
+    currentWorkspace = workspacePath;
     saveWorkspace();
-    addToRecentWorkspaces(selectedPath);
-    syncTerminalCwd(selectedPath);
+    addToRecentWorkspaces(workspacePath);
+    syncTerminalCwd(workspacePath);
     startWatching(win);
-    return selectedPath;
+    // 如果是文件，额外返回文件路径供前端打开
+    return isFile ? { workspace: workspacePath, openFile: selectedPath } : workspacePath;
   });
 
   ipcMain.handle('files:set-workspace', async (event, workspacePath: string) => {

@@ -200,11 +200,15 @@ export const useFilesStore = create<FilesState>((set, get) => ({
 
   selectAndOpenWorkspace: async () => {
     try {
-      const selected = await window.api.files.selectWorkspace();
-      if (selected) {
-        // Clear previous tabs and tree, and reload
+      const result = await window.api.files.selectWorkspace();
+      if (result) {
         set({ openTabs: [], activeTab: null, tree: [] });
         await get().loadWorkspace();
+        if (typeof result === 'object' && (result as any).openFile) {
+          const openFile = (result as any).openFile as string;
+          const name = openFile.split(/[\\/]/).pop() || openFile;
+          get().openFile(openFile, name);
+        }
       }
     } catch (err) {
       console.error('Failed to select workspace:', err);
