@@ -282,8 +282,9 @@ export default function FileTree() {
     const el = treeAreaRef.current;
     if (!el) return;
     const handler = (e: MouseEvent) => {
-      // 只在点击目标就是 treeArea 本身（而非子节点）时触发
-      if (e.target !== el) return;
+      const target = e.target as HTMLElement | null;
+      // 如果右键落在 tree node 上，交给 React 的 handleContextMenu 处理
+      if (target?.closest('[data-path]')) return;
       e.preventDefault();
       contextMenuRef.current = null;
       setContextMenu({ x: e.clientX, y: e.clientY, node: null });
