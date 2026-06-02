@@ -389,23 +389,23 @@ export default function FileTree() {
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setFileMenuPos(null)} />
                   <div className={styles.contextMenu} style={{ left: fileMenuPos.x, top: fileMenuPos.y }} onClick={(e) => e.stopPropagation()}>
-                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); openFileDialog(); }}>
+                    <div className={shared.menuItem} onClick={() => { setFileMenuPos(null); openFileDialog(); }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2h5l3 3h3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M8 7v4M6 9h4"/></svg>
                       打开文件
-                    </button>
-                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); selectAndOpenWorkspace(); }}>
+                    </div>
+                    <div className={shared.menuItem} onClick={() => { setFileMenuPos(null); selectAndOpenWorkspace(); }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3a1 1 0 011-1h3.5l2 2H13a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V3z"/></svg>
                       打开文件夹
-                    </button>
+                    </div>
                     <div className={styles.contextDivider} />
-                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); closeTab(activeTab || ''); }} disabled={!activeTab}>
+                    <div className={shared.menuItem} onClick={() => { if (activeTab) { setFileMenuPos(null); closeTab(activeTab); } }} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: activeTab ? 1 : 0.4 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
                       关闭文件
-                    </button>
-                    <button className={styles.menuItem} onClick={() => { setFileMenuPos(null); closeWorkspace(); }} disabled={!currentWorkspace}>
+                    </div>
+                    <div className={shared.menuItem} onClick={() => { if (currentWorkspace) { setFileMenuPos(null); closeWorkspace(); } }} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: currentWorkspace ? 1 : 0.4 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
                       关闭文件夹
-                    </button>
+                    </div>
                   </div>
                 </>,
                 document.body
