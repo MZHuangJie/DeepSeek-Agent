@@ -13,6 +13,15 @@
   position: relative;
 }
 
+/* 隐藏 Virtuoso 内置滚动条 */
+.scrollArea > div > div::-webkit-scrollbar {
+  display: none;
+}
+.scrollArea > div > div {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 .emptyState {
   text-align: center;
   padding: 40px;
