@@ -1,10 +1,21 @@
 // src/main/ipc/groupChat.ts
 import { ipcMain, BrowserWindow } from 'electron';
-import { runGroupLoop } from '../agent/groupDirector';
+import { streamCharacterReply } from '../agent/characterSpeaker';
 import type { Conversation, GroupChunk } from '../../common/conversation';
 import { getApiKey } from '../security/keystore';
 
 const activeControllers = new Map<string, AbortController>();
+
+function extractMentions(message: string, members: Conversation['members']): typeof members {
+  const mentioned = new Set<string>();
+  const re = /@(\S+?)(?:\s|$|[，。！？,.!?])/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(message)) !== null) {
+    mentioned.add(m[1]);
+  }
+  if (mentioned.size === 0) return [];
+  return members.filter(m => mentioned.has(m.name));
+}
 
 export function setupGroupChatHandlers() {
   ipcMain.handle('group-chat:send', async (event, conversationJson: string, userMessage: string) => {
@@ -32,10 +43,39 @@ export function setupGroupChatHandlers() {
     };
 
     try {
-      await runGroupLoop(conv, userMessage, onChunk, controller.signal, apiKey, directorModelConfig);
+      // 解析 @mention，只让被 @ 的人发言
+      const targets = extractMentions(userMessage, conv.members);
+
+      if (targets.length === 0) {
+        // 没有 @ 任何人：@ 所有人
+        onChunk({ type: 'text', speaker: { roleId: '', name: '系统' }, text: '请使用 @成员名 指定要对话的成员。例如：@产品经理 你觉得这个方案怎么样？\n\n当前群成员：' + conv.members.map(m => m.name).join('、') });
+      } else {
+        const context: Array<{ speaker: string; content: string }> = [];
+        for (const speaker of targets) {
+          if (controller.signal.aborted) break;
+          const memberInfo = { roleId: speaker.roleId, name: speaker.name, avatar: speaker.avatar };
+          onChunk({ type: 'typing', speaker: memberInfo });
+
+          try {
+            const reply = await streamCharacterReply(
+              speaker.systemPrompt,
+              context,
+              userMessage,
+              { model: directorModelConfig.model, baseUrl: directorModelConfig.baseUrl, apiKey },
+              (text) => onChunk({ type: 'text', speaker: memberInfo, text }),
+              controller.signal,
+            );
+            context.push({ speaker: speaker.name, content: reply });
+            onChunk({ type: 'message-done', speaker: memberInfo, reply });
+          } catch (err) {
+            onChunk({ type: 'error', message: `${speaker.name} 发言失败: ${err instanceof Error ? err.message : String(err)}` });
+          }
+        }
+      }
     } catch (err) {
       onChunk({ type: 'error', message: err instanceof Error ? err.message : '群聊异常' });
     } finally {
+      onChunk({ type: 'group-done' });
       activeControllers.delete(conv.id);
     }
   });
