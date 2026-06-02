@@ -12,6 +12,7 @@ const api = {
     read: (filePath: string) => ipcRenderer.invoke('files:read', filePath),
     cwd: () => ipcRenderer.invoke('files:cwd'),
     selectWorkspace: () => ipcRenderer.invoke('files:select-workspace'),
+    openFile: () => ipcRenderer.invoke('files:open-file'),
     setWorkspace: (workspacePath: string) => ipcRenderer.invoke('files:set-workspace', workspacePath),
     getRecentWorkspaces: () => ipcRenderer.invoke('files:get-recent'),
     removeRecentWorkspace: (p: string) => ipcRenderer.invoke('files:remove-recent', p),

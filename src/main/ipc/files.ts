@@ -133,22 +133,37 @@ export function setupFileHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
     const result = await dialog.showOpenDialog(win, {
-      title: '打开文件或文件夹',
-      properties: ['openFile', 'openDirectory'],
+      title: '打开文件夹',
+      properties: ['openDirectory'],
     });
     if (result.canceled || result.filePaths.length === 0) {
       return null;
     }
     const selectedPath = result.filePaths[0];
-    const isFile = fs.statSync(selectedPath).isFile();
-    const workspacePath = isFile ? path.dirname(selectedPath) : selectedPath;
+    currentWorkspace = selectedPath;
+    saveWorkspace();
+    addToRecentWorkspaces(selectedPath);
+    syncTerminalCwd(selectedPath);
+    startWatching(win);
+    return selectedPath;
+  });
+
+  ipcMain.handle('files:open-file', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return null;
+    const result = await dialog.showOpenDialog(win, {
+      title: '打开文件',
+      properties: ['openFile'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const filePath = result.filePaths[0];
+    const workspacePath = path.dirname(filePath);
     currentWorkspace = workspacePath;
     saveWorkspace();
     addToRecentWorkspaces(workspacePath);
     syncTerminalCwd(workspacePath);
     startWatching(win);
-    // 如果是文件，额外返回文件路径供前端打开
-    return isFile ? { workspace: workspacePath, openFile: selectedPath } : workspacePath;
+    return { workspace: workspacePath, openFile: filePath };
   });
 
   ipcMain.handle('files:set-workspace', async (event, workspacePath: string) => {

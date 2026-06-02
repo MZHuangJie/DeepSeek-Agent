@@ -165,7 +165,7 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel, onError }: { 
 }
 
 export default function FileTree() {
-  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, removeRecentWorkspace, closeTab } = useFilesStore();
+  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, openFileDialog, removeRecentWorkspace, closeTab } = useFilesStore();
   const [showExplorer, setShowExplorer] = useState(true);
   const [showRecent, setShowRecent] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -360,9 +360,13 @@ export default function FileTree() {
         {showExplorer && (
           <div className={styles.mainSection}>
             <div className={styles.toolbar}>
+              <button onClick={openFileDialog} className={styles.openBtn}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
+                📄 打开文件
+              </button>
               <button onClick={selectAndOpenWorkspace} className={styles.openBtn}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-                <img src="/assets/文件夹.png" alt="" style={{ width: 14, height: 14, marginRight: 4, verticalAlign: 'middle' }} /> 打开文件夹
+                📁 打开文件夹
               </button>
             </div>
 

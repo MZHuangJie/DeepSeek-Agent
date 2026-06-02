@@ -60,6 +60,7 @@ interface FilesState {
   loadWorkspace: () => Promise<void>;
   openWorkspace: (workspacePath: string) => Promise<void>;
   selectAndOpenWorkspace: () => Promise<void>;
+  openFileDialog: () => Promise<void>;
   removeRecentWorkspace: (p: string) => Promise<void>;
 }
 
@@ -200,18 +201,26 @@ export const useFilesStore = create<FilesState>((set, get) => ({
 
   selectAndOpenWorkspace: async () => {
     try {
-      const result = await window.api.files.selectWorkspace();
-      if (result) {
+      const selected = await window.api.files.selectWorkspace();
+      if (selected) {
         set({ openTabs: [], activeTab: null, tree: [] });
         await get().loadWorkspace();
-        if (typeof result === 'object' && (result as any).openFile) {
-          const openFile = (result as any).openFile as string;
-          const name = openFile.split(/[\\/]/).pop() || openFile;
-          get().openFile(openFile, name);
-        }
       }
     } catch (err) {
       console.error('Failed to select workspace:', err);
+    }
+  },
+  openFileDialog: async () => {
+    try {
+      const result = await window.api.files.openFile();
+      if (result?.openFile) {
+        set({ openTabs: [], activeTab: null, tree: [] });
+        await get().loadWorkspace();
+        const name = result.openFile.split(/[\\/]/).pop() || result.openFile;
+        get().openFile(result.openFile, name);
+      }
+    } catch (err) {
+      console.error('Failed to open file:', err);
     }
   },
   removeRecentWorkspace: async (p) => {
