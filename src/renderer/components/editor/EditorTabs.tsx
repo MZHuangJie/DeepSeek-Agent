@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFilesStore } from '../../stores/files';
 import { getFileIconInfo } from '../../utils/icons';
 import { GitIconDiff } from '../git/GitIcons';
+import { notifyMenuOpened, onOtherMenuOpened } from '../../utils/globalMenu';
 import shared from '../../styles/components.module.css';
 import styles from './EditorTabs.module.css';
 
@@ -28,6 +29,9 @@ export default function EditorTabs() {
     return () => { window.removeEventListener('click', hide); window.removeEventListener('resize', hide); };
   }, []);
 
+  // 其他菜单打开时关闭自己
+  useEffect(() => onOtherMenuOpened('editortabs-tab', () => setMenu(m => ({ ...m, visible: false }))), []);
+
   const handleWheel = (e: React.WheelEvent) => {
     if (containerRef.current) { e.preventDefault(); containerRef.current.scrollLeft += e.deltaY; }
   };
@@ -41,7 +45,7 @@ export default function EditorTabs() {
           const isActive = activeTab === tab.path;
           const isDirty = tab.kind === 'file' && tab.content !== tab.originalContent;
           return (
-            <div key={tab.path} onClick={() => setActiveTab(tab.path)} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ visible: true, x: e.clientX, y: e.clientY, tabPath: tab.path }); }}
+            <div key={tab.path} onClick={() => setActiveTab(tab.path)} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ visible: true, x: e.clientX, y: e.clientY, tabPath: tab.path }); notifyMenuOpened('editortabs-tab'); }}
               className={`${shared.editorTab} ${isActive ? shared.editorTabActive : shared.editorTabInactive} ${isActive ? styles.tabActiveBg : styles.tabBg}`}
             >
               {tab.kind === 'diff' ? (

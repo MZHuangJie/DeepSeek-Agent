@@ -5,6 +5,7 @@ import { useBrowserStore } from '../../stores/browser';
 import { useRefsStore } from '../../stores/refs';
 import { focusChatInput } from '../../utils/focusChatInput';
 import { getFileIconInfo } from '../../utils/icons';
+import { notifyMenuOpened, onOtherMenuOpened } from '../../utils/globalMenu';
 import shared from '../../styles/components.module.css';
 import styles from './FileTree.module.css';
 
@@ -174,9 +175,13 @@ export default function FileTree() {
   const contextMenuRef = useRef<FileNode | null>(null);
 
   // 全局只有一个菜单
-  const openFileMenu = (pos: { x: number; y: number }) => { setContextMenu(null); setFileMenuPos(pos); };
-  const openContextMenu = (cm: ContextMenuState | null) => { setFileMenuPos(null); setContextMenu(cm); };
   const closeAllMenus = () => { setFileMenuPos(null); setContextMenu(null); };
+  const openFileMenu = (pos: { x: number; y: number }) => { closeAllMenus(); setFileMenuPos(pos); notifyMenuOpened('filetree-file'); };
+  const openContextMenu = (cm: ContextMenuState | null) => { closeAllMenus(); setContextMenu(cm); if (cm) notifyMenuOpened('filetree-context'); };
+
+  // 其他菜单打开时关闭自己
+  useEffect(() => onOtherMenuOpened('filetree-file', closeAllMenus), []);
+  useEffect(() => onOtherMenuOpened('filetree-context', closeAllMenus), []);
   const [creating, setCreating] = useState<{ parentPath: string; isDirectory: boolean } | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
