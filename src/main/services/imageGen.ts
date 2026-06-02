@@ -301,16 +301,16 @@ export async function generateImage(
   async function doRequest(attempt: number): Promise<GenerateImageResult> {
   const started = Date.now();
   return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new DOMException('Aborted', 'AbortError'));
-      return;
-    }
-
     const onAbort = () => {
       req.destroy(new Error('Aborted'));
       reject(new DOMException('Aborted', 'AbortError'));
     };
     signal?.addEventListener('abort', onAbort, { once: true });
+    if (signal?.aborted) {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
 
     const options: https.RequestOptions & { hostname: string } = {
       hostname: url.hostname,

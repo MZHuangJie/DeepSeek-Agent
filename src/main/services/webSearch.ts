@@ -79,11 +79,12 @@ async function httpRequestWithRetry(
   options?: { method?: string; body?: string; timeout?: number },
   retries = 1
 ): Promise<string> {
-  for (let i = 0; i <= retries; i++) {
+  const maxAttempts = retries + 1;
+  for (let i = 0; i < maxAttempts; i++) {
     try {
       return await httpRequest(hostname, path, options);
     } catch (e) {
-      if (i === retries) throw e;
+      if (i === maxAttempts - 1) throw e;
       // 等 500ms 后重试
       await new Promise(r => setTimeout(r, 500));
     }

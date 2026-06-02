@@ -172,18 +172,20 @@ export function setupAgentHandlers() {
       let flushTimer: ReturnType<typeof setInterval> | null = null;
       function flushStreamBuf() {
         if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+        if (win.isDestroyed()) return;
         if (contentBuf) {
-          win!.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
+          win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
           contentBuf = '';
         }
         if (thinkingBuf) {
-          win!.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
+          win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
           thinkingBuf = '';
         }
       }
 
       try {
         flushTimer = setInterval(() => {
+          if (win.isDestroyed()) return;
           if (contentBuf) {
             win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
             contentBuf = '';
