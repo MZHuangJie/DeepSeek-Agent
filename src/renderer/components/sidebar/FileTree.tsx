@@ -277,20 +277,26 @@ export default function FileTree() {
     setContextMenu({ x: e.clientX, y: e.clientY, node: null });
   };
 
-  // 原生事件兜底，确保空白区域右键一定触发
+  // mousedown 检测右键（比 contextmenu 事件更可靠）
   useEffect(() => {
     const el = treeAreaRef.current;
     if (!el) return;
     const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      // 如果右键落在 tree node 上，交给 React 的 handleContextMenu 处理
-      if (target?.closest('[data-path]')) return;
+      if (e.button !== 2) return; // 只处理右键
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-path]')) return; // 树节点交给 React
       e.preventDefault();
+      e.stopPropagation();
       contextMenuRef.current = null;
       setContextMenu({ x: e.clientX, y: e.clientY, node: null });
     };
-    el.addEventListener('contextmenu', handler);
-    return () => el.removeEventListener('contextmenu', handler);
+    el.addEventListener('mousedown', handler);
+    const preventCtx = (e: Event) => e.preventDefault();
+    el.addEventListener('contextmenu', preventCtx);
+    return () => {
+      el.removeEventListener('mousedown', handler);
+      el.removeEventListener('contextmenu', preventCtx);
+    };
   }, []);
 
   const handleDelete = () => {
