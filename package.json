@@ -55,7 +55,7 @@
         "nsis",
         "zip"
       ],
-      "icon": "public/assets/icon-256.png"
+      "icon": "public/assets/logo.ico"
     },
     "publish": null,
     "compression": "maximum",
