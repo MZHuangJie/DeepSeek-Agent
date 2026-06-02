@@ -8,51 +8,48 @@ function buildDirectorSystemPrompt(
   members: ConversationMember[],
   groupType: string,
   spokenMembers: Set<string>,
+  round: number,
 ): string {
   const memberList = members.map(m => {
-    const hasSpoken = spokenMembers.has(m.name) ? '（已发言）' : '（未发言）';
-    return `- ${m.name}${hasSpoken}：${m.systemPrompt ? m.systemPrompt.slice(0, 200) : (m.roleType === 'npc' ? '角色扮演 NPC' : 'Agent 角色')}`;
+    const roleHint = m.roleType === 'agent'
+      ? `角色：${m.name}${m.systemPrompt ? ' — ' + m.systemPrompt.slice(0, 150) : ''}`
+      : `NPC：${m.name}，设定：${m.systemPrompt?.slice(0, 100) || '角色扮演'}`;
+    return `- ${roleHint}`;
   }).join('\n');
 
-  const goalText = groupType === 'group_npc'
-    ? '推进剧情/场景，维持角色人设，让对话自然流动'
-    : '协作解决问题/完成任务，让讨论逐步深入';
+  const historyNote = spokenMembers.size > 0
+    ? `本轮已发言：${Array.from(spokenMembers).join('、')}（共 ${spokenMembers.size}/${members.length} 人已发言）`
+    : '本轮刚开始，所有人尚未发言';
 
-  const spokenList = spokenMembers.size > 0
-    ? `已发言成员：${Array.from(spokenMembers).join('、')}`
-    : '暂无成员发言';
+  return `你是群聊的调度导演。你的目标是组织一场**真正的协作讨论**，而不是让每个人轮流独白。
 
-  return `你是群聊的导演（Director）。根据对话上下文判断下一步由哪个成员发言，或对话是否自然结束。
-
-## 群聊成员
+## 群成员
 ${memberList}
 
-## 当前状态
-${spokenList}
+## 状态
+${historyNote} | 当前是第 ${round + 1} 轮调度
 
-## 规则（严格遵循）
-1. 只输出 JSON，不要任何其他内容
-2. 优先让与最新消息最相关的成员发言
-3. **绝对禁止同一成员连续发言**
-4. **每个成员在本次用户提问后的讨论中最多发言 1 次**，优先选择尚未发言的成员
-5. 如果所有成员都已发言过，或话题已充分推进，输出 action: "end"
-6. 用户不是你可以调度的对象
-7. ${goalText}
-
-## 输出格式
-{ "action": "speak" | "end", "nextSpeaker": "成员名", "reason": "简短理由" }`;
+## 调度规则
+1. 只输出 JSON：{ "action": "speak" | "end", "nextSpeaker": "成员名", "reason": "简短理由" }
+2. **协作优先**：后续发言者应回应、补充或质疑前人的发言，而不是自顾自输出
+3. **用户参与**：如果有需要用户决策的问题（如方案确认、设计方向），调度合适的人向用户提问，然后 action: "end" 等待用户回复
+4. **自然顺序**：产品/策划类角色优先发言定方向，设计类其次，工程类最后。但可以交叉讨论
+5. **允许重复发言**：成员可以在后续轮次再次发言（如回应他人观点），不限制每人一次
+6. **不要抢话**：同一成员绝对不能连续两轮发言
+7. **适时结束**：如果问题已充分讨论、需要用户决策、或对话陷入循环，果断 action: "end"
+8. 本轮已发言超过 ${Math.ceil(members.length * 0.8)} 人且讨论充分 → 结束
+9. 每轮只调度一个人发言，让他完整表达后再调度下一个`;
 }
 
 function buildDirectorMessages(
   context: Array<{ speaker: string; content: string }>,
   userMessage: string,
 ): ChatMessage[] {
-  // 限制上下文长度，只保留最近 6 条发言
-  const recentContext = context.slice(-6);
-  const ctxStr = recentContext.map(c => `[${c.speaker}]: ${c.content.slice(0, 400)}`).join('\n');
+  const recentContext = context.slice(-8);
+  const ctxStr = recentContext.map(c => `[${c.speaker}]: ${c.content.slice(0, 500)}`).join('\n');
   const prompt = ctxStr
-    ? `对话历史：\n${ctxStr}\n\n用户最新消息："${userMessage}"\n\n判断下一步。注意：已发言过的成员本轮不应再次发言。`
-    : `用户消息："${userMessage}"\n\n这是群聊第一轮，请判断第一个发言的成员。`;
+    ? `对话历史：\n${ctxStr}\n\n用户说："${userMessage}"\n\n根据讨论进展判断：下一步应该由谁发言来推进讨论？需要有人回应、补充、或向用户提问吗？还是讨论已经充分可以结束了？`
+    : `用户说："${userMessage}"\n\n这是讨论的开始。判断谁应该第一个发言来引导讨论方向。`;
 
   return [{ role: 'user', content: prompt }];
 }
@@ -68,14 +65,14 @@ export async function runGroupLoop(
   const context: Array<{ speaker: string; content: string }> = [];
   const spokenMembers = new Set<string>();
   let round = 0;
-  const maxRounds = Math.min(conv.driver.maxRounds || 8, conv.members.length);
+  const maxRounds = Math.max(conv.driver.maxRounds || 8, conv.members.length * 2);
 
   while (round < maxRounds) {
     if (signal.aborted) break;
 
     // 1. Director decision
     onChunk({ type: 'director-thinking' });
-    const directorSystemPrompt = buildDirectorSystemPrompt(conv.members, conv.type, spokenMembers);
+    const directorSystemPrompt = buildDirectorSystemPrompt(conv.members, conv.type, spokenMembers, round);
     const directorMessages = buildDirectorMessages(context, userMessage);
 
     let decision: { action: 'speak' | 'end'; nextSpeaker?: string; reason?: string };
@@ -114,11 +111,11 @@ export async function runGroupLoop(
       continue;
     }
 
-    // Safety: if this member already spoke, force end to prevent repetition
-    if (spokenMembers.has(speaker.name)) {
-      // If there are still unspoken members, let director retry is too complex;
-      // just end the loop to avoid repetition
-      break;
+    // Safety: prevent same speaker twice in a row (not across rounds)
+    const lastSpeaker = context.length > 0 ? context[context.length - 1].speaker : null;
+    if (lastSpeaker === speaker.name) {
+      round++;
+      continue;
     }
 
     const memberInfo: MemberInfo = {
