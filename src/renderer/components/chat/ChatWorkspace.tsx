@@ -7,7 +7,7 @@ import AgentProcessPanel from './AgentProcessPanel';
 import styles from './ChatWorkspace.module.css';
 
 export default function ChatWorkspace() {
-  const { subAgents, processPanelDismissed, dismissProcessPanel } = useAgentStore();
+  const { subAgents, processPanelDismissed, dismissProcessPanel, reopenProcessPanel } = useAgentStore();
   const { conversations, activeId } = useConversationStore();
   const showProcessPanel = subAgents.length > 0 && !processPanelDismissed;
   const activeConv = conversations.find(c => c.id === activeId);
@@ -23,6 +23,15 @@ export default function ChatWorkspace() {
           </>
         ) : (
           <span className={styles.titleText}>新建会话</span>
+        )}
+        {subAgents.length > 0 && processPanelDismissed && (
+          <button
+            className={styles.processToggleBtn}
+            onClick={reopenProcessPanel}
+            title="展开子代理面板"
+          >
+            🤖 {subAgents.length}
+          </button>
         )}
       </div>
       <div className={styles.body}>

@@ -127,6 +127,7 @@ interface AgentState {
   setExploreProgress: (p: AgentState['exploreProgress']) => void;
   processPanelDismissed: boolean;
   dismissProcessPanel: () => void;
+  reopenProcessPanel: () => void;
   reset: () => void;
 }
 
@@ -145,6 +146,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   setBalanceLoading: (loading) => set({ balanceLoading: loading }),
   setBalanceError: (error) => set({ balanceError: error, balanceLoading: false }),
   dismissProcessPanel: () => set({ processPanelDismissed: true }),
+  reopenProcessPanel: () => set({ processPanelDismissed: false }),
   refreshBalance: () => {
     const { setBalanceLoading, setBalanceError, setBalanceInfo } = get();
     setBalanceLoading(true);
@@ -188,6 +190,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     const main = s.mainTokenStats;
     return {
       subAgents,
+      processPanelDismissed: false, // 新子代理出现时自动展开面板
       ...(main ? { tokenStats: aggregateTokenStats(main, subAgents) } : {}),
     };
   }),
@@ -211,7 +214,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   reset: () => set({
     currentStep: null,
     exploreProgress: null,
-    processPanelDismissed: false,
     // toolCalls / tokenStats / subAgents 在同个会话内累计，不随每次消息重置
+    // processPanelDismissed 不重置：用户手动关闭后保持关闭，新子代理出现时才 auto-reset
   }),
 }));
