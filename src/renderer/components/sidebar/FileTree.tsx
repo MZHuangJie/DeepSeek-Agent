@@ -165,9 +165,11 @@ function InlineCreate({ parentPath, isDirectory, onDone, onCancel, onError }: { 
 }
 
 export default function FileTree() {
-  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, openFileDialog, removeRecentWorkspace, closeTab } = useFilesStore();
+  const { tree, setTree, currentWorkspace, recentWorkspaces, loadWorkspace, openWorkspace, selectAndOpenWorkspace, openFileDialog, closeWorkspace, removeRecentWorkspace, closeTab, activeTab } = useFilesStore();
   const [showExplorer, setShowExplorer] = useState(true);
   const [showRecent, setShowRecent] = useState(true);
+  const [showFileMenu, setShowFileMenu] = useState(false);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const contextMenuRef = useRef<FileNode | null>(null);
@@ -181,6 +183,15 @@ export default function FileTree() {
   const treeAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadWorkspace(); }, []);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
+        setShowFileMenu(false);
+      }
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     if (currentWorkspace) loadProjectTree();
@@ -352,6 +363,20 @@ export default function FileTree() {
         <div onClick={() => setShowExplorer(!showExplorer)} className={styles.sectionHeader}>
           <span><img src="/assets/文件夹.png" alt="" className={styles.sectionIcon} />资源管理器 ({workspaceName})</span>
           <div className={styles.headerActions}>
+            <div className={styles.menuContainer} ref={fileMenuRef}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" onClick={(e) => { e.stopPropagation(); setShowFileMenu(!showFileMenu); }} style={{ cursor: 'pointer', opacity: 0.7 }} title="更多操作">
+                <circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/>
+              </svg>
+              {showFileMenu && (
+                <div className={styles.dropdownMenu}>
+                  <button onClick={() => { setShowFileMenu(false); openFileDialog(); }}>📄 打开文件</button>
+                  <button onClick={() => { setShowFileMenu(false); selectAndOpenWorkspace(); }}>📁 打开文件夹</button>
+                  <div className={styles.menuDivider} />
+                  <button onClick={() => { setShowFileMenu(false); closeTab(activeTab || ''); }} disabled={!activeTab}>✕ 关闭文件</button>
+                  <button onClick={() => { setShowFileMenu(false); closeWorkspace(); }} disabled={!currentWorkspace}>✕ 关闭文件夹</button>
+                </div>
+              )}
+            </div>
             <img src="/assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" className={styles.refreshIcon} />
             <span>{showExplorer ? '▼' : '▶'}</span>
           </div>
@@ -359,21 +384,6 @@ export default function FileTree() {
 
         {showExplorer && (
           <div className={styles.mainSection}>
-            <div className={styles.toolbar}>
-              <button onClick={openFileDialog} className={styles.openBtn}>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 2h5l3 3h3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
-                  <path d="M8 7v4M6 9h4" />
-                </svg>
-                打开文件
-              </button>
-              <button onClick={selectAndOpenWorkspace} className={styles.openBtn}>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 3a1 1 0 0 1 1-1h3.5l2 2H13a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3z" />
-                </svg>
-                打开文件夹
-              </button>
-            </div>
 
             <div ref={treeAreaRef} className={styles.treeArea} onContextMenu={handleBlankContextMenu}>
               {actionError && (

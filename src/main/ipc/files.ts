@@ -148,6 +148,13 @@ export function setupFileHandlers() {
     return selectedPath;
   });
 
+  ipcMain.handle('files:close-workspace', async () => {
+    stopWatching();
+    currentWorkspace = '';
+    saveWorkspace();
+    return true;
+  });
+
   ipcMain.handle('files:open-file', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
