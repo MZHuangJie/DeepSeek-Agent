@@ -27,19 +27,38 @@ interface ContextMenuState {
 const TreeNode = React.memo(function TreeNode({ node, depth = 0, onContextMenu, onRefresh, onError, renamingPath, setRenamingPath, selectedPath, onSelect }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void; onRefresh: () => void; onError: (msg: string) => void; renamingPath: string | null; setRenamingPath: (p: string | null) => void; selectedPath: string | null; onSelect: (path: string) => void }) {
   const { openFile } = useFilesStore();
   const [expanded, setExpanded] = useState(false);
+  const [children, setChildren] = useState<FileNode[] | null>(node.children || null);
+  const [loadingChildren, setLoadingChildren] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
   const inputRef = useRef<HTMLInputElement>(null);
   const isRenaming = renamingPath === node.path;
   const isSelected = selectedPath === node.path;
 
+  const loadChildren = useCallback(async () => {
+    if (children !== null || !node.isDirectory) return;
+    setLoadingChildren(true);
+    try {
+      const entries = await window.api.files.list(node.path);
+      const nodes: FileNode[] = entries.map((e: any) => ({
+        name: e.name, path: e.path, isDirectory: e.isDirectory,
+      }));
+      nodes.sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name));
+      setChildren(nodes);
+    } catch { /* permission errors */ }
+    setLoadingChildren(false);
+  }, [children, node.path, node.isDirectory]);
+
   const handleClick = useCallback(() => {
     onSelect(node.path);
     if (node.isDirectory) {
+      if (!expanded) {
+        loadChildren();
+      }
       setExpanded(!expanded);
     } else {
       openFile(node.path, node.name);
     }
-  }, [node, expanded, openFile, onSelect]);
+  }, [node, expanded, openFile, onSelect, loadChildren]);
 
   useEffect(() => {
     if (isRenaming) {
@@ -93,7 +112,10 @@ const TreeNode = React.memo(function TreeNode({ node, depth = 0, onContextMenu, 
           <span className={styles.nodeName}>{node.name}</span>
         )}
       </div>
-      {expanded && node.children?.map(child => (
+      {expanded && loadingChildren && (
+        <div style={{ paddingLeft: 8 + (depth + 1) * 12 }} className={styles.emptyHint}>加载中…</div>
+      )}
+      {expanded && children?.map(child => (
         <TreeNode key={child.path} node={child} depth={depth + 1} onContextMenu={onContextMenu} onRefresh={onRefresh} onError={onError}
           renamingPath={renamingPath} setRenamingPath={setRenamingPath}
           selectedPath={selectedPath} onSelect={onSelect} />
@@ -256,8 +278,12 @@ export default function FileTree() {
   const loadProjectTree = async () => {
     setLoadingTree(true);
     try {
-      const tree = await window.api.files.listTree();
-      setTree(tree as FileNode[]);
+      const entries = await window.api.files.list('.');
+      const nodes: FileNode[] = entries.map((e: any) => ({
+        name: e.name, path: e.path, isDirectory: e.isDirectory,
+      }));
+      nodes.sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name));
+      setTree(nodes);
     } catch {} finally {
       setLoadingTree(false);
     }
