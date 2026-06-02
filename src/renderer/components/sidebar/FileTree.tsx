@@ -172,6 +172,11 @@ export default function FileTree() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const contextMenuRef = useRef<FileNode | null>(null);
+
+  // 全局只有一个菜单
+  const openFileMenu = (pos: { x: number; y: number }) => { setContextMenu(null); setFileMenuPos(pos); };
+  const openContextMenu = (cm: ContextMenuState | null) => { setFileMenuPos(null); setContextMenu(cm); };
+  const closeAllMenus = () => { setFileMenuPos(null); setContextMenu(null); };
   const [creating, setCreating] = useState<{ parentPath: string; isDirectory: boolean } | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -193,7 +198,7 @@ export default function FileTree() {
   }, []);
 
   useEffect(() => {
-    const handler = () => setContextMenu(null);
+    const handler = () => closeAllMenus();
     window.addEventListener('click', handler);
     return () => window.removeEventListener('click', handler);
   }, []);
@@ -294,14 +299,14 @@ export default function FileTree() {
     e.preventDefault();
     e.stopPropagation();
     contextMenuRef.current = node;
-    setContextMenu({ x: e.clientX, y: e.clientY, node });
+    openContextMenu({ x: e.clientX, y: e.clientY, node });
   }, []);
 
   const handleBlankContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     contextMenuRef.current = null;
-    setContextMenu({ x: e.clientX, y: e.clientY, node: null });
+    openContextMenu({ x: e.clientX, y: e.clientY, node: null });
   };
 
   // mousedown 检测右键（比 contextmenu 事件更可靠）
@@ -315,7 +320,7 @@ export default function FileTree() {
       e.preventDefault();
       e.stopPropagation();
       contextMenuRef.current = null;
-      setContextMenu({ x: e.clientX, y: e.clientY, node: null });
+      openContextMenu({ x: e.clientX, y: e.clientY, node: null });
     };
     el.addEventListener('mousedown', handler);
     const preventCtx = (e: Event) => e.preventDefault();
@@ -329,7 +334,7 @@ export default function FileTree() {
   const handleDelete = () => {
     const node = contextMenu?.node ?? contextMenuRef.current;
     if (!node) return;
-    setContextMenu(null);
+    closeAllMenus();
     setPendingDelete(node);
   };
 
@@ -337,7 +342,7 @@ export default function FileTree() {
     const parentNode = contextMenu?.node;
     const parentPath = parentNode?.isDirectory ? parentNode.path : currentWorkspace || '';
     setCreating({ parentPath, isDirectory });
-    setContextMenu(null);
+    closeAllMenus();
   };
 
   const onCreated = () => {
@@ -353,7 +358,7 @@ export default function FileTree() {
         <div onClick={() => setShowExplorer(!showExplorer)} className={styles.sectionHeader}>
           <span><img src="/assets/文件夹.png" alt="" className={styles.sectionIcon} />资源管理器 ({workspaceName})</span>
           <div className={styles.headerActions}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" onClick={(e) => { e.stopPropagation(); const rect = (e.target as HTMLElement).closest('svg')!.getBoundingClientRect(); setFileMenuPos({ x: rect.left, y: rect.bottom + 2 }); }} style={{ cursor: 'pointer', opacity: 0.8, color: 'var(--text-primary)' }} title="更多操作">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" onClick={(e) => { e.stopPropagation(); const rect = (e.target as HTMLElement).closest('svg')!.getBoundingClientRect(); openFileMenu({ x: rect.left, y: rect.bottom + 2 }); }} style={{ cursor: 'pointer', opacity: 0.8, color: 'var(--text-primary)' }} title="更多操作">
               <line x1="2" y1="5" x2="14" y2="5"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="11" x2="14" y2="11"/>
             </svg>
             <img src="/assets/refresh.png" alt="refresh" onClick={(e) => { e.stopPropagation(); handleRefresh(); }} title="刷新文件列表" className={styles.refreshIcon} />
@@ -387,22 +392,22 @@ export default function FileTree() {
 
               {fileMenuPos && createPortal(
                 <>
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setFileMenuPos(null)} />
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => closeAllMenus()} />
                   <div className={styles.contextMenu} style={{ left: fileMenuPos.x, top: fileMenuPos.y }} onClick={(e) => e.stopPropagation()}>
-                    <div className={shared.menuItem} onClick={() => { setFileMenuPos(null); openFileDialog(); }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div className={shared.menuItem} onClick={() => { closeAllMenus(); openFileDialog(); }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2h5l3 3h3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M8 7v4M6 9h4"/></svg>
                       打开文件
                     </div>
-                    <div className={shared.menuItem} onClick={() => { setFileMenuPos(null); selectAndOpenWorkspace(); }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div className={shared.menuItem} onClick={() => { closeAllMenus(); selectAndOpenWorkspace(); }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3a1 1 0 011-1h3.5l2 2H13a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V3z"/></svg>
                       打开文件夹
                     </div>
                     <div className={styles.contextDivider} />
-                    <div className={shared.menuItem} onClick={() => { if (activeTab) { setFileMenuPos(null); closeTab(activeTab); } }} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: activeTab ? 1 : 0.4 }}>
+                    <div className={shared.menuItem} onClick={() => { if (activeTab) { closeAllMenus(); closeTab(activeTab); } }} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: activeTab ? 1 : 0.4 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
                       关闭文件
                     </div>
-                    <div className={shared.menuItem} onClick={() => { if (currentWorkspace) { setFileMenuPos(null); closeWorkspace(); } }} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: currentWorkspace ? 1 : 0.4 }}>
+                    <div className={shared.menuItem} onClick={() => { if (currentWorkspace) { closeAllMenus(); closeWorkspace(); } }} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: currentWorkspace ? 1 : 0.4 }}>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
                       关闭文件夹
                     </div>
@@ -421,7 +426,7 @@ export default function FileTree() {
                       <div className={styles.contextDivider} />
                       <ContextMenuItem label="重命名" onClick={() => {
                         const node = contextMenuRef.current;
-                        setContextMenu(null);
+                        closeAllMenus();
                         if (node) setRenamingPath(node.path);
                       }} />
                       <ContextMenuItem label="删除" onClick={handleDelete} />
@@ -429,13 +434,13 @@ export default function FileTree() {
                       {contextMenu.node && !contextMenu.node.isDirectory && (
                         <ContextMenuItem label="添加到对话" onClick={() => {
                           useRefsStore.getState().addRefFile(contextMenuRef.current!.path);
-                          setContextMenu(null);
+                          closeAllMenus();
                         }} />
                       )}
                       <ContextMenuItem label="在资源管理器中打开" onClick={() => {
                         const node = contextMenuRef.current;
                         if (node) window.api.files.showInExplorer(node.path);
-                        setContextMenu(null);
+                        closeAllMenus();
                       }} />
                       {contextMenu.node && !contextMenu.node.isDirectory && (
                         <ContextMenuItem label="在浏览器中打开" onClick={() => {
@@ -444,7 +449,7 @@ export default function FileTree() {
                             const fileUrl = `file:///${node.path.replace(/\\/g, '/')}`;
                             useBrowserStore.getState().openUrl(fileUrl);
                           }
-                          setContextMenu(null);
+                          closeAllMenus();
                         }} />
                       )}
                     </>
