@@ -22,11 +22,11 @@ export async function streamCharacterReply(
   if (contextStr) {
     messages.push({
       role: 'system',
-      content: `以下是群聊的最近对话历史：\n${contextStr}\n\n请基于以上对话历史，以你的角色身份回复。只输出你的发言内容，不要带角色名前缀。`,
+      content: `以下是群聊的最近对话历史：\n${contextStr}\n\n请基于以上对话历史，以你的角色身份回复。只输出你的发言内容，不要带角色名前缀。可以使用 Markdown 格式。`,
     });
   }
 
-  messages.push({ role: 'user', content: `[系统] 轮到你发言了。用户刚说："${userMessage}"。请以你的角色身份给出回复。` });
+  messages.push({ role: 'user', content: `[系统] 轮到你发言了。用户刚说："${userMessage}"。请以你的角色身份给出回复。\n\n回复格式要求：请使用 Markdown 格式组织你的回复。适当使用**加粗**、*斜体*、- 列表、> 引用、\`\`\`代码块\`\`\` 等格式来让回复更清晰易读。如果你使用 <reply> 标签，请在标签内部使用 Markdown。` });
 
   const bodyObj: Record<string, unknown> = {
     model: modelConfig.model,
