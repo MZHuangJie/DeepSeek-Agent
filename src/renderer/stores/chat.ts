@@ -1,3 +1,4 @@
+import React from 'react';
 import { deriveFallbackSessionTitle, extractPlainUserText } from '../utils/sessionTitle';
 import type {
   PlanTodoStatus,
@@ -103,12 +104,75 @@ function mapState(conv: ReturnType<typeof useConversationStore.getState>) {
 }
 
 // useChatStore 现在是 conversationStore 的代理
-// 所有组件透明地通过旧接口读写 conversationStore
+// 只订阅需要的字段，避免 isStreaming 变化导致 sessions 消费者重渲染
 // 兼容 zustand selector 模式：useChatStore(s => s.sessions)
 type ChatStateMapped = ReturnType<typeof mapState>;
+
+// 提取稳定方法引用，避免 useMemo 因 getState() 返回新对象而失效
+function getConvMethods() {
+  const c = useConversationStore.getState();
+  return {
+    loadAll: c.loadAll, createSolo: c.createSolo, switchTo: c.switchTo,
+    delete: c.delete, addMessage: c.addMessage, setStreaming: c.setStreaming,
+    updateLastAssistant: c.updateLastAssistant, newAssistantMessage: c.newAssistantMessage,
+    updateTitle: c.updateTitle, setCharacter: c.setCharacter, setCast: c.setCast,
+    clearPendingOpening: c.clearPendingOpening,
+    setWebPreviewHtml: c.setWebPreviewHtml, setWebPreviewFile: c.setWebPreviewFile,
+  } as const;
+}
+
 function useChatStoreImpl<T = ChatStateMapped>(selector?: (state: ChatStateMapped) => T): T {
-  const conv = useConversationStore();
-  const state = mapState(conv);
+  const conversations = useConversationStore(s => s.conversations);
+  const activeId = useConversationStore(s => s.activeId);
+  const isStreaming = useConversationStore(s => s.isStreaming);
+  const webPreviewHtml = useConversationStore(s => s.webPreviewHtml);
+  const webPreviewFile = useConversationStore(s => s.webPreviewFile);
+
+  // sessions 只在 conversations 变化时重建；isStreaming/webPreview 变化时复用缓存
+  const state = React.useMemo<ChatStateMapped>(() => {
+    const m = getConvMethods();
+    return {
+      sessions: conversations.map(mapConversationToSession),
+      activeSessionId: activeId,
+      isStreaming,
+      webPreviewHtml,
+      webPreviewFile,
+      loadSessions: m.loadAll,
+      createSession: () => {
+        const currentMode = useModeStore.getState().mode;
+        const isRoleplay = currentMode === 'roleplay';
+        m.createSolo();
+        if (isRoleplay) {
+          const rp = useRoleplayStore.getState();
+          const participantIds = rp.draftParticipantIds.length >= 2
+            ? rp.draftParticipantIds
+            : rp.activeCharacterId ? [rp.activeCharacterId] : [];
+          if (participantIds.length >= 2) {
+            m.setCast(participantIds);
+          } else if (participantIds.length === 1) {
+            m.setCharacter(participantIds[0], { sessionMode: 'roleplay', pendingOpening: true });
+          }
+        }
+      },
+      switchSession: m.switchTo,
+      deleteSession: m.delete,
+      addMessage: m.addMessage,
+      setStreaming: m.setStreaming,
+      updateLastAssistant: m.updateLastAssistant,
+      newAssistantMessage: m.newAssistantMessage,
+      updateSessionTitle: (id: string, title: string) => { m.updateTitle(id, title); },
+      setSessionCharacter: (characterId: string | null, options?: { sessionMode?: 'roleplay'; pendingOpening?: boolean }) => {
+        m.setCharacter(characterId, options);
+      },
+      setSessionCast: (characterIds: string[]) => { m.setCast(characterIds); },
+      setPlanTodos: () => {},
+      clearPlanTodos: () => {},
+      clearPendingOpening: (convId?: string) => { m.clearPendingOpening(convId); },
+      setWebPreviewHtml: m.setWebPreviewHtml,
+      setWebPreviewFile: m.setWebPreviewFile,
+    };
+  }, [conversations, activeId, isStreaming, webPreviewHtml, webPreviewFile]);
+
   if (selector) return selector(state);
   return state as unknown as T;
 }
