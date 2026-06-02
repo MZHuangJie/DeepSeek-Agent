@@ -26,7 +26,6 @@ export default function CodeEditor({ filePath, content, language, onChange, read
   // 检测 Monaco 是否加载成功
   React.useEffect(() => {
     loader.init().then(() => {
-      console.log('[Monaco] loaded successfully');
     }).catch((err) => {
       console.error('[Monaco] failed to load:', err);
       const detail = err ? (err.stack || err.message || String(err)) : '未知错误';

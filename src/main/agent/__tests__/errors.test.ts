@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyApiError, isRecoverableError, AppError } from '../errors';
+import { classifyApiError, AppError } from '../errors';
 
 describe('classifyApiError', () => {
   it('should classify context overflow', () => {
@@ -30,22 +30,5 @@ describe('classifyApiError', () => {
     const err = classifyApiError(500, 'Internal Server Error');
     expect(err.code).toBe('API');
     expect(err.recoverable).toBe(false);
-  });
-});
-
-describe('isRecoverableError', () => {
-  it('should recognize recoverable AppError', () => {
-    const err = new AppError('test', 'NETWORK', '网络错误', true);
-    expect(isRecoverableError(err)).toBe(true);
-  });
-
-  it('should recognize non-recoverable AppError', () => {
-    const err = new AppError('test', 'AUTH', '认证失败', false);
-    expect(isRecoverableError(err)).toBe(false);
-  });
-
-  it('should recognize ECONNRESET as recoverable', () => {
-    const err = Object.assign(new Error('connection reset'), { code: 'ECONNRESET' });
-    expect(isRecoverableError(err)).toBe(true);
   });
 });

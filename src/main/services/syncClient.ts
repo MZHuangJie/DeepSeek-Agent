@@ -25,8 +25,6 @@ function requestJson<T>(
   const url = joinUrl(baseUrl, apiPath);
   const payload = body !== undefined ? JSON.stringify(body) : undefined;
 
-  console.log(`[syncClient] ${method} ${url}`);
-
   return new Promise((resolve, reject) => {
     const req = net.request({
       url,
@@ -43,7 +41,6 @@ function requestJson<T>(
       response.on('data', (c: Buffer) => chunks.push(c));
       response.on('end', () => {
         const text = Buffer.concat(chunks).toString('utf8');
-        console.log(`[syncClient] ${method} ${apiPath} -> ${response.statusCode}, body=${text.slice(0, 200)}`);
         let data: T = {} as T;
         if (text) {
           try {

@@ -70,16 +70,6 @@ export function errorLog(module: string, message: string, data?: Record<string, 
   log('error', module, message, data);
 }
 
-/** @deprecated 请使用 log('debug', ...) 或 infoLog */
-export function debugLog(...args: any[]) {
-  if (LEVEL_WEIGHT['debug'] < LEVEL_WEIGHT[currentLevel]) return;
-  const line = `[${fmtTime(new Date())}] [DEBUG] ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')}\n`;
-  try {
-    if (!initialized) { initialized = true; fs.writeFileSync(LOG_FILE, line, 'utf-8'); }
-    else { fs.appendFileSync(LOG_FILE, line, 'utf-8'); }
-  } catch {}
-}
-
 export function getLogPath(): string {
   return LOG_FILE;
 }

@@ -32,13 +32,3 @@ export function classifyApiError(status: number, message: string): AppError {
   // Generic API error
   return new AppError(message, 'API', `API 错误 (${status}): ${message.slice(0, 200)}`, false);
 }
-
-export function isRecoverableError(err: unknown): boolean {
-  if (err instanceof AppError) return err.recoverable;
-  if (err instanceof Error) {
-    const code = (err as NodeJS.ErrnoException).code;
-    // Network errors are recoverable
-    if (code === 'ECONNRESET' || code === 'ETIMEDOUT' || code === 'ECONNREFUSED' || code === 'ENOTFOUND') return true;
-  }
-  return false;
-}

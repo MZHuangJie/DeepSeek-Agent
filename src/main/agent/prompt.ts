@@ -328,6 +328,3 @@ export function getSystemPrompt(mode: AgentMode | string = 'agent'): string {
   if (mode === 'coding') return SYSTEM_PROMPT_CODING;
   return MODE_PROMPTS[mode as AgentMode] || SYSTEM_PROMPT_CODING;
 }
-
-/** @deprecated 保留旧常量以兼容已有代码，建议迁移到 getSystemPrompt() */
-export const SYSTEM_PROMPT = SYSTEM_PROMPT_CODING;
