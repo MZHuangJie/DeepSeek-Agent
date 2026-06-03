@@ -4,19 +4,17 @@ import { useFilesStore, FileNode } from '../../stores/files';
 import { useBrowserStore } from '../../stores/browser';
 import { useRefsStore } from '../../stores/refs';
 import { focusChatInput } from '../../utils/focusChatInput';
-import { getFileIconInfo } from '../../utils/icons';
+import { getFileIconClasses } from '../../utils/fileIconClasses';
+import { useIconThemeStore } from '../../stores/iconTheme';
 import { notifyMenuOpened, onOtherMenuOpened } from '../../utils/globalMenu';
 import shared from '../../styles/components.module.css';
 import styles from './FileTree.module.css';
 
-function FileIcon({ name }: { name: string }) {
-  const info = getFileIconInfo(name);
-  const isSymbol = info.text.length <= 2 && !/[a-zA-Z]/.test(info.text);
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, fontSize: isSymbol ? 11 : 9, fontWeight: 700, color: info.color, fontFamily: 'Consolas, "Courier New", monospace', lineHeight: 1, userSelect: 'none', flexShrink: 0 }} title={name}>
-      {info.text}
-    </span>
-  );
+function FileIcon({ name, isDirectory }: { name: string; isDirectory?: boolean }) {
+  const theme = useIconThemeStore(s => s.activeTheme);
+  if (!theme) return <span className="file-icon" title={name} />;
+  const classes = getFileIconClasses({ name, isDirectory, theme });
+  return <span className={classes.join(' ')} title={name} />;
 }
 
 interface ContextMenuState {
@@ -96,7 +94,7 @@ const TreeNode = React.memo(function TreeNode({ node, depth = 0, onContextMenu, 
             <img src={expanded ? "./assets/展开.png" : "./assets/收起.png"} alt={expanded ? 'expanded' : 'collapsed'}
               className={styles.nodeIconImg} style={{ width: expanded ? 14 : 10, height: expanded ? 8 : 14 }} />
           ) : (
-            <FileIcon name={node.name} />
+            <FileIcon name={node.name} isDirectory={false} />
           )}
         </span>
         {isRenaming ? (
@@ -292,12 +290,8 @@ export default function FileTree() {
   const loadProjectTree = async () => {
     setLoadingTree(true);
     try {
-      const entries = await window.api.files.list('.');
-      const nodes: FileNode[] = entries.map((e: any) => ({
-        name: e.name, path: e.path, isDirectory: e.isDirectory,
-      }));
-      nodes.sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name));
-      setTree(nodes);
+      const entries = await window.api.files.listTree();
+      setTree(entries as FileNode[]);
     } catch {} finally {
       setLoadingTree(false);
     }

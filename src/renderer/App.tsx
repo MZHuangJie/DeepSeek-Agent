@@ -28,6 +28,7 @@ import { useFilesStore } from './stores/files';
 import { useTerminalStore } from './stores/terminal';
 import { useConversationStore } from './stores/conversationStore';
 import { useLayoutStore, SIDEBAR_MIN_WIDTH } from './stores/layout';
+import { useIconThemeStore } from './stores/iconTheme';
 import { useBrowserStore } from './stores/browser';
 import { useModeStore } from './stores/mode';
 import AccountCenter from './components/account/AccountCenter';
@@ -89,6 +90,10 @@ export default function App() {
   useEffect(() => {
     void authRestore();
   }, [authRestore]);
+
+  useEffect(() => {
+    useIconThemeStore.getState().loadThemes();
+  }, []);
   const handleToggleView = (view: PanelView) => {
     if (view === 'browser') {
       setBrowserOpen(!browserOpen);

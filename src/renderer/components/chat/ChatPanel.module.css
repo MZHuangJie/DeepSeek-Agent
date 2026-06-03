@@ -11,15 +11,38 @@
   overflow: auto;
   padding: 8px 0;
   position: relative;
-}
-
-/* 隐藏 Virtuoso 内置滚动条 */
-.scrollArea > div > div::-webkit-scrollbar {
-  display: none;
-}
-.scrollArea > div > div {
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+/* 隐藏 Virtuoso 内置滚动条 (覆盖所有子元素) */
+.scrollArea *::-webkit-scrollbar {
+  display: none;
+}
+
+/* 思考中指示器：浮于底部，不占布局空间 */
+.thinkingHint {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 4px 16px 8px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, var(--bg-primary) 60%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 回到底部按钮：浮于右下角 */
+.scrollDownHint {
+  position: absolute;
+  bottom: 8px;
+  right: 16px;
+  z-index: 2;
 }
 
 .emptyState {
@@ -44,15 +67,6 @@
 .emptyHint {
   font-size: 12px;
   margin-top: 4px;
-}
-
-.thinkingHint {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--text-secondary);
-  font-size: 12px;
-  padding: 4px 16px;
 }
 
 .thinkingIcon {

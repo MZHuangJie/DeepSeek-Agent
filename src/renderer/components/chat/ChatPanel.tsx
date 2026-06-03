@@ -504,8 +504,10 @@ export default function ChatPanel() {
           </div>
         )}
                 <Virtuoso
+          ref={virtuosoRef}
           data={messages}
           followOutput="smooth"
+          components={{ Footer: () => <div style={{ height: 28 }} /> }}
           atBottomStateChange={(atBottom) => {
             isAtBottomRef.current = atBottom;
             setShowScrollDown(!atBottom);
@@ -529,10 +531,12 @@ export default function ChatPanel() {
           </div>
         )}
         {showScrollDown && (
-          <div className={shared.scrollDownBtn} onClick={() => virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: 'smooth' })} title="回到底部">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path className={shared.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <div className={styles.scrollDownHint}>
+            <div className={shared.scrollDownBtn} onClick={() => { virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'smooth' }); }} title="回到底部">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path className={shared.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
           </div>
         )}
       </div>

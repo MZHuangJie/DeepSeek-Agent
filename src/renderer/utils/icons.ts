@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use getFileIconClasses from './fileIconClasses' instead.
+ * This text-based icon system has been replaced by a CSS class + seti icon font
+ * approach matching VS Code's getIconClasses() pattern.
+ */
 export interface FileIconInfo {
   text: string;
   color: string;

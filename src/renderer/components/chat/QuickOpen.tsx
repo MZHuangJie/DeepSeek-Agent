@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFilesStore, FileNode } from '../../stores/files';
-import { getFileIconInfo } from '../../utils/icons';
+import { getFileIconClasses } from '../../utils/fileIconClasses';
+import { useIconThemeStore } from '../../stores/iconTheme';
 import { useFocusedItemRef } from './Dropdown';
 import {
   SEARCH_FILTERS,
@@ -123,9 +124,10 @@ function ResultRow({
   onClick: () => void;
 }) {
   const ref = useFocusedItemRef(focused);
-  const icon = node.isDirectory
-    ? { text: '📁', color: '#c4b5fd' }
-    : getFileIconInfo(node.name);
+  const theme = useIconThemeStore(s => s.activeTheme);
+  const iconClasses = theme
+    ? getFileIconClasses({ name: node.name, isDirectory: node.isDirectory, theme })
+    : (node.isDirectory ? ['folder-icon'] : ['file-icon']);
 
   return (
     <div
@@ -133,12 +135,7 @@ function ResultRow({
       className={`${styles.resultItem} ${focused ? styles.resultItemFocused : ''}`}
       onClick={onClick}
     >
-      <div
-        className={`${styles.fileIcon} ${node.isDirectory ? styles.folderIconBadge : ''}`}
-        style={node.isDirectory ? undefined : { color: icon.color, background: `${icon.color}22` }}
-      >
-        {icon.text}
-      </div>
+      <div className={`${styles.fileIcon} ${iconClasses.join(' ')}`} />
       <div className={styles.resultMain}>
         <div className={styles.resultName}>{highlightMatch(node.name, query)}</div>
         <div className={styles.resultPath}>{relativeWorkspacePath(node.path, workspace)}</div>
@@ -162,7 +159,10 @@ function ContentResultRow({
   onClick: () => void;
 }) {
   const ref = useFocusedItemRef(focused);
-  const icon = getFileIconInfo(match.name);
+  const theme = useIconThemeStore(s => s.activeTheme);
+  const iconClasses = theme
+    ? getFileIconClasses({ name: match.name, theme })
+    : ['file-icon'];
 
   return (
     <div
@@ -170,9 +170,7 @@ function ContentResultRow({
       className={`${styles.resultItem} ${focused ? styles.resultItemFocused : ''}`}
       onClick={onClick}
     >
-      <div className={styles.fileIcon} style={{ color: icon.color, background: `${icon.color}22` }}>
-        {icon.text}
-      </div>
+      <div className={`${styles.fileIcon} ${iconClasses.join(' ')}`} />
       <div className={styles.resultMain}>
         <div className={styles.resultName}>
           {highlightMatch(match.name, query)}

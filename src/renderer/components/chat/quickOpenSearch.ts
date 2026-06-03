@@ -89,6 +89,16 @@ export function scoreNode(query: string, node: FileNode): number {
     return nameMatch ? 200 : 150;
   }
 
+  // When the query starts with '.', prioritize extension matching.
+  // ".tsx" should rank Button.tsx far above tsx_helper.py.
+  if (trimmed.startsWith('.')) {
+    const extQuery = trimmed.slice(1).toLowerCase();
+    const ext = node.name.split('.').pop()?.toLowerCase() || '';
+    if (ext === extQuery) return 300;               // exact extension match
+    const extFuzzy = fuzzyScore(extQuery, ext);
+    if (extFuzzy >= 0) return 200 + extFuzzy;        // fuzzy extension match
+  }
+
   const nameScore = fuzzyScore(trimmed, node.name);
   const pathTail = node.path.split(/[\\/]/).pop() || node.path;
   const pathScore = fuzzyScore(trimmed, pathTail);

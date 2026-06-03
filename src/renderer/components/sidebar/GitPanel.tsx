@@ -18,7 +18,8 @@ import {
   type GitRowActionKind,
 } from '../git/GitIcons';
 import { useFilesStore } from '../../stores/files';
-import { getFileIconInfo } from '../../utils/icons';
+import { getFileIconClasses } from '../../utils/fileIconClasses';
+import { useIconThemeStore } from '../../stores/iconTheme';
 import styles from './GitPanel.module.css';
 
 interface GitFileEntry { path: string; status: string; }
@@ -276,12 +277,15 @@ export default function GitPanel() {
     opts: { primary: GitRowActionKind; onAction: (p: string) => void; secondary?: GitRowActionKind; onSecondary?: (p: string) => void },
   ) => {
     const active = selectedPath === file.path && selectedStaged === staged;
-    const icon = getFileIconInfo(basename(file.path));
+    const theme = useIconThemeStore.getState().activeTheme;
+    const iconClasses = theme
+      ? getFileIconClasses({ name: basename(file.path), theme })
+      : ['file-icon'];
     const st = displayStatus(file.status);
     return (
       <React.Fragment key={`${staged ? 's' : 'u'}-${file.path}`}>
         <div className={`${styles.fileRow} ${active ? styles.fileRowActive : ''}`}>
-          <span className={styles.fileIcon} style={{ color: icon.color }}>{icon.text}</span>
+          <span className={`${styles.fileIcon} ${iconClasses.join(' ')}`} />
           <span
             className={styles.fileName}
             title={file.path}

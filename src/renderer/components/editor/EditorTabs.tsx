@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useFilesStore } from '../../stores/files';
-import { getFileIconInfo } from '../../utils/icons';
+import { getFileIconClasses } from '../../utils/fileIconClasses';
+import { useIconThemeStore } from '../../stores/iconTheme';
 import { GitIconDiff } from '../git/GitIcons';
 import { notifyMenuOpened, onOtherMenuOpened } from '../../utils/globalMenu';
 import shared from '../../styles/components.module.css';
 import styles from './EditorTabs.module.css';
 
 function FileIcon({ name }: { name: string }) {
-  const info = getFileIconInfo(name);
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, fontSize: info.text.length <= 2 ? 9 : 7, fontWeight: 700, color: info.color, fontFamily: 'Consolas, "Courier New", monospace', lineHeight: 1, userSelect: 'none' }} title={name}>
-      {info.text}
-    </span>
-  );
+  const theme = useIconThemeStore(s => s.activeTheme);
+  if (!theme) return <span className="file-icon" title={name} />;
+  const classes = getFileIconClasses({ name, theme });
+  return <span className={classes.join(' ')} title={name} />;
 }
 
 interface MenuState { visible: boolean; x: number; y: number; tabPath: string; }

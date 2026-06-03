@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useThemeStore, ThemePreset, ThemeArea, ThemeColors } from '../../stores/theme';
+import { useIconThemeStore } from '../../stores/iconTheme';
 import styles from './ThemeSettings.module.css';
 
 const PRESETS: ThemePreset[] = ['dark', 'light', 'dark-hc', 'light-warm', 'custom'];
@@ -24,6 +25,31 @@ const COLOR_KEYS: Array<{ key: keyof ThemeColors; label: string }> = [
   { key: 'chatUser', label: '用户气泡' },
   { key: 'chatAi', label: 'AI气泡' },
 ];
+
+function IconThemePicker() {
+  const availableThemes = useIconThemeStore(s => s.availableThemes);
+  const currentThemeId = useIconThemeStore(s => s.currentThemeId);
+  const busy = useIconThemeStore(s => s.busy);
+  const setTheme = useIconThemeStore(s => s.setTheme);
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionLabel}>文件图标主题</div>
+      <div className={styles.presetRow}>
+        {availableThemes.map(t => (
+          <button
+            key={t.id}
+            onClick={() => { void setTheme(t.id); }}
+            className={`${styles.presetBtn} ${currentThemeId === t.id ? styles.presetBtnActive : ''}`}
+            disabled={busy}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function ThemeSettings({ onClose }: { onClose: () => void }) {
   const store = useThemeStore();
@@ -87,6 +113,8 @@ export default function ThemeSettings({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           </div>
+
+          <IconThemePicker />
 
           <div className={styles.preview}
             ref={el => {

@@ -1,0 +1,32 @@
+{
+  "id": "minimal",
+  "label": "Minimal",
+  "description": "Simple file and folder icons using the Seti font",
+  "fonts": [
+    {
+      "id": "seti",
+      "src": [{ "path": "assets/iconThemes/seti.woff", "format": "woff" }],
+      "weight": "normal",
+      "style": "normal",
+      "size": "150%"
+    }
+  ],
+  "iconDefinitions": {
+    "_file":         { "fontCharacter": "\\E023", "fontColor": "#888888" },
+    "_file_light":   { "fontCharacter": "\\E023", "fontColor": "#707070" },
+    "_folder":       { "fontCharacter": "\\E01B", "fontColor": "#dcb67a" },
+    "_folder_light": { "fontCharacter": "\\E01B", "fontColor": "#c6a86b" }
+  },
+  "file": "_file",
+  "folder": "_folder",
+  "fileExtensions": {},
+  "fileNames": {},
+  "folderNames": {},
+  "folderNamesExpanded": {},
+  "light": {
+    "iconDefinitions": {
+      "_file":   { "fontColor": "#707070" },
+      "_folder": { "fontColor": "#c6a86b" }
+    }
+  }
+}
