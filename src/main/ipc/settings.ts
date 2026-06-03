@@ -102,7 +102,7 @@ export function setupSettingsHandlers() {
       const title = await generateSessionTitle(
         apiKey,
         {
-          model: payload.model || 'deepseek-chat',
+          model: payload.model || 'deepseek-v4-flash',
           baseUrl: payload.baseUrl || 'https://api.deepseek.com',
         },
         payload.userMessage,

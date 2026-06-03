@@ -31,7 +31,7 @@ export default function TokenUsage() {
         <span className={styles.totalValue}>{fmtTokens(stats.total)}</span>
         <span className={styles.totalLabel}>total tokens</span>
         {stats.cost > 0 && (
-          <span className={styles.costBadge}>≈ $ {stats.cost.toFixed(4)}</span>
+          <span className={styles.costBadge}>≈ ¥ {stats.cost.toFixed(4)}</span>
         )}
       </div>
 
@@ -46,6 +46,34 @@ export default function TokenUsage() {
           <div className={styles.splitItem}>
             <span className={styles.splitVal}>{fmtTokens(stats.subAgentTotal ?? 0)}</span>
             <span className={styles.splitLabel}>子代理</span>
+          </div>
+        </div>
+      )}
+
+      {/* 缓存命中率 */}
+      {stats.promptCacheHit !== undefined && stats.promptCacheMiss !== undefined && (stats.promptCacheHit + stats.promptCacheMiss) > 0 && (
+        <div className={styles.cacheSection}>
+          <div className={styles.cacheRow}>
+            <span className={styles.cacheLabel}>缓存命中率</span>
+            <span className={styles.cachePct}>
+              {((stats.promptCacheHit / (stats.promptCacheHit + stats.promptCacheMiss)) * 100).toFixed(0)}%
+            </span>
+          </div>
+          <div className={styles.cacheBar}>
+            <div
+              className={styles.cacheHit}
+              style={{ flex: stats.promptCacheHit }}
+              title={`命中 ${fmtTokens(stats.promptCacheHit)}`}
+            />
+            <div
+              className={styles.cacheMiss}
+              style={{ flex: stats.promptCacheMiss }}
+              title={`未命中 ${fmtTokens(stats.promptCacheMiss)}`}
+            />
+          </div>
+          <div className={styles.cacheLegend}>
+            <span>命中 {fmtTokens(stats.promptCacheHit)}</span>
+            <span>未命中 {fmtTokens(stats.promptCacheMiss)}</span>
           </div>
         </div>
       )}

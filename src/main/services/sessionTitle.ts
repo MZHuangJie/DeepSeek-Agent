@@ -59,7 +59,7 @@ export async function generateSessionTitle(
     : `用户：${user}`;
 
   const titleModel = /reasoner|r1|thinking/i.test(modelConfig.model)
-    ? 'deepseek-chat'
+    ? 'deepseek-v4-flash'
     : modelConfig.model;
 
   const content = await completeChat(

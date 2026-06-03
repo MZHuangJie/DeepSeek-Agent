@@ -9,7 +9,7 @@ export type StreamChunk =
   | { type: 'thinking'; text: string; sessionId?: string; step?: number; total?: number }
   | { type: 'tool-call'; name: string; args: string; sessionId?: string; step?: number; total?: number }
   | { type: 'tool-result'; name: string; result: string; status: 'success' | 'error'; sessionId?: string; step?: number; total?: number }
-  | { type: 'usage'; prompt: number; completion: number; total: number; toolTokens?: number; currentPrompt?: number; contextMax?: number; sessionId?: string }
+  | { type: 'usage'; prompt: number; completion: number; total: number; toolTokens?: number; currentPrompt?: number; contextMax?: number; sessionId?: string; promptCacheHit?: number; promptCacheMiss?: number; modelName?: string }
   | { type: 'done'; sessionId?: string }
   | { type: 'error'; message: string; sessionId?: string }
   | { type: 'explore-progress'; readPercentage: number; readFileCount: number; totalFiles: number; step?: number; total?: number; sessionId?: string }

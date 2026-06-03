@@ -4,6 +4,17 @@ import https from 'https';
 
 const httpsAgent = new https.Agent({ keepAlive: false });
 
+export interface CharacterReplyResult {
+  text: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    prompt_cache_hit_tokens?: number;
+    prompt_cache_miss_tokens?: number;
+  };
+}
+
 export async function streamCharacterReply(
   systemPrompt: string,
   context: Array<{ speaker: string; content: string }>,
@@ -11,7 +22,7 @@ export async function streamCharacterReply(
   modelConfig: { model: string; baseUrl: string; apiKey: string },
   onChunk: (text: string) => void,
   signal?: AbortSignal,
-): Promise<string> {
+): Promise<CharacterReplyResult> {
   const url = buildChatCompletionsUrl(modelConfig.baseUrl);
 
   const messages: Array<{ role: string; content: string }> = [
@@ -56,6 +67,7 @@ export async function streamCharacterReply(
       }
 
       let fullContent = '';
+      let usage: CharacterReplyResult['usage'];
 
       res.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
@@ -71,11 +83,15 @@ export async function streamCharacterReply(
               fullContent += delta;
               onChunk(delta);
             }
+            // 捕获最后一块中的 usage（含缓存命中/未命中 token）
+            if (parsed.usage) {
+              usage = parsed.usage;
+            }
           } catch { /* skip unparseable lines */ }
         }
       });
 
-      res.on('end', () => resolve(fullContent));
+      res.on('end', () => resolve({ text: fullContent, usage }));
       res.on('error', reject);
     });
 

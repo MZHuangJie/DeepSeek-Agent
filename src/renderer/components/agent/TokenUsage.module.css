@@ -90,6 +90,60 @@
   flex-shrink: 0;
 }
 
+/* ---- 缓存命中率 ---- */
+.cacheSection {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+.cacheRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.cacheLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.cachePct {
+  font-size: 16px;
+  font-weight: 700;
+  color: #818cf8;
+}
+
+.cacheBar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.cacheHit {
+  background: #22c55e;
+  min-width: 4px;
+  border-radius: 4px;
+}
+
+.cacheMiss {
+  background: #ef4444;
+  min-width: 4px;
+  border-radius: 4px;
+}
+
+.cacheLegend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+
 /* ---- 分类进度条 ---- */
 .barsSection {
   display: flex;

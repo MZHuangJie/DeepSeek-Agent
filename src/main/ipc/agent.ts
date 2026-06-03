@@ -22,32 +22,28 @@ function estimateTokens(str: string): number {
   return Math.max(1, Math.ceil(str.length / 4));
 }
 
-/** 构建 system prompt，含角色、插件、命令模式 */
-function buildSystemPrompt(
+/** 构建 system prompt 的各个组成部分，返回拆分后的结构以便缓存优化 */
+function buildSystemPromptParts(
   mode: AgentMode | undefined,
   commandPrompt: string | undefined,
   multiAgentRoles: MultiAgentRole[],
   isMultiAgent: boolean,
   isCharacterMode: boolean,
-): string {
+): { base: string; roles: string; plugins: string; command: string } {
   const base = getSystemPrompt(mode);
-  const pluginPrompts = isCharacterMode ? '' : pluginManager.getSystemPrompts();
+  const plugins = isCharacterMode ? '' : pluginManager.getSystemPrompts();
 
-  let rolesPrompt = '';
+  let roles = '';
   if (isMultiAgent && multiAgentRoles.length > 0) {
-    rolesPrompt = `\n\n## 可分派的角色（用于 spawn_role_agents 的 role_id）\n${multiAgentRoles.map(r => `- role_id: \`${r.id}\` ｜ 名称: ${r.name}${r.description ? ` ｜ 职责: ${r.description}` : ''}`).join('\n')}`;
+    roles = `## 可分派的角色（用于 spawn_role_agents 的 role_id）\n${multiAgentRoles.map(r => `- role_id: \`${r.id}\` ｜ 名称: ${r.name}${r.description ? ` ｜ 职责: ${r.description}` : ''}`).join('\n')}`;
   } else if (isMultiAgent) {
-    rolesPrompt = '\n\n## 角色清单\n当前没有配置任何角色，请提示用户前往「系统设置 → Multi-Agent 角色」中创建后再分派任务。';
+    roles = '## 角色清单\n当前没有配置任何角色，请提示用户前往「系统设置 → Multi-Agent 角色」中创建后再分派任务。';
   }
 
-  const baseWithRoles = base + rolesPrompt;
-  if (commandPrompt) {
-    return `${baseWithRoles}\n\n${pluginPrompts}\n\n## 当前命令模式\n${commandPrompt}`;
-  }
-  return pluginPrompts ? `${baseWithRoles}\n\n${pluginPrompts}` : baseWithRoles;
+  return { base, roles, plugins, command: commandPrompt || '' };
 }
 
-/** 上下文接近溢出时压缩早期工具调用结果 */
+/** 持续压缩早期工具调用结果，释放前缀空间提升缓存命中率 */
 function compressContextIfNeeded(
   win: BrowserWindow,
   sessionId: string,
@@ -55,25 +51,31 @@ function compressContextIfNeeded(
   currentPrompt: number,
   contextMax: number,
 ): void {
-  if (currentPrompt <= contextMax * 0.8) return;
+  // 降低触发门槛：50% 就开始压缩（之前 80% 太晚，缓存已严重碎片化）
+  if (currentPrompt <= contextMax * 0.5) return;
 
   const toolIndices: number[] = [];
   for (let i = 0; i < messages.length; i++) {
     if (messages[i].role === 'tool') toolIndices.push(i);
   }
 
-  const compressCount = Math.floor(toolIndices.length * 0.5);
-  for (let i = 0; i < compressCount; i++) {
-    const idx = toolIndices[i];
-    if (typeof messages[idx].content === 'string' && messages[idx].content.length > 200) {
+  // 保留最近 6 个工具结果（2 轮 × 3 次工具调用），其余全部压缩
+  const keepRecent = 6;
+  const compressTargets = toolIndices.slice(0, -keepRecent);
+  let compressed = 0;
+  for (const idx of compressTargets) {
+    if (typeof messages[idx].content === 'string' && messages[idx].content.length > 120) {
       messages[idx].content = compressToolResult(messages[idx].content);
+      compressed++;
     }
   }
 
-  win.webContents.send('agent:stream-chunk', {
-    sessionId, type: 'content',
-    text: `\n[系统提示：已压缩 ${compressCount} 个早期工具调用结果以节省上下文]\n`,
-  });
+  if (compressed > 0) {
+    win.webContents.send('agent:stream-chunk', {
+      sessionId, type: 'content',
+      text: `\n[已压缩 ${compressed} 个早期工具结果以提升缓存命中率]\n`,
+    });
+  }
 }
 
 /** 空响应处理 + 探索模式判断 */
@@ -190,10 +192,10 @@ export function setupAgentHandlers() {
       sessionSubAgents.set(sessionId, subAgentManager);
 
       const tools = getToolsForMode(payload.mode, payload.projectDir);
-      const fullSystemPrompt = buildSystemPrompt(payload.mode, payload.commandPrompt, multiAgentRoles, isMultiAgent, isCharacterMode);
-      const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
+      const promptParts = buildSystemPromptParts(payload.mode, payload.commandPrompt, multiAgentRoles, isMultiAgent, isCharacterMode);
+      const prefix = buildCachePrefix(promptParts, projectContext);
 
-      const modelConfig = { model: payload.model || 'deepseek-chat', baseUrl: payload.baseUrl ?? 'https://api.deepseek.com' };
+      const modelConfig = { model: payload.model || 'deepseek-v4-flash', baseUrl: payload.baseUrl ?? 'https://api.deepseek.com' };
       const visionConfig = resolveVisionConfig(modelConfig, payload.apiKey, { providerMultimodal: payload.providerMultimodal });
 
       let processedNewMessage: string | ContentPart[] = payload.newMessage;
@@ -206,7 +208,7 @@ export function setupAgentHandlers() {
       }
 
       const messages: any[] = buildMessages(prefix, payload.messages, processedNewMessage);
-      infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length });
+      infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.parts.base.length });
 
       const enableTools = payload.mode !== 'roleplay';
       const toolSchemas = getToolSchemas(tools);
@@ -247,6 +249,9 @@ export function setupAgentHandlers() {
             prompt: totalPrompt, completion: totalCompletion, total: totalTokens,
             toolTokens: totalToolTokens, currentPrompt: result.usage.prompt_tokens,
             contextMax: payload.contextMax || 100000,
+            promptCacheHit: result.usage.prompt_cache_hit_tokens,
+            promptCacheMiss: result.usage.prompt_cache_miss_tokens,
+            modelName: payload.model || 'deepseek-v4-flash',
           });
           compressContextIfNeeded(win, sessionId, messages, result.usage.prompt_tokens, payload.contextMax || 100000);
         }

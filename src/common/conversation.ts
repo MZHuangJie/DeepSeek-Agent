@@ -77,11 +77,16 @@ export interface Message {
 }
 
 export interface GroupChunk {
-  type: 'director-thinking' | 'typing' | 'text' | 'message-done' | 'group-done' | 'error';
+  type: 'director-thinking' | 'typing' | 'text' | 'message-done' | 'group-done' | 'error' | 'usage';
   speaker?: { roleId: string; name: string; avatar?: string };
   text?: string;
   reply?: string;
-  message?: string; // for error type
+  message?: string;
+  usage?: {
+    prompt: number; completion: number; total: number;
+    promptCacheHit?: number; promptCacheMiss?: number;
+    modelName?: string;
+  };
 }
 
 export interface MemberInfo {

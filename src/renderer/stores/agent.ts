@@ -20,6 +20,11 @@ export interface TokenStats {
   contextWindow: number;
   contextMax: number;
   cost: number;
+  /** 缓存命中/未命中 token 数（DeepSeek 前缀缓存） */
+  promptCacheHit?: number;
+  promptCacheMiss?: number;
+  /** 当前使用的模型（用于按模型计费） */
+  modelName?: string;
   /** 主 Agent 自身消耗（不含子代理） */
   mainTotal?: number;
   mainPrompt?: number;
@@ -28,6 +33,22 @@ export interface TokenStats {
   subAgentTotal?: number;
   subAgentPrompt?: number;
   subAgentCompletion?: number;
+}
+
+/** DeepSeek 模型定价（人民币/1M token） */
+const MODEL_PRICING: Record<string, { input: number; cached: number; output: number }> = {
+  'deepseek-v4-flash': { input: 1.00, cached: 0.02, output: 2.00 },
+  'deepseek-v4-pro':   { input: 3.00, cached: 0.025, output: 6.00 },
+};
+const DEFAULT_PRICING = { input: 1.96, cached: 0.20, output: 7.98 };
+
+function getPricing(modelName?: string) {
+  if (modelName) {
+    for (const [prefix, p] of Object.entries(MODEL_PRICING)) {
+      if (modelName.startsWith(prefix)) return p;
+    }
+  }
+  return DEFAULT_PRICING;
 }
 
 function sumSubAgentTokens(subAgents: SubAgentStatus[]) {
@@ -55,8 +76,13 @@ function aggregateTokenStats(main: TokenStats, subAgents: SubAgentStatus[]): Tok
     subAgentTotal: sub.total,
     subAgentPrompt: sub.prompt,
     subAgentCompletion: sub.completion,
-    // DeepSeek 官方定价：deepseek-chat 输入 $0.27/1M，输出 $1.10/1M
-    cost: parseFloat(((main.prompt + sub.prompt) * 0.00000027 + (main.completion + sub.completion) * 0.0000011).toFixed(4)),
+    // 按模型定价（人民币/1M token）
+    // promptCacheHit 为累计缓存命中 token，从总 prompt 中拆出按折扣价计算
+    cost: parseFloat((
+      (main.prompt + sub.prompt - (main.promptCacheHit ?? 0)) * (getPricing(main.modelName).input / 1_000_000) +
+      (main.promptCacheHit ?? 0) * (getPricing(main.modelName).cached / 1_000_000) +
+      (main.completion + sub.completion) * (getPricing(main.modelName).output / 1_000_000)
+    ).toFixed(4)),
   };
 }
 

@@ -24,10 +24,10 @@ export interface GeneratedCharacterData {
 }
 
 function resolveActiveModel(): ModelConfig {
-  const activeId = getSetting('activeModel') || 'deepseek-chat';
+  const activeId = getSetting('activeModel') || 'deepseek-v4-flash';
   const raw = getSetting('models');
   const defaults = [
-    { id: 'deepseek-chat', model: 'deepseek-chat', baseUrl: 'https://api.deepseek.com' },
+    { id: 'deepseek-v4-flash', model: 'deepseek-v4-flash', baseUrl: 'https://api.deepseek.com' },
   ];
   let models: Array<{ id: string; model: string; baseUrl: string }> = defaults;
   if (raw) {

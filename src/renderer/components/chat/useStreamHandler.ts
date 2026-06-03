@@ -240,7 +240,9 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       useAgentStore.getState().setMainTokenStats({
         total: chunk.total, prompt: chunk.prompt, completion: chunk.completion,
         toolTokens: chunk.toolTokens ?? 0, contextWindow: chunk.currentPrompt || chunk.prompt || 0,
-        contextMax: chunk.contextMax || 100000, cost: parseFloat((chunk.total * 0.000002).toFixed(3)),
+        contextMax: chunk.contextMax || 100000, cost: parseFloat((chunk.total * 0.000012).toFixed(3)),
+        promptCacheHit: chunk.promptCacheHit, promptCacheMiss: chunk.promptCacheMiss,
+        modelName: chunk.modelName,
       });
     } else if (chunk.type === 'done') {
       cancelRaf(sid);

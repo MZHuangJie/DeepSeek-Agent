@@ -111,9 +111,6 @@ const TreeNode = React.memo(function TreeNode({ node, depth = 0, onContextMenu, 
           <span className={styles.nodeName}>{node.name}</span>
         )}
       </div>
-      {expanded && loadingChildren && (
-        <div style={{ paddingLeft: 8 + (depth + 1) * 12 }} className={styles.emptyHint}>加载中…</div>
-      )}
       {expanded && children?.map(child => (
         <TreeNode key={child.path} node={child} depth={depth + 1} onContextMenu={onContextMenu} onRefresh={onRefresh} onError={onError}
           renamingPath={renamingPath} setRenamingPath={setRenamingPath}
@@ -375,9 +372,7 @@ export default function FileTree() {
               {actionError && (
                 <div className={styles.deleteError}>{actionError}</div>
               )}
-              {loadingTree ? (
-                <div className={styles.emptyHint}>加载中…</div>
-              ) : !currentWorkspace ? (
+              {loadingTree ? null : !currentWorkspace ? (
                 <div className={styles.emptyHint}>尚未打开文件夹</div>
               ) : tree.length === 0 ? (
                 <div className={styles.emptyHint}>工作区无可见文件</div>

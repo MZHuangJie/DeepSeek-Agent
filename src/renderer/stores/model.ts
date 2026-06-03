@@ -25,7 +25,7 @@ export const PROVIDERS: Record<ProviderKey, ProviderPreset> = {
   openai:     { label: 'OpenAI',             baseUrl: 'https://api.openai.com',                          defaultModel: 'gpt-4o',                  contextWindow: 128000,  multimodal: true },
   gemini:     { label: 'Google Gemini',      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.5-flash', contextWindow: 1048576, multimodal: true },
   anthropic:  { label: 'Anthropic Claude',   baseUrl: 'https://api.anthropic.com/v1',                     defaultModel: 'claude-sonnet-4-20250514', contextWindow: 200000,  multimodal: true },
-  deepseek:   { label: 'DeepSeek',           baseUrl: 'https://api.deepseek.com',                        defaultModel: 'deepseek-chat',            contextWindow: 64000,   multimodal: false },
+  deepseek:   { label: 'DeepSeek',           baseUrl: 'https://api.deepseek.com',                        defaultModel: 'deepseek-v4-flash',        contextWindow: 64000,   multimodal: false },
   qwen:       { label: '通义千问',            baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus',          contextWindow: 131072,  multimodal: true },
   zhipu:      { label: '智谱 GLM',           baseUrl: 'https://open.bigmodel.cn/api/paas/v4',            defaultModel: 'glm-4-plus',               contextWindow: 128000,  multimodal: true },
   moonshot:   { label: 'Moonshot',           baseUrl: 'https://api.moonshot.cn',                          defaultModel: 'moonshot-v1-8k',            contextWindow: 8000,    multimodal: false },
@@ -44,11 +44,11 @@ export interface ImageModelConfig {
 
 const DEFAULT_MODELS: ModelConfig[] = [
   {
-    id: 'deepseek-chat',
-    name: 'DeepSeek Chat',
+    id: 'deepseek-v4-flash',
+    name: 'DeepSeek V4 Flash',
     provider: 'deepseek',
     baseUrl: 'https://api.deepseek.com',
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-flash',
     contextWindow: 64000,
   },
   {
@@ -136,7 +136,7 @@ const DEFAULT_VISION_MODEL: VisionModelConfig = {
 
 export const useModelStore = create<ModelState>((set, get) => ({
   models: DEFAULT_MODELS,
-  activeModelId: 'deepseek-chat',
+  activeModelId: 'deepseek-v4-flash',
   imageModel: DEFAULT_IMAGE_MODEL,
   visionModel: DEFAULT_VISION_MODEL,
 

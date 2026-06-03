@@ -2,7 +2,11 @@ export interface ParseState {
   content: string;
   thinking: string;
   finishReason?: string;
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  usage?: {
+    prompt_tokens: number; completion_tokens: number; total_tokens: number;
+    prompt_cache_hit_tokens?: number;
+    prompt_cache_miss_tokens?: number;
+  };
   /** Accumulated tool calls keyed by index (streaming deltas) */
   toolCallsAccum: Map<number, { id: string; name: string; arguments: string }>;
   lastToolCallIndex: number;
@@ -13,7 +17,11 @@ export interface StreamResult {
   thinking: string;
   toolCalls: Array<{ id: string; name: string; arguments: string }>;
   finishReason?: string;
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  usage?: {
+    prompt_tokens: number; completion_tokens: number; total_tokens: number;
+    prompt_cache_hit_tokens?: number;
+    prompt_cache_miss_tokens?: number;
+  };
 }
 
 export interface StreamCallbacks {

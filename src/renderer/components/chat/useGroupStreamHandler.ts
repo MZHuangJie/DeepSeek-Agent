@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { useConversationStore } from '../../stores/conversationStore';
 import { useGroupChatStore } from '../../stores/groupChatStore';
+import { useAgentStore } from '../../stores/agent';
 import {
   parseRoleplayResponse,
   stripRoleplayReplyTags,
@@ -102,6 +103,19 @@ export function useGroupStreamHandler() {
         store.setStreaming(false);
         setGroupActive(false);
         setActiveSpeaker(null);
+        break;
+
+      case 'usage':
+        if (chunk.usage) {
+          const u = chunk.usage;
+          useAgentStore.getState().setMainTokenStats({
+            total: u.total, prompt: u.prompt, completion: u.completion,
+            toolTokens: 0, contextWindow: u.prompt, contextMax: 100000,
+            cost: parseFloat(((u.prompt * 0.00000196) + (u.completion * 0.00000798)).toFixed(4)),
+            promptCacheHit: u.promptCacheHit, promptCacheMiss: u.promptCacheMiss,
+            modelName: u.modelName,
+          });
+        }
         break;
 
       case 'director-thinking':

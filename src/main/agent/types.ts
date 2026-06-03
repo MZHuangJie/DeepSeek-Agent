@@ -39,6 +39,8 @@ export interface TokenUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  prompt_cache_hit_tokens?: number;
+  prompt_cache_miss_tokens?: number;
 }
 
 export type FinishReason = 'stop' | 'length' | 'tool_calls' | 'content_filter';

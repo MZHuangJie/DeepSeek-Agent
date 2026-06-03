@@ -79,15 +79,12 @@ export function setupFileHandlers() {
   ipcMain.handle('files:listTree', async () => {
     if (!currentWorkspace) return [];
     const result: Array<{ name: string; isDirectory: boolean; path: string; children?: typeof result }> = [];
-    const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '__pycache__', '.cache']);
     const MAX_DEPTH = 8;
     function walk(dir: string, depth: number) {
       if (depth > MAX_DEPTH) return [];
       const entries: typeof result = [];
       try {
         for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-          if (e.name.startsWith('.') && e.name !== '.env.example' && e.name !== '.gitignore') continue;
-          if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue;
           const fullPath = path.join(dir, e.name);
           const node: typeof result[number] = { name: e.name, isDirectory: e.isDirectory(), path: fullPath };
           if (e.isDirectory()) {
