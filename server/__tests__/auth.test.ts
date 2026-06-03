@@ -38,8 +38,7 @@ describe('user store', () => {
   });
 
   it('creates and finds users', async () => {
-    const { createUser, findUserByUsername, findUserById, loadStore } = await import('../db');
-    loadStore();
+    const { createUser, findUserByUsername, findUserById } = await import('../db');
     const user = createUser('testuser', 'hash');
     expect(user.username).toBe('testuser');
     expect(findUserByUsername('TestUser')?.id).toBe(user.id);

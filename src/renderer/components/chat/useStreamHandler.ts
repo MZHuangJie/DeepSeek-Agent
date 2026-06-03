@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import type { StreamChunk } from '../../types/stream';
 import { useChatStore } from '../../stores/chat';
 import { useAgentStore } from '../../stores/agent';
 import { useModeStore } from '../../stores/mode';
@@ -159,7 +160,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
     buffersRef.current.clear();
   }, []);
 
-  const handleChunk = (chunk: any) => {
+  const handleChunk = (chunk: StreamChunk) => {
     // 优先使用 IPC 消息中携带的 sessionId，支持多 tab 同时流式输出
     const sid = chunk.sessionId || targetSessionRef.current;
     if (!sid) return;
@@ -222,14 +223,14 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       });
     } else if (chunk.type === 'tool-result') {
       const current = lastMsg?.toolCalls ?? [];
-      const matchedIdx = current.reduceRight((found: number, tc: any, idx: number) => {
+      const matchedIdx = current.reduceRight((found: number, tc, idx: number) => {
         if (found >= 0) return found;
         if (tc.status === 'running' && tc.name === chunk.name) return idx;
         return -1;
       }, -1);
       const targetIdx = matchedIdx >= 0 ? matchedIdx : current.length - 1;
       updateLastAssistant({
-        toolCalls: current.map((tc: any, idx: number) =>
+        toolCalls: current.map((tc, idx: number) =>
           idx === targetIdx ? { ...tc, result: chunk.result, status: chunk.status } : tc
         ),
       }, sid);
@@ -267,7 +268,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
       });
       agentStore.setExploreProgress({
         readPercentage: chunk.readPercentage, readFileCount: chunk.readFileCount,
-        totalFiles: chunk.totalFiles, step: chunk.step, total: chunk.total,
+        totalFiles: chunk.totalFiles, step: chunk.step || 1, total: chunk.total || 1,
       });
     } else if (chunk.type === 'explore-warning') {
       const prev = useAgentStore.getState().exploreProgress;
@@ -275,7 +276,7 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
     } else if (chunk.type === 'sub-agent-start') {
       useAgentStore.getState().addSubAgent({
         id: chunk.taskId,
-        type: chunk.subAgentType,
+        type: chunk.subAgentType as 'explore' | 'analyze' | 'implement' | 'review',
         description: chunk.description || '',
         targetPath: chunk.targetPath || '',
         waveIndex: chunk.waveIndex,

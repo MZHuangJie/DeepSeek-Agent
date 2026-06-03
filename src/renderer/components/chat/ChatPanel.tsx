@@ -35,6 +35,7 @@ import ConfirmDialog from './ConfirmDialog';
 import ChoiceDialog from './ChoiceDialog';
 import { Command } from '../../commands';
 import { useStreamHandler } from './useStreamHandler';
+import type { HistoryEntry } from '../../types/stream';
 import { useGroupStreamHandler } from './useGroupStreamHandler';
 import shared from '../../styles/components.module.css';
 import { Virtuoso } from 'react-virtuoso';
@@ -107,7 +108,7 @@ export default function ChatPanel() {
     const currentSession = chat.sessions.find(s => s.id === chat.activeSessionId);
     const cast = resolveSessionCast(currentSession);
     const participants = getCharactersByIds(useRoleplayStore.getState().characters, cast.participantIds);
-    const history: any[] = [];
+    const history: HistoryEntry[] = [];
     for (const m of sourceMessages) {
       const meta = m.roleplayMeta as RoleplayMessageMeta | undefined;
       let messageContent: string | typeof m.contentParts = m.content;
@@ -125,7 +126,7 @@ export default function ChatPanel() {
       } else if (sendMode === 'roleplay' && m.role === 'assistant' && meta?.status) {
         messageContent = formatRoleplayMessageForHistory(m.content, meta.status);
       }
-      const entry: any = {
+      const entry: HistoryEntry = {
         role: m.role,
         content: messageContent,
       };
@@ -166,7 +167,7 @@ export default function ChatPanel() {
   }, [agentReset]);
 
   const invokeAgent = useCallback(async (opts: {
-    history: any[];
+    history: HistoryEntry[];
     newMessage: string;
     commandPrompt?: string;
     sessionId: string;
@@ -259,7 +260,7 @@ export default function ChatPanel() {
   const handleStreamChunkRef = useRef(handleStreamChunk);
   handleStreamChunkRef.current = handleStreamChunk;
   useEffect(() => {
-    const unsubscribe = window.api.agent.onStreamChunk((chunk) => handleStreamChunkRef.current(chunk));
+    const unsubscribe = window.api.agent.onStreamChunk((chunk) => handleStreamChunkRef.current(chunk as import('../../types/stream').StreamChunk));
     return () => { unsubscribe(); };
   }, []);
 
@@ -594,7 +595,7 @@ export default function ChatPanel() {
                 >✕</button>
               </div>
             </div>
-            <iframe srcDoc={webPreviewHtml} sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation" className={styles.webPreviewFrame} title="web preview" />
+            <iframe srcDoc={webPreviewHtml} sandbox="allow-scripts allow-forms allow-popups allow-top-navigation" className={styles.webPreviewFrame} title="web preview" />
           </div>
         )}
         {choiceReq && (

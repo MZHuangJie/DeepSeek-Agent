@@ -6,18 +6,19 @@
   "scripts": {
     "start": "tsx server/index.ts",
     "dev": "tsx watch server/index.ts",
-    "build": "tsc server/index.ts --outDir dist --esModuleInterop --module commonjs --target es2022 --skipLibCheck",
+    "build": "tsc --outDir dist --esModuleInterop --target es2022 --skipLibCheck --moduleResolution node --module commonjs server/**/*.ts",
     "serve": "node dist/server/index.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "express": "^5.1.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "@types/express": "^5.0.0",
+    "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.10",
     "@types/pg": "^8.11.11",

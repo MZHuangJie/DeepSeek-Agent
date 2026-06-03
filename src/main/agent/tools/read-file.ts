@@ -19,8 +19,8 @@ export function createReadFileTool(projectDir: string): ToolDef {
       required: ['path'],
     },
     execute: async (args) => {
-      checkSensitiveFile(args.path as string);
       const filePath = safeResolve(projectDir, args.path as string);
+      checkSensitiveFile(filePath);
       const content = fs.readFileSync(filePath, 'utf-8');
       const lines = content.split('\n');
       const start = ((args.offset as number) ?? 1) - 1;

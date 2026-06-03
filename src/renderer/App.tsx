@@ -150,18 +150,6 @@ export default function App() {
     if (!activeTermId) {
       createTerminal();
     }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        const state = useFilesStore.getState();
-        if (state.activeTab) {
-          state.saveFile(state.activeTab);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const getLanguage = (name: string): string => {

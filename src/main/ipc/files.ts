@@ -4,6 +4,7 @@ import path from 'path';
 import { getSetting, setSetting } from '../db/settings';
 import { syncTerminalCwd } from '../ipc/terminal';
 import { safeResolve, checkSensitiveFile } from '../agent/tools/security';
+import { validateExternalUrl } from '../security/url';
 
 let currentWorkspace = getSetting('last_workspace') || '';
 let fileWatcher: fs.FSWatcher | null = null;
@@ -266,8 +267,9 @@ export function setupFileHandlers() {
   });
 
   ipcMain.handle('files:fetchAsDataUrl', async (_event, url: string) => {
+    const validated = validateExternalUrl(url);
     return new Promise<string>((resolve, reject) => {
-      const req = net.request({ method: 'GET', url });
+      const req = net.request({ method: 'GET', url: validated.href });
       const chunks: Buffer[] = [];
       req.on('response', (res) => {
         const contentType = res.headers['content-type']?.[0] || 'image/png';

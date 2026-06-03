@@ -1,50 +1,148 @@
-import fs from 'fs';
 import { ipcMain, BrowserWindow } from 'electron';
-import { streamChat } from '../agent/client';
 import { buildCachePrefix, buildMessages } from '../agent/cache';
 import type { ContentPart } from '../agent/types';
-import { getToolsForMode, getToolSchemas, ToolDef } from '../agent/tools';
+import { getToolsForMode, getToolSchemas } from '../agent/tools';
 import type { MultiAgentRole } from '../agent/tools/index';
-import { normalizePlanTodos } from '../agent/tools/write-todos';
 import { buildProjectContext } from '../agent/context';
 import { SubAgentManager } from '../agent/sub-agent';
 import { getSystemPrompt, AgentMode } from '../agent/prompt';
-import { getSetting } from '../db/settings';
-import { resolveImageModelConfig } from '../services/image-model-config';
-import { errorLog, infoLog } from '../logger';
+import { resolveVisionConfig } from '../agent/vision-config';
+import { enrichMessageWithVisionDescriptions } from '../agent/image-preprocess';
+import { infoLog } from '../logger';
 import { compressToolResult } from '../agent/compression';
 import { buildExploreState, detectExploreMode, shouldContinueExplore, buildExploreNudge, buildExploreCompletionNudge } from '../agent/explore-monitor';
-import { AppError } from '../agent/errors';
 import { pluginManager } from '../plugin/manager';
-import { resolveVisionConfig, buildVisionToolContext } from '../agent/vision-config';
-import { enrichMessageWithVisionDescriptions } from '../agent/image-preprocess';
-
+import { runStreamChat } from './agent-stream';
+import { executeToolCalls, cleanupFileWatchers, ToolContext } from './agent-tools';
 
 const sessionAborts = new Map<string, AbortController>();
 const sessionSubAgents = new Map<string, SubAgentManager>();
-const fileWatchers = new Map<string, fs.FSWatcher>();
 
+function estimateTokens(str: string): number {
+  return Math.max(1, Math.ceil(str.length / 4));
+}
 
-function buildToolPreview(name: string, argsJson: string): string {
-  try {
-    const a = JSON.parse(argsJson || '{}');
-    if (name === 'write_file') {
-      const content = (a.content || '').slice(0, 3000);
-      return '文件: ' + (a.path || '?') + '\n\n' + content.split('\n').map((l: string) => '+ ' + l).join('\n') + (a.content && a.content.length > 3000 ? '\n+ ...(已截断)' : '');
+/** 构建 system prompt，含角色、插件、命令模式 */
+function buildSystemPrompt(
+  mode: AgentMode | undefined,
+  commandPrompt: string | undefined,
+  multiAgentRoles: MultiAgentRole[],
+  isMultiAgent: boolean,
+  isCharacterMode: boolean,
+): string {
+  const base = getSystemPrompt(mode);
+  const pluginPrompts = isCharacterMode ? '' : pluginManager.getSystemPrompts();
+
+  let rolesPrompt = '';
+  if (isMultiAgent && multiAgentRoles.length > 0) {
+    rolesPrompt = `\n\n## 可分派的角色（用于 spawn_role_agents 的 role_id）\n${multiAgentRoles.map(r => `- role_id: \`${r.id}\` ｜ 名称: ${r.name}${r.description ? ` ｜ 职责: ${r.description}` : ''}`).join('\n')}`;
+  } else if (isMultiAgent) {
+    rolesPrompt = '\n\n## 角色清单\n当前没有配置任何角色，请提示用户前往「系统设置 → Multi-Agent 角色」中创建后再分派任务。';
+  }
+
+  const baseWithRoles = base + rolesPrompt;
+  if (commandPrompt) {
+    return `${baseWithRoles}\n\n${pluginPrompts}\n\n## 当前命令模式\n${commandPrompt}`;
+  }
+  return pluginPrompts ? `${baseWithRoles}\n\n${pluginPrompts}` : baseWithRoles;
+}
+
+/** 上下文接近溢出时压缩早期工具调用结果 */
+function compressContextIfNeeded(
+  win: BrowserWindow,
+  sessionId: string,
+  messages: any[],
+  currentPrompt: number,
+  contextMax: number,
+): void {
+  if (currentPrompt <= contextMax * 0.8) return;
+
+  const toolIndices: number[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role === 'tool') toolIndices.push(i);
+  }
+
+  const compressCount = Math.floor(toolIndices.length * 0.5);
+  for (let i = 0; i < compressCount; i++) {
+    const idx = toolIndices[i];
+    if (typeof messages[idx].content === 'string' && messages[idx].content.length > 200) {
+      messages[idx].content = compressToolResult(messages[idx].content);
     }
-    if (name === 'edit_file') {
-      const oldStr = (a.old_string || '').slice(0, 1500);
-      const newStr = (a.new_string || '').slice(0, 1500);
-      let diff = '文件: ' + (a.path || '?') + '\n\n';
-      diff += oldStr.split('\n').map((l: string) => '- ' + l).join('\n') + '\n';
-      diff += newStr.split('\n').map((l: string) => '+ ' + l).join('\n');
-      if (a.old_string && a.old_string.length > 1500) diff += '\n- ...(已截断)';
-      if (a.new_string && a.new_string.length > 1500) diff += '\n+ ...(已截断)';
-      return diff;
+  }
+
+  win.webContents.send('agent:stream-chunk', {
+    sessionId, type: 'content',
+    text: `\n[系统提示：已压缩 ${compressCount} 个早期工具调用结果以节省上下文]\n`,
+  });
+}
+
+/** 空响应处理 + 探索模式判断 */
+function handleEmptyResponse(
+  win: BrowserWindow,
+  sessionId: string,
+  result: { content?: string; thinking?: string; finishReason?: string },
+  messages: any[],
+  turn: number,
+  maxTurns: number,
+  mode: AgentMode | undefined,
+  projectDir: string,
+): { shouldContinue: boolean; agentFailed: boolean; agentError?: string } {
+  // 保存 assistant 消息
+  if (result.content || result.thinking) {
+    const msg: any = { role: 'assistant', content: result.content || '' };
+    if (result.thinking) msg.reasoning_content = result.thinking;
+    messages.push(msg);
+  }
+
+  // 空响应：无 tool_calls
+  if (!result.content) {
+    if (result.finishReason === 'length') {
+      const hint = result.thinking
+        ? '模型在思考阶段就用完了 token 配额，没有生成正文。建议：拆分任务、缩减上下文，或换用更大输出预算的模型。'
+        : '模型输出被 max_tokens 截断且无内容。建议增加输出预算或简化提问。';
+      win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: hint });
+      return { shouldContinue: false, agentFailed: true, agentError: hint };
     }
-    if (name === 'bash') return '$ ' + (a.command || '?');
-  } catch {}
-  return argsJson || '';
+    if (!result.thinking) {
+      const msg = `模型返回空响应（finish_reason=${result.finishReason ?? '未知'}）。可能是上游临时故障，请重试。`;
+      win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: msg });
+      return { shouldContinue: false, agentFailed: true, agentError: msg };
+    }
+    // 只有 thinking 没 content
+    win.webContents.send('agent:stream-chunk', {
+      sessionId, type: 'content',
+      text: `\n[模型仅输出了思考过程，未生成正文。以下为思考内容摘要]\n${result.thinking.slice(0, 2000)}${result.thinking.length > 2000 ? '\n...(已截断)' : ''}\n`,
+    });
+  }
+
+  // 探索模式判断
+  if (mode !== 'roleplay' && detectExploreMode(messages, result.content || '')) {
+    const state = buildExploreState(messages, projectDir);
+    win.webContents.send('agent:stream-chunk', {
+      sessionId, type: 'explore-progress',
+      readPercentage: state.readPercentage, readFileCount: state.uniqueReadCount,
+      totalFiles: state.totalFiles, step: turn + 1, total: maxTurns,
+    });
+
+    if (shouldContinueExplore(state)) {
+      messages.push({ role: 'user', content: buildExploreNudge(state, turn, maxTurns) });
+      return { shouldContinue: true, agentFailed: false };
+    }
+
+    if (state.readPercentage >= 80 && (!result.content || result.content.length < 100)) {
+      messages.push({ role: 'user', content: buildExploreCompletionNudge(state) });
+      return { shouldContinue: true, agentFailed: false };
+    }
+
+    if (turn >= maxTurns - 1 && state.readPercentage < 80) {
+      win.webContents.send('agent:stream-chunk', {
+        sessionId, type: 'explore-warning',
+        warning: `已达到最大轮次限制（${maxTurns}轮），已读取 ${state.readPercentage}% 的文件（${state.uniqueReadCount}/${state.totalFiles}）`,
+      });
+    }
+  }
+
+  return { shouldContinue: false, agentFailed: false };
 }
 
 export function setupAgentHandlers() {
@@ -67,7 +165,7 @@ export function setupAgentHandlers() {
 
     const { sessionId = 'default' } = payload;
 
-    // 如果同 session 已有运行中的请求，先取消旧的
+    // 同 session 已有运行中请求 → 取消旧的
     const oldAbort = sessionAborts.get(sessionId);
     if (oldAbort) {
       oldAbort.abort();
@@ -79,504 +177,132 @@ export function setupAgentHandlers() {
     const abortController = new AbortController();
     sessionAborts.set(sessionId, abortController);
 
-    infoLog('agent', 'send-start', { sessionId, model: payload.model, mode: payload.mode, provider: (payload as any).provider, msgCount: payload.messages.length, newMsgLen: typeof payload.newMessage === 'string' ? payload.newMessage.length : payload.newMessage.length });
+    infoLog('agent', 'send-start', { sessionId, model: payload.model, mode: payload.mode, msgCount: payload.messages.length });
 
     try {
+      // === 准备阶段 ===
+      const isCharacterMode = payload.mode === 'roleplay';
+      const isMultiAgent = payload.mode === 'multi-agent';
+      const multiAgentRoles = isMultiAgent ? (payload.roles ?? []) : [];
+      const projectContext = isCharacterMode ? '' : buildProjectContext(payload.projectDir);
+
+      const subAgentManager = new SubAgentManager(win);
+      sessionSubAgents.set(sessionId, subAgentManager);
+
       const tools = getToolsForMode(payload.mode, payload.projectDir);
-    const isCharacterMode = payload.mode === 'roleplay';
-    const isMultiAgent = payload.mode === 'multi-agent';
-    const multiAgentRoles = isMultiAgent ? (payload.roles ?? []) : [];
-    const projectContext = isCharacterMode ? '' : buildProjectContext(payload.projectDir);
-    const subAgentManager = new SubAgentManager(win);
-    sessionSubAgents.set(sessionId, subAgentManager);
+      const fullSystemPrompt = buildSystemPrompt(payload.mode, payload.commandPrompt, multiAgentRoles, isMultiAgent, isCharacterMode);
+      const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
 
-    // 根据模式选择 system prompt，命令 prompt 追加在后
-    const baseSystemPrompt = getSystemPrompt(payload.mode);
-    const pluginPrompts = isCharacterMode ? '' : pluginManager.getSystemPrompts();
-    // Multi-Agent 模式：把可分派的角色清单注入协调者 prompt
-    const rolesPrompt = isMultiAgent && multiAgentRoles.length > 0
-      ? `\n\n## 可分派的角色（用于 spawn_role_agents 的 role_id）\n${multiAgentRoles.map(r => `- role_id: \`${r.id}\` ｜ 名称: ${r.name}${r.description ? ` ｜ 职责: ${r.description}` : ''}`).join('\n')}`
-      : isMultiAgent
-        ? '\n\n## 角色清单\n当前没有配置任何角色，请提示用户前往「系统设置 → Multi-Agent 角色」中创建后再分派任务。'
-        : '';
-    const baseWithRoles = baseSystemPrompt + rolesPrompt;
-    const fullSystemPrompt = payload.commandPrompt
-      ? `${baseWithRoles}\n\n${pluginPrompts}\n\n## 当前命令模式\n${payload.commandPrompt}`
-      : pluginPrompts ? `${baseWithRoles}\n\n${pluginPrompts}` : baseWithRoles;
+      const modelConfig = { model: payload.model || 'deepseek-chat', baseUrl: payload.baseUrl ?? 'https://api.deepseek.com' };
+      const visionConfig = resolveVisionConfig(modelConfig, payload.apiKey, { providerMultimodal: payload.providerMultimodal });
 
-    const prefix = buildCachePrefix(fullSystemPrompt, projectContext);
-
-    const modelConfig = {
-      model: payload.model || 'deepseek-chat',
-      baseUrl: payload.baseUrl ?? 'https://api.deepseek.com',
-    };
-
-    const visionConfig = resolveVisionConfig(modelConfig, payload.apiKey, {
-      providerMultimodal: payload.providerMultimodal,
-    });
-
-    let processedNewMessage: string | ContentPart[] = payload.newMessage;
-    const isMultimodalMessage = Array.isArray(payload.newMessage);
-    if (!payload.providerMultimodal && !isMultimodalMessage && visionConfig) {
-      if (abortController.signal.aborted) {
-        sessionAborts.delete(sessionId);
-        sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
-        sessionSubAgents.delete(sessionId);
-        return { success: false, error: '已取消' };
-      }
-      processedNewMessage = await enrichMessageWithVisionDescriptions(
-        payload.newMessage,
-        visionConfig,
-        abortController.signal,
-      );
-    }
-
-    let messages: any[] = buildMessages(prefix, payload.messages, processedNewMessage);
-
-    infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length, ctxLen: prefix.projectContext.length });
-    const enableTools = payload.mode !== 'roleplay';
-    const toolSchemas = getToolSchemas(tools);
-
-    let totalPrompt = 0;
-    let totalCompletion = 0;
-    let totalTokens = 0;
-    let totalToolTokens = 0;
-
-    // 粗略估算工具调用 token：字符数 / 4（OpenAI tokenizer 近似值）
-    function estimateTokens(str: string): number {
-      return Math.max(1, Math.ceil(str.length / 4));
-    }
-
-    // 截断 tool result 中的 base64 图片数据，防止上下文膨胀
-    function truncateToolResult(result: string): string {
-      const base64Regex = /data:image\/\w+;base64,[A-Za-z0-9+/=]{500,}/g;
-      if (!base64Regex.test(result)) return result;
-      base64Regex.lastIndex = 0;
-      return result.replace(base64Regex, (match) =>
-        match.slice(0, 80) + `...[base64数据已截断，原长度${match.length}字符]`
-      );
-    }
-
-    // 固定最大轮次：编程模式 50 轮，非编程模式 1 轮
-    const maxTurns = enableTools ? 50 : 1;
-    let agentFailed = false;
-    let agentError: string | undefined;
-
-    for (let turn = 0; turn < maxTurns; turn++) {
-      if (abortController.signal.aborted) break;
-
-      let result;
-      // 主进程侧批量发送 content/thinking，每 16ms 一次，减少 IPC 消息量
-      let contentBuf = '';
-      let thinkingBuf = '';
-      let flushTimer: ReturnType<typeof setInterval> | null = null;
-      function flushStreamBuf() {
-        if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
-        if (win.isDestroyed()) return;
-        if (contentBuf) {
-          win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
-          contentBuf = '';
+      let processedNewMessage: string | ContentPart[] = payload.newMessage;
+      if (!payload.providerMultimodal && !Array.isArray(payload.newMessage) && visionConfig) {
+        if (abortController.signal.aborted) {
+          cleanupSession(sessionId);
+          return { success: false, error: '已取消' };
         }
-        if (thinkingBuf) {
-          win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
-          thinkingBuf = '';
-        }
+        processedNewMessage = await enrichMessageWithVisionDescriptions(payload.newMessage, visionConfig, abortController.signal);
       }
 
-      try {
-        flushTimer = setInterval(() => {
-          if (win.isDestroyed()) return;
-          if (contentBuf) {
-            win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: turn + 1, total: maxTurns });
-            contentBuf = '';
-          }
-          if (thinkingBuf) {
-            win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf, step: turn + 1, total: maxTurns });
-            thinkingBuf = '';
-          }
-        }, 16);
+      const messages: any[] = buildMessages(prefix, payload.messages, processedNewMessage);
+      infoLog('agent', 'messages-built', { msgCount: messages.length, sysPromptLen: prefix.systemPrompt.length });
 
-        result = await streamChat(
-          payload.apiKey,
-          messages,
-          toolSchemas,
-          modelConfig,
-          {
-            onContent: (text) => { contentBuf += text; },
-            onThinking: (text) => { thinkingBuf += text; },
-          },
-          abortController.signal
-        );
-        flushStreamBuf();
-      } catch (err: any) {
-        flushStreamBuf();
+      const enableTools = payload.mode !== 'roleplay';
+      const toolSchemas = getToolSchemas(tools);
+
+      let totalPrompt = 0, totalCompletion = 0, totalTokens = 0, totalToolTokens = 0;
+      const maxTurns = enableTools ? 50 : 1;
+      let agentFailed = false, agentError: string | undefined;
+
+      // === 主循环 ===
+      for (let turn = 0; turn < maxTurns; turn++) {
         if (abortController.signal.aborted) break;
-        const message = err instanceof AppError ? err.userMessage : (err?.message || String(err));
 
-        // 上下文溢出时，激进压缩消息后重试一次
-        const isContextOverflow = message.includes('maximum context length');
-        if (isContextOverflow) {
-          // 先截断过长的 system 消息
-          for (let i = 0; i < messages.length; i++) {
-            if (messages[i].role === 'system' && typeof messages[i].content === 'string' && messages[i].content.length > 500) {
-              messages[i].content = messages[i].content.slice(0, 500) + '\n...[已截断]...';
-            }
-          }
-          // 再压缩所有 tool 消息
-          let compressed = 0;
-          for (let i = 0; i < messages.length; i++) {
-            if (messages[i].role === 'tool' && typeof messages[i].content === 'string' && messages[i].content.length > 100) {
-              messages[i].content = compressToolResult(messages[i].content);
-              compressed++;
-            }
-          }
-          win.webContents.send('agent:stream-chunk', { sessionId,
-            type: 'content',
-            text: `\n[系统提示：上下文溢出（${message.match(/requested (\d+)/)?.[1] || '?'} tokens），已压缩 ${compressed} 个工具调用结果，正在重试...]\n`,
-            step: turn + 1,
-            total: maxTurns,
-          });
-
-          // 重试本次 API 调用
-          try {
-            result = await streamChat(
-              payload.apiKey,
-              messages,
-              toolSchemas,
-              modelConfig,
-              {
-                onContent: (text) => {
-                  win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text, step: turn + 1, total: maxTurns });
-                },
-                onThinking: (text) => {
-                  win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text, step: turn + 1, total: maxTurns });
-                },
-              },
-              abortController.signal
-            );
-          } catch (retryErr: any) {
-            if (abortController.signal.aborted) break;
-            const retryMsg = retryErr?.message || String(retryErr);
-            win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: retryMsg });
-            win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
-            sessionAborts.delete(sessionId);
-            sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
-            sessionSubAgents.delete(sessionId);
-            return { success: false, error: retryMsg };
-          }
-          // 重试成功，跳过原来的 error 发送
-        } else {
-          win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message });
+        // API 调用（含重试和流式缓冲）
+        let result;
+        try {
+          result = await runStreamChat(
+            win, sessionId, payload.apiKey, messages, toolSchemas, modelConfig,
+            abortController.signal, turn + 1, maxTurns,
+          );
+        } catch (err: any) {
+          if (abortController.signal.aborted) break;
+          const msg = err?.message || String(err);
+          win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: msg });
           win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
-          sessionAborts.delete(sessionId);
-          sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
-          sessionSubAgents.delete(sessionId);
-          return { success: false, error: message };
+          cleanupSession(sessionId);
+          return { success: false, error: msg };
         }
-      }
 
-      if (abortController.signal.aborted) break;
+        if (abortController.signal.aborted) break;
 
-      if (result.usage) {
-        totalPrompt += result.usage.prompt_tokens;
-        totalCompletion += result.usage.completion_tokens;
-        totalTokens += result.usage.total_tokens;
-        const currentPrompt = result.usage.prompt_tokens;
-        win.webContents.send('agent:stream-chunk', { sessionId,
-          type: 'usage',
-          prompt: totalPrompt,
-          completion: totalCompletion,
-          total: totalTokens,
-          toolTokens: totalToolTokens,
-          currentPrompt,
+        // Token 统计 + 上下文压缩
+        if (result.usage) {
+          totalPrompt += result.usage.prompt_tokens;
+          totalCompletion += result.usage.completion_tokens;
+          totalTokens += result.usage.total_tokens;
+          win.webContents.send('agent:stream-chunk', {
+            sessionId, type: 'usage',
+            prompt: totalPrompt, completion: totalCompletion, total: totalTokens,
+            toolTokens: totalToolTokens, currentPrompt: result.usage.prompt_tokens,
+            contextMax: payload.contextMax || 100000,
+          });
+          compressContextIfNeeded(win, sessionId, messages, result.usage.prompt_tokens, payload.contextMax || 100000);
+        }
+
+        // 无工具调用 → 最终回复
+        if (result.toolCalls.length === 0) {
+          const { shouldContinue, agentFailed: failed, agentError: err } = handleEmptyResponse(
+            win, sessionId, result, messages, turn, maxTurns, payload.mode, payload.projectDir,
+          );
+          if (failed) { agentFailed = true; agentError = err; break; }
+          if (shouldContinue) continue;
+          break;
+        }
+
+        // 有工具调用 → 执行
+        const assistantToolCalls = result.toolCalls.map(tc => ({
+          id: tc.id, type: 'function' as const,
+          function: { name: tc.name, arguments: tc.arguments },
+        }));
+        const toolMsg: any = { role: 'assistant', content: result.content || '', tool_calls: assistantToolCalls };
+        if (result.thinking) toolMsg.reasoning_content = result.thinking;
+        messages.push(toolMsg);
+
+        const ctx: ToolContext = {
+          apiKey: payload.apiKey,
+          modelConfig,
           contextMax: payload.contextMax || 100000,
-        });
+          subAgentManager,
+          signal: abortController.signal,
+          projectDir: payload.projectDir,
+          imageModelConfig: null, // 延迟解析
+          visionModelConfig: null,
+          multiAgentRoles,
+        };
 
-        // 上下文压缩：当接近上下文限制时（80%），压缩早期的工具调用结果
-        const contextMax = payload.contextMax || 100000;
-        if (currentPrompt > contextMax * 0.8) {
-          // 找到所有 tool 角色的消息
-          const toolMessageIndices: number[] = [];
-          for (let i = 0; i < messages.length; i++) {
-            if (messages[i].role === 'tool') {
-              toolMessageIndices.push(i);
-            }
-          }
-
-          // 压缩前 50% 的工具调用结果
-          const compressCount = Math.floor(toolMessageIndices.length * 0.5);
-          for (let i = 0; i < compressCount; i++) {
-            const idx = toolMessageIndices[i];
-            const originalContent = messages[idx].content;
-            if (typeof originalContent === 'string' && originalContent.length > 200) {
-              messages[idx].content = compressToolResult(originalContent);
-            }
-          }
-
-          win.webContents.send('agent:stream-chunk', { sessionId,
-            type: 'content',
-            text: `\n[系统提示：已压缩 ${compressCount} 个早期工具调用结果以节省上下文]\n`,
-          });
-        }
+        const { toolMessages, totalToolTokens: toolTokens } = await executeToolCalls(
+          win, sessionId, event, tools,
+          result.toolCalls.map(tc => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
+          ctx, abortController, turn + 1, maxTurns,
+        );
+        totalToolTokens += toolTokens;
+        messages.push(...toolMessages);
       }
 
-      if (result.toolCalls.length === 0) {
-        // 处理空响应：thinking 模型可能撞 max_tokens 后 content 为空，或 API 返回了空体
-        if (!result.content) {
-          if (result.finishReason === 'length') {
-            const hint = result.thinking
-              ? '模型在思考阶段就用完了 token 配额，没有生成正文。建议：拆分任务、缩减上下文，或换用更大输出预算的模型。'
-              : '模型输出被 max_tokens 截断且无内容。建议增加输出预算或简化提问。';
-            win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message: hint });
-            agentFailed = true;
-            agentError = hint;
-            break;
-          }
-          if (!result.thinking) {
-            win.webContents.send('agent:stream-chunk', { sessionId,
-              type: 'error',
-              message: `模型返回空响应（finish_reason=${result.finishReason ?? '未知'}）。可能是上游临时故障，请重试。`,
-            });
-            agentFailed = true;
-            agentError = `模型返回空响应（finish_reason=${result.finishReason ?? '未知'}）`;
-            break;
-          }
-          // 只有 thinking 没 content：把 thinking 当作回复展示，避免空白
-          win.webContents.send('agent:stream-chunk', { sessionId,
-            type: 'content',
-            text: `\n[模型仅输出了思考过程，未生成正文。以下为思考内容摘要]\n${result.thinking.slice(0, 2000)}${result.thinking.length > 2000 ? '\n...(已截断)' : ''}\n`,
-          });
-        }
+      // === 清理 ===
+      cleanupSession(sessionId);
+      cleanupFileWatchers();
+      win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
+      if (agentFailed) return { success: false, error: agentError || 'Agent 执行失败' };
+      return { success: true };
 
-        // 模型给出最终回复，推入 messages 以保存对话历史
-        if (result.content || result.thinking) {
-          const assistantMsg: any = {
-            role: 'assistant',
-            content: result.content || '',
-          };
-          if (result.thinking) {
-            assistantMsg.reasoning_content = result.thinking;
-          }
-          messages.push(assistantMsg);
-        }
-
-        if (payload.mode !== 'roleplay' && detectExploreMode(messages, result.content || '')) {
-          const exploreState = buildExploreState(messages, payload.projectDir);
-
-          win.webContents.send('agent:stream-chunk', { sessionId,
-            type: 'explore-progress',
-            readPercentage: exploreState.readPercentage,
-            readFileCount: exploreState.uniqueReadCount,
-            totalFiles: exploreState.totalFiles,
-            step: turn + 1,
-            total: maxTurns,
-          });
-
-          if (shouldContinueExplore(exploreState)) {
-            messages.push({ role: 'user', content: buildExploreNudge(exploreState, turn, maxTurns) });
-            continue;
-          }
-
-          if (exploreState.readPercentage >= 80 && (!result.content || result.content.length < 100)) {
-            messages.push({ role: 'user', content: buildExploreCompletionNudge(exploreState) });
-            continue;
-          }
-
-          if (turn >= maxTurns - 1 && exploreState.readPercentage < 80) {
-            win.webContents.send('agent:stream-chunk', { sessionId,
-              type: 'explore-warning',
-              warning: `已达到最大轮次限制（${maxTurns}轮），已读取 ${exploreState.readPercentage}% 的文件（${exploreState.uniqueReadCount}/${exploreState.totalFiles}）`,
-            });
-          }
-        }
-
-        break;
-      }
-
-      const assistantToolCalls = result.toolCalls.map((tc) => ({
-        id: tc.id,
-        type: 'function' as const,
-        function: { name: tc.name, arguments: tc.arguments },
-      }));
-      const toolMsg: any = {
-        role: 'assistant',
-        content: result.content || '',
-        tool_calls: assistantToolCalls,
-      };
-      if (result.thinking) {
-        toolMsg.reasoning_content = result.thinking;
-      }
-      messages.push(toolMsg);
-
-      for (const tc of result.toolCalls) {
-        const tool = tools.find(t => t.name === tc.name);
-        let toolResult = '';
-        let status: 'success' | 'error' = 'success';
-        if (!tool) {
-          toolResult = `未知工具: ${tc.name}`;
-          status = 'error';
-        } else {
-          try {
-            const args = JSON.parse(tc.arguments || '{}');
-
-            // 需要用户确认的工具：先发确认请求，再发 tool-call 事件
-            if (tool.requiresConfirm) {
-              const approved = await new Promise<boolean>((resolve) => {
-                const confirmId = `confirm-${Date.now()}`;
-                const preview = buildToolPreview(tc.name, tc.arguments); win.webContents.send('agent:confirm-request', { confirmId, name: tc.name, args: preview });
-                let cleaned = false;
-                const cleanup = () => {
-                  if (cleaned) return;
-                  cleaned = true;
-                  ipcMain.removeListener('agent:confirm-response', handler);
-                  abortController.signal.removeEventListener('abort', onAbort);
-                };
-                const handler = (ev: Electron.IpcMainEvent, resp: { confirmId: string; approved: boolean }) => {
-                  if (ev.sender !== event.sender) return;
-                  if (resp.confirmId === confirmId) {
-                    cleanup();
-                    resolve(resp.approved);
-                  }
-                };
-                const onAbort = () => {
-                  cleanup();
-                  resolve(false);
-                };
-                ipcMain.on('agent:confirm-response', handler);
-                abortController.signal.addEventListener('abort', onAbort);
-              });
-              if (!approved) {
-                toolResult = '用户拒绝了此操作';
-                status = 'error';
-                win.webContents.send('agent:stream-chunk', { sessionId, type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
-                win.webContents.send('agent:stream-chunk', { sessionId, type: 'tool-result', name: tc.name, result: toolResult, status, step: turn + 1, total: maxTurns });
-                const truncatedResult = truncateToolResult(toolResult);
-                totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(truncatedResult);
-                messages.push({ role: 'tool', tool_call_id: tc.id, content: truncatedResult });
-                continue;
-              }
-            }
-
-            // 发送 tool-call 事件（确认后或无需确认的工具）
-            win.webContents.send('agent:stream-chunk', { sessionId, type: 'tool-call', name: tc.name, args: tc.arguments, step: turn + 1, total: maxTurns });
-
-            const imageModelRaw = getSetting('imageModel');
-            const imageModelConfig = resolveImageModelConfig(imageModelRaw, payload.apiKey);
-            if (abortController.signal.aborted) break;
-
-            const toolContext = {
-              apiKey: payload.apiKey,
-              modelConfig: {
-                model: modelConfig.model,
-                baseUrl: modelConfig.baseUrl,
-              },
-              contextMax: payload.contextMax || 100000,
-              subAgentManager,
-              signal: abortController.signal,
-              projectDir: payload.projectDir,
-              imageModelConfig,
-              visionModelConfig: buildVisionToolContext(modelConfig, payload.apiKey, payload.providerMultimodal),
-              multiAgentRoles,
-            };
-            toolResult = await tool.execute(args, toolContext);
-          } catch (err: any) {
-            toolResult = err.message;
-            status = 'error';
-          }
-        }
-        win.webContents.send('agent:stream-chunk', { sessionId,
-          type: 'tool-result',
-          name: tc.name,
-          result: toolResult,
-          status,
-          step: turn + 1,
-          total: maxTurns,
-        });
-        const truncatedResult = truncateToolResult(toolResult);
-        totalToolTokens += estimateTokens(tc.arguments || '') + estimateTokens(truncatedResult);
-        messages.push({
-          role: 'tool',
-          tool_call_id: tc.id,
-          content: truncatedResult,
-        });
-
-        if (tc.name === 'spawn_sub_agent' || tc.name === 'auto_decompose_task' || tc.name === 'spawn_role_agents') {
-          messages.push({
-            role: 'user',
-            content: '子代理/角色代理工具调用已结束。请阅读上方 tool 返回中的成功/失败详情，现在立刻向用户输出完整汇总（必须说明失败原因与后续计划），不要再次调用分派类工具。',
-          });
-        }
-
-        // write_todos：把任务清单转发给前端渲染（Plan 计划清单 / 执行进度勾选）
-        if (tc.name === 'write_todos' && status === 'success') {
-          try {
-            const parsed = JSON.parse(tc.arguments || '{}');
-            const todos = normalizePlanTodos(parsed.todos);
-            if (todos.length > 0) {
-              win.webContents.send('agent:stream-chunk', { sessionId,
-                type: 'plan-todos',
-                todos,
-                planDocPath: typeof parsed.plan_doc_path === 'string' ? parsed.plan_doc_path : undefined,
-              });
-            }
-          } catch { /* ignore malformed args */ }
-        }
-
-        // present_web inline / watch 模式
-        if (tc.name === 'present_web' && status === 'success') {
-          try {
-            const parsed = JSON.parse(toolResult || '{}');
-            if (parsed.opened === 'watch' && typeof parsed.file === 'string') {
-              const filePath = parsed.file;
-              if (fileWatchers.has(filePath)) {
-                fileWatchers.get(filePath)!.close();
-              }
-              // 发送初始 HTML（从工具返回值获取）
-              if (typeof parsed.initialHtml === 'string') {
-                win.webContents.send('agent:stream-chunk', { sessionId, type: 'web-preview', html: parsed.initialHtml, file: filePath });
-              }
-              // 启动文件监听
-              const watcher = fs.watch(filePath, () => {
-                try {
-                  const updated = fs.readFileSync(filePath, 'utf-8');
-                  win.webContents.send('agent:stream-chunk', { sessionId, type: 'web-preview', html: updated, file: filePath });
-                } catch { /* file may be temporarily locked */ }
-              });
-              fileWatchers.set(filePath, watcher);
-              infoLog('agent', 'web-preview-watch', { file: filePath });
-            } else if (parsed.opened === 'inline' && typeof parsed.html === 'string') {
-              win.webContents.send('agent:stream-chunk', { sessionId, type: 'web-preview', html: parsed.html });
-              infoLog('agent', 'web-preview-inline', { htmlLen: parsed.html.length });
-            }
-          } catch (e: any) {
-            errorLog('agent', 'web-preview-parse-error', { error: e?.message });
-          }
-        }
-      }
-      // 工具执行完毕，静默继续下一轮（不再往聊天里刷提示）
-    }
-
-    // 收集本次对话中修改过的文件
-    sessionAborts.delete(sessionId);
-    sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
-    sessionSubAgents.delete(sessionId);
-    for (const w of fileWatchers.values()) { w.close(); }
-    fileWatchers.clear();
-    win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
-    if (agentFailed) {
-      return { success: false, error: agentError || 'Agent 执行失败' };
-    }
-    return { success: true };
     } catch (err: any) {
       const message = err?.message || String(err);
-      win.webContents.send('agent:stream-chunk', { sessionId,
-        type: 'error',
-        message,
-      });
+      win.webContents.send('agent:stream-chunk', { sessionId, type: 'error', message });
       win.webContents.send('agent:stream-chunk', { sessionId, type: 'done' });
-      sessionAborts.delete(sessionId);
-      sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
-      sessionSubAgents.delete(sessionId);
+      cleanupSession(sessionId);
       return { success: false, error: message };
     }
   });
@@ -584,9 +310,13 @@ export function setupAgentHandlers() {
   ipcMain.handle('agent:cancel', async (_event, sessionId?: string) => {
     const id = sessionId || 'default';
     sessionAborts.get(id)?.abort();
-    sessionAborts.delete(id);
-    sessionSubAgents.get(id)?.cancelAllSubAgents();
-    sessionSubAgents.delete(id);
+    cleanupSession(id);
     return { success: true };
   });
+}
+
+function cleanupSession(sessionId: string) {
+  sessionAborts.delete(sessionId);
+  sessionSubAgents.get(sessionId)?.cancelAllSubAgents();
+  sessionSubAgents.delete(sessionId);
 }

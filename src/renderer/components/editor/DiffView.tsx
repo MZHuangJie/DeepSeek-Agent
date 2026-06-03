@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DiffEditor, loader } from '@monaco-editor/react';
 
 try {
-  loader.config({ paths: { vs: '/vs' } });
+  loader.config({ paths: { vs: './vs' } });
 } catch (e) {
   console.error('[Monaco Diff] loader.config failed:', e);
 }

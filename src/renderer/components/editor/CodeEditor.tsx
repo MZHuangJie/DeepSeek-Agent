@@ -4,7 +4,7 @@ import { useEditorStore } from '../../stores/editor';
 
 // 配置 Monaco 从本地 public/vs 加载
 try {
-  loader.config({ paths: { vs: '/vs' } });
+  loader.config({ paths: { vs: './vs' } });
 } catch (e) {
   console.error('[Monaco] loader.config failed:', e);
 }

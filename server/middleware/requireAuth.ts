@@ -15,7 +15,9 @@ declare global {
 }
 
 function getJwtSecret(): string {
-  return process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET 未设置');
+  return secret;
 }
 
 export function signToken(payload: AuthPayload): string {

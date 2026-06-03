@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import path from 'path';
+import { validateExternalUrl } from '../security/url';
 
 const browserWindows = new Map<number, BrowserWindow>();
 
@@ -29,6 +30,7 @@ export function setupBrowserHandlers() {
     browserWindows.set(id, win);
 
     const targetUrl = url || 'https://www.google.com';
+    validateExternalUrl(targetUrl);
     win.loadURL(targetUrl);
 
     // 注入导航控制脚本
@@ -59,6 +61,7 @@ export function setupBrowserHandlers() {
   ipcMain.handle('browser:navigate', async (_event, id: number, url: string) => {
     const win = browserWindows.get(id);
     if (win && !win.isDestroyed()) {
+      validateExternalUrl(url);
       win.loadURL(url);
       return true;
     }

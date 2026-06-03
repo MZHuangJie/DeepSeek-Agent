@@ -50,13 +50,9 @@ router.post('/login', async (req, res) => {
   if (!user && username.includes('@')) {
     user = await findUserByEmail(username);
   }
-  if (!user) {
-    res.status(401).json({ error: '用户不存在' });
-    return;
-  }
-  const ok = await bcrypt.compare(password, user.password_hash);
-  if (!ok) {
-    res.status(401).json({ error: '密码错误' });
+  const ok = user ? await bcrypt.compare(password, user.password_hash) : false;
+  if (!user || !ok) {
+    res.status(401).json({ error: '用户名或密码错误' });
     return;
   }
   const token = signToken({ userId: user.id, username: user.username });

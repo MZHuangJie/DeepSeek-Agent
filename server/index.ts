@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import path from 'path';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { initDb } from './db';
 import authRouter from './routes/auth';
 import syncRouter from './routes/sync';
@@ -15,19 +16,39 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use('/ds/images', express.static(path.join(import.meta.dirname, 'public', 'images')));
 
-const jwtSecret = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
-if (jwtSecret.length < 16 || jwtSecret.includes('change-me')) {
-  console.warn('[server] 警告: JWT_SECRET 过弱或为默认值，生产环境请务必修改');
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret || jwtSecret.length < 16) {
+  console.error('[server] FATAL: JWT_SECRET 未设置或过短（至少 16 字符），拒绝启动');
+  process.exit(1);
 }
+
+// 全局限流
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '请求过于频繁，请稍后再试' },
+});
+app.use(globalLimiter);
+
+// 敏感路由严格限流
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '操作过于频繁，请稍后再试' },
+});
 
 app.get(`${API_PREFIX}/health`, (_req, res) => {
   res.json({ ok: true });
 });
 
-app.use(`${API_PREFIX}/auth`, authRouter);
+app.use(`${API_PREFIX}/auth`, strictLimiter, authRouter);
+app.use(`${API_PREFIX}/images`, strictLimiter, imagesRouter);
 app.use(`${API_PREFIX}/sync`, syncRouter);
 app.use(`${API_PREFIX}/square`, squareRouter);
-app.use(`${API_PREFIX}/images`, imagesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

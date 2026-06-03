@@ -1,6 +1,7 @@
 // src/renderer/stores/conversationStore.ts
 import { create } from 'zustand';
 import type { Conversation, ConversationMember, ConversationType, Message, DriverConfig } from '../../common/conversation';
+import type { RawConversationRow } from '../types/stream';
 import { useModeStore } from './mode';
 import type { AgentRole } from './agentRoles';
 
@@ -132,7 +133,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     try {
       const raw = await window.api.conversations.loadAll();
       if (raw && Array.isArray(raw)) {
-        const conversations: Conversation[] = raw.map((r: any) => {
+        const conversations: Conversation[] = raw.map((r: RawConversationRow) => {
           const payload = parseConversationPayload(r.payload);
           return {
             id: r.id,

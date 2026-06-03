@@ -34,9 +34,13 @@ router.post('/upload', requireAuth, async (req, res) => {
     }
 
     const ext = mimeToExt(mime);
+    if (!ext) {
+      res.status(400).json({ error: '不支持的图片格式' });
+      return;
+    }
     const name = `${crypto.randomUUID()}${ext}`;
     const dest = path.join(PUBLIC_DIR, name);
-    fs.writeFileSync(dest, buf);
+    await fs.promises.writeFile(dest, buf);
 
     const url = `/ds/images/${name}`;
     console.log(`[images] uploaded ${buf.length} bytes -> ${url}`);
@@ -52,7 +56,7 @@ function mimeToExt(mime: string): string {
   if (mime.includes('webp')) return '.webp';
   if (mime.includes('gif')) return '.gif';
   if (mime.includes('svg')) return '.svg';
-  return '.png';
+  return ''; // 未知 MIME 拒绝上传
 }
 
 export default router;

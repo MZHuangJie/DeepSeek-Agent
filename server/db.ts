@@ -31,10 +31,10 @@ export async function initDb(): Promise<void> {
   // 兼容已有表
   try {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`);
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('[db] 迁移列失败 (可忽略):', (e as Error).message); }
   try {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT`);
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('[db] 迁移列失败 (可忽略):', (e as Error).message); }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS cloud_sessions (
@@ -63,10 +63,10 @@ export async function initDb(): Promise<void> {
   // 兼容已有表（旧版本缺少的列）
   try {
     await pool.query(`ALTER TABLE cloud_characters ADD COLUMN IF NOT EXISTS shared BOOLEAN NOT NULL DEFAULT FALSE`);
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('[db] 迁移列失败 (可忽略):', (e as Error).message); }
   try {
     await pool.query(`ALTER TABLE cloud_characters ADD COLUMN IF NOT EXISTS heat INT NOT NULL DEFAULT 0`);
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('[db] 迁移列失败 (可忽略):', (e as Error).message); }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -91,10 +91,10 @@ export async function initDb(): Promise<void> {
   `);
   try {
     await pool.query(`ALTER TABLE cloud_templates ADD COLUMN IF NOT EXISTS shared BOOLEAN NOT NULL DEFAULT FALSE`);
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('[db] 迁移列失败 (可忽略):', (e as Error).message); }
   try {
     await pool.query(`ALTER TABLE cloud_templates ADD COLUMN IF NOT EXISTS heat INT NOT NULL DEFAULT 0`);
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('[db] 迁移列失败 (可忽略):', (e as Error).message); }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS cloud_models (
