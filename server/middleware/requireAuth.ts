@@ -21,7 +21,7 @@ function getJwtSecret(): string {
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: '30d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {

@@ -1,10 +1,15 @@
 import { Router } from 'express';
+import { logError } from '../middleware/logger';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import express from 'express';
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
+
+// 图片上传单独限制 10MB
+router.use(express.json({ limit: '10mb' }));
 
 const PUBLIC_DIR = path.join(import.meta.dirname, '..', 'public', 'images');
 
@@ -46,7 +51,7 @@ router.post('/upload', requireAuth, async (req, res) => {
     console.log(`[images] uploaded ${buf.length} bytes -> ${url}`);
     res.json({ url });
   } catch (err) {
-    console.error('[images] upload error:', err);
+    logError('images/upload', err);
     res.status(500).json({ error: '上传失败' });
   }
 });
@@ -55,8 +60,8 @@ function mimeToExt(mime: string): string {
   if (mime.includes('jpeg') || mime.includes('jpg')) return '.jpg';
   if (mime.includes('webp')) return '.webp';
   if (mime.includes('gif')) return '.gif';
-  if (mime.includes('svg')) return '.svg';
-  return ''; // 未知 MIME 拒绝上传
+  // SVG 禁用：可内嵌 <script> 导致 XSS
+  return '';
 }
 
 export default router;

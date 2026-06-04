@@ -1,9 +1,20 @@
 import { Router } from 'express';
+import { logError } from '../middleware/logger';
+import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import { createUser, findUserById, findUserByUsername, findUserByEmail, updateUser } from '../db';
 import { requireAuth, signToken, validateCredentials } from '../middleware/requireAuth';
 
 const router = Router();
+
+// 登录接口严格限流（15 分钟最多 10 次）
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录尝试过于频繁，请 15 分钟后再试' },
+});
 
 function publicUser(user: { id: number; username: string; email: string | null; avatar: string | null }) {
   return { id: user.id, username: user.username, email: user.email, avatar: user.avatar };
@@ -35,12 +46,12 @@ router.post('/register', async (req, res) => {
     const token = signToken({ userId: user.id, username: user.username });
     res.json({ token, user: publicUser(user) });
   } catch (err) {
-    console.error('[auth/register]', err);
+    logError('', err);
     res.status(500).json({ error: '注册失败' });
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body || {};
   if (typeof username !== 'string' || typeof password !== 'string') {
     res.status(400).json({ error: '请提供 username 与 password' });
@@ -52,6 +63,8 @@ router.post('/login', async (req, res) => {
   }
   const ok = user ? await bcrypt.compare(password, user.password_hash) : false;
   if (!user || !ok) {
+    // 登录失败延迟：减缓暴力破解
+    await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
     res.status(401).json({ error: '用户名或密码错误' });
     return;
   }

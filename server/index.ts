@@ -2,6 +2,7 @@ import 'dotenv/config';
 import path from 'path';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import { initDb } from './db';
 import authRouter from './routes/auth';
 import syncRouter from './routes/sync';
@@ -13,6 +14,7 @@ const API_PREFIX = `${BASE_PATH}/api`;
 const PORT = Number(process.env.PORT) || 8787;
 
 const app = express();
+app.use(helmet());
 app.use(express.json({ limit: '50mb' }));
 app.use('/ds/images', express.static(path.join(import.meta.dirname, 'public', 'images')));
 
@@ -41,11 +43,20 @@ const strictLimiter = rateLimit({
   message: { error: '操作过于频繁，请稍后再试' },
 });
 
+// 登录接口更严格限流
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录尝试过于频繁，请 15 分钟后再试' },
+});
+
 app.get(`${API_PREFIX}/health`, (_req, res) => {
   res.json({ ok: true });
 });
 
-app.use(`${API_PREFIX}/auth`, strictLimiter, authRouter);
+app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/images`, strictLimiter, imagesRouter);
 app.use(`${API_PREFIX}/sync`, syncRouter);
 app.use(`${API_PREFIX}/square`, squareRouter);

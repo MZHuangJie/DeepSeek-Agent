@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { logError } from '../middleware/logger';
 import { getPool } from '../db';
 import { requireAuth } from '../middleware/requireAuth';
 
@@ -75,7 +76,7 @@ router.get('/characters', async (req, res) => {
     });
     res.json({ characters });
   } catch (err) {
-    console.error('[square/characters]', err);
+    logError('', err);
     res.status(500).json({ error: '读取广场角色失败' });
   }
 });
@@ -97,7 +98,7 @@ router.post('/characters/:id/toggle', requireAuth, async (req, res) => {
     }
     res.json({ shared: result.rows[0].shared });
   } catch (err) {
-    console.error('[square/characters/toggle]', err);
+    logError('', err);
     res.status(500).json({ error: '切换分享状态失败' });
   }
 });
@@ -135,7 +136,7 @@ router.post('/characters/:id/favorite', requireAuth, async (req, res) => {
       res.json({ favorited: true });
     }
   } catch (err) {
-    console.error('[square/characters/favorite]', err);
+    logError('', err);
     res.status(500).json({ error: '收藏操作失败' });
   }
 });
@@ -190,7 +191,7 @@ router.get('/favorites', requireAuth, async (req, res) => {
     });
     res.json({ characters });
   } catch (err) {
-    console.error('[square/favorites]', err);
+    logError('', err);
     res.status(500).json({ error: '读取收藏列表失败' });
   }
 });
@@ -235,7 +236,7 @@ router.get('/models', async (_req, res) => {
     }));
     res.json({ models });
   } catch (err) {
-    console.error('[square/models]', err);
+    logError('', err);
     res.status(500).json({ error: '读取广场模型失败' });
   }
 });
@@ -257,7 +258,7 @@ router.post('/models/:id/toggle', requireAuth, async (req, res) => {
     }
     res.json({ shared: result.rows[0].shared });
   } catch (err) {
-    console.error('[square/models/toggle]', err);
+    logError('', err);
     res.status(500).json({ error: '切换分享状态失败' });
   }
 });
@@ -299,7 +300,7 @@ router.put('/models/:id', requireAuth, async (req, res) => {
     );
     res.json({ id: modelId, name: name.trim(), updatedAt });
   } catch (err) {
-    console.error('[square/models put]', err);
+    logError('', err);
     res.status(500).json({ error: '保存模型失败' });
   }
 });
@@ -319,7 +320,7 @@ router.delete('/models/:id', requireAuth, async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    console.error('[square/models delete]', err);
+    logError('', err);
     res.status(500).json({ error: '删除模型失败' });
   }
 });
@@ -350,7 +351,7 @@ router.get('/models/mine', requireAuth, async (req, res) => {
     }));
     res.json({ models });
   } catch (err) {
-    console.error('[square/models/mine]', err);
+    logError('', err);
     res.status(500).json({ error: '读取我的模型失败' });
   }
 });
@@ -409,7 +410,7 @@ router.get('/templates', async (_req, res) => {
     });
     res.json({ templates });
   } catch (err) {
-    console.error('[square/templates]', err);
+    logError('', err);
     res.status(500).json({ error: '读取广场模板失败' });
   }
 });
@@ -431,7 +432,7 @@ router.post('/templates/:id/toggle', requireAuth, async (req, res) => {
     }
     res.json({ shared: result.rows[0].shared });
   } catch (err) {
-    console.error('[square/templates/toggle]', err);
+    logError('', err);
     res.status(500).json({ error: '切换分享状态失败' });
   }
 });

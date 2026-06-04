@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { logError } from '../middleware/logger';
 import { getPool } from '../db';
 import { requireAuth } from '../middleware/requireAuth';
 
@@ -32,7 +33,7 @@ router.get('/sessions', requireAuth, async (_req, res) => {
     );
     res.json({ sessions: result.rows });
   } catch (err) {
-    console.error('[sync/sessions]', err);
+    logError('', err);
     res.status(500).json({ error: '读取会话列表失败' });
   }
 });
@@ -57,7 +58,7 @@ router.get('/sessions/:id', requireAuth, async (req, res) => {
       payload: result.rows[0].payload,
     });
   } catch (err) {
-    console.error('[sync/sessions/:id]', err);
+    logError('', err);
     res.status(500).json({ error: '读取会话失败' });
   }
 });
@@ -99,7 +100,7 @@ router.put('/sessions/:id', requireAuth, async (req, res) => {
     );
     res.json({ id: sessionId, title: title.trim(), updatedAt, messageCount });
   } catch (err) {
-    console.error('[sync/sessions/:id put]', err);
+    logError('', err);
     res.status(500).json({ error: '保存会话失败' });
   }
 });
@@ -119,7 +120,7 @@ router.delete('/sessions/:id', requireAuth, async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    console.error('[sync/sessions/:id delete]', err);
+    logError('', err);
     res.status(500).json({ error: '删除会话失败' });
   }
 });
@@ -137,7 +138,7 @@ router.get('/characters', requireAuth, async (req, res) => {
     );
     res.json({ characters: result.rows });
   } catch (err) {
-    console.error('[sync/characters]', err);
+    logError('', err);
     res.status(500).json({ error: '读取角色列表失败' });
   }
 });
@@ -162,7 +163,7 @@ router.get('/characters/:id', requireAuth, async (req, res) => {
       payload: result.rows[0].payload,
     });
   } catch (err) {
-    console.error('[sync/characters/:id]', err);
+    logError('', err);
     res.status(500).json({ error: '读取角色失败' });
   }
 });
@@ -197,7 +198,7 @@ router.put('/characters/:id', requireAuth, async (req, res) => {
     );
     res.json({ id: characterId, name: name.trim(), updatedAt });
   } catch (err) {
-    console.error('[sync/characters/:id put]', err);
+    logError('', err);
     res.status(500).json({ error: '保存角色失败' });
   }
 });
@@ -217,7 +218,7 @@ router.delete('/characters/:id', requireAuth, async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    console.error('[sync/characters/:id delete]', err);
+    logError('', err);
     res.status(500).json({ error: '删除角色失败' });
   }
 });
@@ -242,7 +243,7 @@ router.get('/templates', requireAuth, async (req, res) => {
     );
     res.json({ templates: result.rows });
   } catch (err) {
-    console.error('[sync/templates]', err);
+    logError('', err);
     res.status(500).json({ error: '读取模板列表失败' });
   }
 });
@@ -267,7 +268,7 @@ router.get('/templates/:id', requireAuth, async (req, res) => {
       payload: result.rows[0].payload,
     });
   } catch (err) {
-    console.error('[sync/templates/:id]', err);
+    logError('', err);
     res.status(500).json({ error: '读取模板失败' });
   }
 });
@@ -302,7 +303,7 @@ router.put('/templates/:id', requireAuth, async (req, res) => {
     );
     res.json({ id: templateId, name: name.trim(), updatedAt });
   } catch (err) {
-    console.error('[sync/templates/:id put]', err);
+    logError('', err);
     res.status(500).json({ error: '保存模板失败' });
   }
 });
@@ -322,7 +323,7 @@ router.delete('/templates/:id', requireAuth, async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    console.error('[sync/templates/:id delete]', err);
+    logError('', err);
     res.status(500).json({ error: '删除模板失败' });
   }
 });
