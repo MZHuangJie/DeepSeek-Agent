@@ -87,7 +87,6 @@
 
 从 [Releases](https://github.com/MZHuangJie/Oh-My-DeepSeek/releases) 页面下载：
 
-- **安装版** — `Oh My DeepSeek Setup x.x.x.exe`，支持自定义安装路径
 - **便携版** — `Oh My DeepSeek-x.x.x-win.zip`，解压即用
 
 ### 从源码构建
