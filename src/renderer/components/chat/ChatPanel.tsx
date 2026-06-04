@@ -49,6 +49,7 @@ export default function ChatPanel() {
   const agentReset = useAgentStore(s => s.reset);
   const virtuosoRef = useRef<any>(null);
   const isAtBottomRef = useRef(true);
+  const targetSessionRef = useRef<string | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [showKeyInput, setShowKeyInput] = useState(false);
@@ -67,14 +68,15 @@ export default function ChatPanel() {
   const activeConv = useConversationStore(s => s.conversations.find(c => c.id === s.activeId));
   const groupChat = useGroupChatStore();
   const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
+  const isMySessionStreaming = isStreaming && targetSessionRef.current === activeSessionId;
 
   useEffect(() => {
     // 流式回复时强制滚到底部（内容持续增长但无新 item，followOutput 不触发）
     // 非流式时只在用户已在底部才跟随
-    if (isStreaming || isAtBottomRef.current) {
-      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: isStreaming ? 'auto' : 'smooth' });
+    if (isMySessionStreaming || isAtBottomRef.current) {
+      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: isMySessionStreaming ? 'auto' : 'smooth' });
     }
-  }, [messages, isStreaming]);
+  }, [messages, isMySessionStreaming]);
 
   useEffect(() => {
     (async () => {
@@ -248,9 +250,6 @@ export default function ChatPanel() {
       setErrorMsg(err instanceof Error ? err.message : '状态补全失败');
     }
   }, [activeSessionId, apiKey, getActiveModel, resetStreamBuffers, updateLastAssistant, setStreaming, buildHistory, invokeAgent]);
-
-  const targetSessionRef = useRef<string | null>(null);
-  const isMySessionStreaming = isStreaming && targetSessionRef.current === activeSessionId;
   const handleStreamChunk = useStreamHandler({
     targetSessionRef,
     setStreaming: (v) => useChatStore.getState().setStreaming(v),
