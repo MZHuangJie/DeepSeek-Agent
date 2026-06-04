@@ -32,8 +32,12 @@ jobs:
           node -e "console.log(require('./package.json').main)"
         shell: powershell
 
-      - name: Dist
-        run: npm run dist
+      - name: Build
+        run: npm run build
+        shell: powershell
+
+      - name: Package (zip only)
+        run: npx electron-builder --win zip
         shell: powershell
 
       - name: Upload Release
@@ -41,7 +45,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            release/*.exe
             release/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
