@@ -11,21 +11,24 @@ export function createStreamBuffer(win: BrowserWindow, sessionId: string) {
   let contentBuf = '';
   let thinkingBuf = '';
   let flushTimer: ReturnType<typeof setInterval> | null = null;
+  let curStep = 0, curTotal = 0;
 
   function flush() {
     if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
     if (win.isDestroyed()) return;
     if (contentBuf) {
-      win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf });
+      win.webContents.send('agent:stream-chunk', { sessionId, type: 'content', text: contentBuf, step: curStep, total: curTotal });
       contentBuf = '';
     }
     if (thinkingBuf) {
-      win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf });
+      win.webContents.send('agent:stream-chunk', { sessionId, type: 'thinking', text: thinkingBuf, step: curStep, total: curTotal });
       thinkingBuf = '';
     }
   }
 
   function start(step: number, total: number) {
+    curStep = step; curTotal = total;
+    if (flushTimer) clearInterval(flushTimer);
     flushTimer = setInterval(() => {
       if (win.isDestroyed()) return;
       if (contentBuf) {

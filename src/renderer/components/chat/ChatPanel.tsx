@@ -83,15 +83,13 @@ export default function ChatPanel() {
   const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
   const isMySessionStreaming = isStreaming && targetSessionRef.current === activeSessionId;
 
-  // 流式输出期间由 Virtuoso 的 followOutput 自己处理滚动，不要手动干预
-  // 只在非流式且用户在底部 + 消息数变化时才跟随
+  // 流式输出时内容持续增长（同一条消息变高），只要用户在底部就跟随
+  // auto 行为无动画，不会和内容更新产生视觉抖动
   const msgCountRef = useRef(messages.length);
   useEffect(() => {
-    const countChanged = messages.length !== msgCountRef.current;
     msgCountRef.current = messages.length;
-    if (isMySessionStreaming) return; // Virtuoso followOutput 负责
-    if (countChanged && isAtBottomRef.current) {
-      scrollToBottom('smooth');
+    if (isAtBottomRef.current) {
+      scrollToBottom(isMySessionStreaming ? 'auto' : 'smooth');
     }
   }, [messages, isMySessionStreaming]);
 

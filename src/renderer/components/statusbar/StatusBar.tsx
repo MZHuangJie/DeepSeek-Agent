@@ -14,6 +14,8 @@ export default function StatusBar({ language }: Props) {
 
   const indentText = insertSpaces ? `空格: ${tabSize}` : `制表符: ${tabSize}`;
 
+  if (!language) return null;
+
   return (
     <div className={shared.statusBar}>
       <div className={styles.leftGroup}>

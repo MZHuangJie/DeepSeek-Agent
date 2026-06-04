@@ -160,61 +160,50 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
     buffersRef.current.clear();
   }, []);
 
+  // 安全获取当前最后一条 assistant 消息（每次调用时重新读取，避免闭包快照过期）
+  const getLastMsg = (sid: string) => {
+    const sess = useChatStore.getState().sessions.find(s => s.id === sid);
+    return sess?.messages.at(-1);
+  };
+
+  // step 切换时创建新 assistant 消息
+  const tryStepTransition = (sid: string, buf: SessionBuffer, step: number) => {
+    if (step <= buf.currentStep) return;
+    buf.currentStep = step;
+    cancelRaf(sid);
+    flushBuffer(sid);
+    buf.totalContent = '';
+    buf.totalThinking = '';
+    buf.pendingContent = '';
+    buf.pendingThinking = '';
+    useChatStore.getState().newAssistantMessage(sid);
+  };
+
   const handleChunk = (chunk: StreamChunk) => {
     // 优先使用 IPC 消息中携带的 sessionId，支持多 tab 同时流式输出
     const sid = chunk.sessionId || targetSessionRef.current;
     if (!sid) return;
 
-    const { sessions, updateLastAssistant } = useChatStore.getState();
-    const sess = sessions.find(s => s.id === sid);
-    const lastMsg = sess?.messages.at(-1);
+    const { updateLastAssistant } = useChatStore.getState();
 
     if (chunk.type === 'content') {
       const buf = getBuffer(sid);
-      const step = chunk.step || 1;
-      if (step > buf.currentStep) {
-        buf.currentStep = step;
-        cancelRaf(sid);
-        flushBuffer(sid);
-        buf.totalContent = '';
-        buf.totalThinking = '';
-        buf.pendingContent = '';
-        buf.pendingThinking = '';
-        useChatStore.getState().newAssistantMessage(sid);
-      }
+      tryStepTransition(sid, buf, chunk.step || 1);
       buf.pendingContent += chunk.text;
       scheduleRaf(sid);
     } else if (chunk.type === 'thinking') {
       const buf = getBuffer(sid);
       const step = chunk.step || 0;
-      if (step > 0 && step > buf.currentStep) {
-        buf.currentStep = step;
-        cancelRaf(sid);
-        flushBuffer(sid);
-        buf.totalContent = '';
-        buf.totalThinking = '';
-        buf.pendingContent = '';
-        buf.pendingThinking = '';
-        useChatStore.getState().newAssistantMessage(sid);
-      }
+      if (step > 0) tryStepTransition(sid, buf, step);
       buf.pendingThinking += chunk.text;
       scheduleRaf(sid);
     } else if (chunk.type === 'tool-call') {
       const buf = getBuffer(sid);
-      const step = chunk.step || 1;
-      if (step > buf.currentStep) {
-        buf.currentStep = step;
-        cancelRaf(sid);
-        flushBuffer(sid);
-        buf.totalContent = '';
-        buf.totalThinking = '';
-        buf.pendingContent = '';
-        buf.pendingThinking = '';
-        useChatStore.getState().newAssistantMessage(sid);
-      }
+      tryStepTransition(sid, buf, chunk.step || 1);
       let parsedArgs: Record<string, unknown> = {};
       try { parsedArgs = JSON.parse(chunk.args || '{}'); } catch { parsedArgs = { _raw: chunk.args }; }
-      const current = lastMsg?.toolCalls ?? [];
+      const msg = getLastMsg(sid);
+      const current = msg?.toolCalls ?? [];
       updateLastAssistant({
         toolCalls: [...current, { name: chunk.name, args: parsedArgs, status: 'running', timestamp: Date.now() }],
       }, sid);
@@ -222,7 +211,8 @@ export function useStreamHandler(deps: StreamHandlerDeps) {
         id: `tc-${Date.now()}`, name: chunk.name, args: chunk.args || '{}', status: 'running', timestamp: Date.now(),
       });
     } else if (chunk.type === 'tool-result') {
-      const current = lastMsg?.toolCalls ?? [];
+      const msg = getLastMsg(sid);
+      const current = msg?.toolCalls ?? [];
       const matchedIdx = current.reduceRight((found: number, tc, idx: number) => {
         if (found >= 0) return found;
         if (tc.status === 'running' && tc.name === chunk.name) return idx;
