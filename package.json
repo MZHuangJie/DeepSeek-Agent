@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "deepseek-agent",
   "version": "1.0.0",
   "description": "Oh My DeepSeek Desktop IDE",
@@ -74,8 +74,8 @@
     "agent",
     "ide"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Oh My DeepSeek",
+  "license": "MIT",
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.12",

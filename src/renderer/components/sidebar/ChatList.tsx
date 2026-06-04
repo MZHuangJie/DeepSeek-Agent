@@ -1,6 +1,8 @@
-// src/renderer/components/sidebar/ChatList.tsx
+﻿// src/renderer/components/sidebar/ChatList.tsx
 import React, { useState, useMemo } from 'react';
 import { useConversationStore } from '../../stores/conversationStore';
+import { useRoleplayStore } from '../../stores/roleplay';
+import { useAgentRolesStore } from '../../stores/agentRoles';
 import { formatRelativeTime } from '../../utils/relativeTime';
 import CreateGroupDialog from '../chat/CreateGroupDialog';
 import CloudRestoreDialog from './CloudRestoreDialog';
@@ -211,7 +213,7 @@ export default function ChatList() {
       </div>
 
       <div className={styles.footer}>
-        <button className={`${styles.footerBtn} ${styles.npcBtn}`} onClick={() => setShowCreateDialog('group_npc')}>
+        <button className={`${styles.footerBtn} ${styles.npcBtn}`} onClick={async () => { await useRoleplayStore.getState().loadAll(); setShowCreateDialog('group_npc'); }}>
           <svg className={styles.footerIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2a7 7 0 0 1 7 7c0 3.5-2 6-7 11-5-5-7-7.5-7-11a7 7 0 0 1 7-7z"/>
             <path d="M9 9h.01M15 9h.01"/>
@@ -220,7 +222,7 @@ export default function ChatList() {
           </svg>
           NPC 群聊
         </button>
-        <button className={`${styles.footerBtn} ${styles.agentBtn}`} onClick={() => setShowCreateDialog('group_agent')}>
+        <button className={`${styles.footerBtn} ${styles.agentBtn}`} onClick={async () => { await useAgentRolesStore.getState().loadRoles(); setShowCreateDialog('group_agent'); }}>
           <svg className={styles.footerIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="7" width="18" height="13" rx="2"/>
             <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>

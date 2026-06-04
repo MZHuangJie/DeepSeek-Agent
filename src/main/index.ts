@@ -30,6 +30,17 @@ function createWindow() {
 
   mainWindow.setMenu(null);
 
+  // F11 切换全屏 / ESC 退出全屏
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11') {
+      mainWindow?.setFullScreen(!mainWindow.isFullScreen());
+    }
+    if (input.key === 'Escape' && mainWindow?.isFullScreen()) {
+      mainWindow.setFullScreen(false);
+    }
+  });
+
   // 监听加载失败
   mainWindow.webContents.on('did-fail-load', (_event, code, desc, url) => {
     errorLog('app', 'load-failed', { code, desc, url });
