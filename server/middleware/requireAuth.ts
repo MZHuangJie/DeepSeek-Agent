@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { isTokenRevoked } from './tokenBlacklist';
 
 export interface AuthPayload {
   userId: number;
@@ -21,7 +23,12 @@ function getJwtSecret(): string {
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
+  return jwt.sign({ ...payload, jti: crypto.randomUUID() }, getJwtSecret(), { algorithm: 'HS256', expiresIn: '7d' });
+}
+
+export function getTokenExpiry(token: string): number | null {
+  const decoded = jwt.decode(token) as { exp?: number } | null;
+  return decoded?.exp ? decoded.exp * 1000 : null;
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -32,7 +39,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
   try {
-    const decoded = jwt.verify(match[1], getJwtSecret()) as AuthPayload;
+    const decoded = jwt.verify(match[1], getJwtSecret(), { algorithms: ['HS256'] }) as AuthPayload & { jti?: string };
+    if (decoded.jti && isTokenRevoked(decoded.jti)) {
+      res.status(401).json({ error: 'token 已注销' });
+      return;
+    }
     req.auth = { userId: decoded.userId, username: decoded.username };
     next();
   } catch {

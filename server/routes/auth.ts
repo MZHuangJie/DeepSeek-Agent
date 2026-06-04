@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { logError } from '../middleware/logger';
+import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import { createUser, findUserById, findUserByUsername, findUserByEmail, updateUser } from '../db';
-import { requireAuth, signToken, validateCredentials } from '../middleware/requireAuth';
+import { requireAuth, signToken, getTokenExpiry, validateCredentials } from '../middleware/requireAuth';
+import { revokeToken } from '../middleware/tokenBlacklist';
 
 const router = Router();
 
@@ -81,7 +83,14 @@ router.get('/me', requireAuth, async (req, res) => {
   res.json({ user: publicUser(user) });
 });
 
-router.post('/logout', requireAuth, (_req, res) => {
+router.post('/logout', requireAuth, (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  const expiry = getTokenExpiry(token);
+  const jti = (jwt.decode(token) as { jti?: string } | null)?.jti;
+  if (jti && expiry) {
+    revokeToken(jti, req.auth!.userId, expiry);
+  }
   res.json({ success: true });
 });
 

@@ -11,6 +11,8 @@ export interface UserRow {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 20,
+  idleTimeoutMillis: 30_000,
 });
 
 export function getPool(): Pool {
@@ -177,8 +179,11 @@ export async function updateUser(
   return result.rows[0] || null;
 }
 
-// For tests only
+// 仅测试环境可用
 export async function resetStoreForTests(): Promise<void> {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('resetStoreForTests 仅在测试环境可用');
+  }
   await pool.query('DELETE FROM cloud_models');
   await pool.query('DELETE FROM cloud_templates');
   await pool.query('DELETE FROM cloud_characters');

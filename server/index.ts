@@ -15,7 +15,7 @@ const PORT = Number(process.env.PORT) || 8787;
 
 const app = express();
 app.use(helmet());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use('/ds/images', express.static(path.join(import.meta.dirname, 'public', 'images')));
 
 const jwtSecret = process.env.JWT_SECRET;
@@ -56,10 +56,10 @@ app.get(`${API_PREFIX}/health`, (_req, res) => {
   res.json({ ok: true });
 });
 
-app.use(`${API_PREFIX}/auth`, authRouter);
+app.use(`${API_PREFIX}/auth`, strictLimiter, authRouter);
 app.use(`${API_PREFIX}/images`, strictLimiter, imagesRouter);
-app.use(`${API_PREFIX}/sync`, syncRouter);
-app.use(`${API_PREFIX}/square`, squareRouter);
+app.use(`${API_PREFIX}/sync`, strictLimiter, syncRouter);
+app.use(`${API_PREFIX}/square`, globalLimiter, squareRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
