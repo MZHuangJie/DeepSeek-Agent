@@ -69,10 +69,12 @@ export default function ChatPanel() {
   const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
 
   useEffect(() => {
-    if (isAtBottomRef.current) {
-      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: 'smooth' });
+    // 流式回复时强制滚到底部（内容持续增长但无新 item，followOutput 不触发）
+    // 非流式时只在用户已在底部才跟随
+    if (isStreaming || isAtBottomRef.current) {
+      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: isStreaming ? 'auto' : 'smooth' });
     }
-  }, [messages]);
+  }, [messages, isStreaming]);
 
   useEffect(() => {
     (async () => {
