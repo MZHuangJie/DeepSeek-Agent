@@ -48,6 +48,19 @@ export default function ChatPanel() {
   const { setBottomClosed, setBottomExpanded } = useLayoutStore();
   const agentReset = useAgentStore(s => s.reset);
   const virtuosoRef = useRef<any>(null);
+
+  // 强制滚到底部（绕过 virtuoso 虚拟列表高度估算偏差）
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const el = virtuosoRef.current;
+    if (!el) return;
+    const scroller = (el as any).scrollerRef?.current as HTMLElement | null;
+    if (scroller) {
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior });
+    } else {
+      el.scrollToIndex({ index: 'LAST' });
+    }
+  }, []);
+
   const isAtBottomRef = useRef(true);
   const targetSessionRef = useRef<string | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -78,7 +91,7 @@ export default function ChatPanel() {
     msgCountRef.current = messages.length;
     if (isMySessionStreaming) return; // Virtuoso followOutput 负责
     if (countChanged && isAtBottomRef.current) {
-      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: 'smooth' });
+      scrollToBottom('smooth');
     }
   }, [messages, isMySessionStreaming]);
 
@@ -86,7 +99,7 @@ export default function ChatPanel() {
   useEffect(() => {
     if (messages.length > 0 && !isMySessionStreaming) {
       setTimeout(() => {
-        virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, align: 'end' });
+        scrollToBottom();
       }, 100);
     }
   }, [activeSessionId]);
@@ -546,7 +559,7 @@ export default function ChatPanel() {
         )}
         {showScrollDown && (
           <div className={styles.scrollDownHint}>
-            <div className={shared.scrollDownBtn} onClick={() => { virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'auto' }); }} title="回到底部">
+            <div className={shared.scrollDownBtn} onClick={() => { scrollToBottom('auto'); }} title="回到底部">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path className={shared.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
