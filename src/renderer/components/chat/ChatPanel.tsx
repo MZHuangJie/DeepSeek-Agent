@@ -70,13 +70,26 @@ export default function ChatPanel() {
   const isGroup = activeConv?.type === 'group_npc' || activeConv?.type === 'group_agent';
   const isMySessionStreaming = isStreaming && targetSessionRef.current === activeSessionId;
 
+  // 流式输出期间由 Virtuoso 的 followOutput 自己处理滚动，不要手动干预
+  // 只在非流式且用户在底部 + 消息数变化时才跟随
+  const msgCountRef = useRef(messages.length);
   useEffect(() => {
-    // 流式回复时强制滚到底部（内容持续增长但无新 item，followOutput 不触发）
-    // 非流式时只在用户已在底部才跟随
-    if (isMySessionStreaming || isAtBottomRef.current) {
-      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: isMySessionStreaming ? 'auto' : 'smooth' });
+    const countChanged = messages.length !== msgCountRef.current;
+    msgCountRef.current = messages.length;
+    if (isMySessionStreaming) return; // Virtuoso followOutput 负责
+    if (countChanged && isAtBottomRef.current) {
+      virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: 'smooth' });
     }
   }, [messages, isMySessionStreaming]);
+
+  // 会话切换或首次加载时滚到底部
+  useEffect(() => {
+    if (messages.length > 0 && !isMySessionStreaming) {
+      setTimeout(() => {
+        virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, align: 'end' });
+      }, 100);
+    }
+  }, [activeSessionId]);
 
   useEffect(() => {
     (async () => {
@@ -533,7 +546,7 @@ export default function ChatPanel() {
         )}
         {showScrollDown && (
           <div className={styles.scrollDownHint}>
-            <div className={shared.scrollDownBtn} onClick={() => { virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'smooth' }); }} title="回到底部">
+            <div className={shared.scrollDownBtn} onClick={() => { virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, align: 'end', behavior: 'auto' }); }} title="回到底部">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path className={shared.scrollArrow} d="M8 3v8M4 8l4 4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
