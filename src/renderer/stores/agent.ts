@@ -40,12 +40,18 @@ const MODEL_PRICING: Record<string, { input: number; cached: number; output: num
   'deepseek-v4-flash': { input: 1.00, cached: 0.02, output: 2.00 },
   'deepseek-v4-pro':   { input: 3.00, cached: 0.025, output: 6.00 },
 };
-const DEFAULT_PRICING = { input: 1.96, cached: 0.20, output: 7.98 };
+// 旧模型名兜底：deepseek-chat / deepseek-reasoner → V4 Flash 定价
+const LEGACY_ALIASES: Record<string, string> = {
+  'deepseek-chat': 'deepseek-v4-flash',
+  'deepseek-reasoner': 'deepseek-v4-flash',
+};
+const DEFAULT_PRICING = MODEL_PRICING['deepseek-v4-flash']; // 默认 V4 Flash
 
 function getPricing(modelName?: string) {
   if (modelName) {
+    const resolved = LEGACY_ALIASES[modelName] || modelName;
     for (const [prefix, p] of Object.entries(MODEL_PRICING)) {
-      if (modelName.startsWith(prefix)) return p;
+      if (resolved.startsWith(prefix)) return p;
     }
   }
   return DEFAULT_PRICING;

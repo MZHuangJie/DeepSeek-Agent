@@ -214,6 +214,7 @@ export function setupAgentHandlers() {
       const toolSchemas = getToolSchemas(tools);
 
       let totalPrompt = 0, totalCompletion = 0, totalTokens = 0, totalToolTokens = 0;
+      let totalCacheHit = 0, totalCacheMiss = 0;
       const maxTurns = enableTools ? 50 : 1;
       let agentFailed = false, agentError: string | undefined;
 
@@ -244,13 +245,15 @@ export function setupAgentHandlers() {
           totalPrompt += result.usage.prompt_tokens;
           totalCompletion += result.usage.completion_tokens;
           totalTokens += result.usage.total_tokens;
+          totalCacheHit += result.usage.prompt_cache_hit_tokens ?? 0;
+          totalCacheMiss += result.usage.prompt_cache_miss_tokens ?? 0;
           win.webContents.send('agent:stream-chunk', {
             sessionId, type: 'usage',
             prompt: totalPrompt, completion: totalCompletion, total: totalTokens,
             toolTokens: totalToolTokens, currentPrompt: result.usage.prompt_tokens,
             contextMax: payload.contextMax || 100000,
-            promptCacheHit: result.usage.prompt_cache_hit_tokens,
-            promptCacheMiss: result.usage.prompt_cache_miss_tokens,
+            promptCacheHit: totalCacheHit || undefined,
+            promptCacheMiss: totalCacheMiss || undefined,
             modelName: payload.model || 'deepseek-v4-flash',
           });
           compressContextIfNeeded(win, sessionId, messages, result.usage.prompt_tokens, payload.contextMax || 100000);
