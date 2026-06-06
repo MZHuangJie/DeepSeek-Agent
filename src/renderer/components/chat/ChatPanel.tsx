@@ -37,6 +37,7 @@ import { Command } from '../../commands';
 import { useStreamHandler } from './useStreamHandler';
 import type { HistoryEntry } from '../../types/stream';
 import { useGroupStreamHandler } from './useGroupStreamHandler';
+import { useTimelineStore } from '../../stores/timeline';
 import shared from '../../styles/components.module.css';
 import { Virtuoso } from 'react-virtuoso';
 import styles from './ChatPanel.module.css';
@@ -92,6 +93,17 @@ export default function ChatPanel() {
       scrollToBottom(isMySessionStreaming ? 'auto' : 'smooth');
     }
   }, [messages, isMySessionStreaming]);
+
+  // 监听时间轴跳转
+  useEffect(() => {
+    const unsub = useTimelineStore.subscribe((state, prev) => {
+      if (state.jumpToIndex !== null && state.jumpToIndex !== prev.jumpToIndex) {
+        virtuosoRef.current?.scrollToIndex({ index: state.jumpToIndex, behavior: 'smooth', align: 'center' });
+        setTimeout(() => useTimelineStore.getState().clearJump(), 100);
+      }
+    });
+    return unsub;
+  }, []);
 
   // 会话切换或首次加载时滚到底部
   useEffect(() => {

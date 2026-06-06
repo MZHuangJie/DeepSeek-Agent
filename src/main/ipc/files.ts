@@ -107,8 +107,32 @@ export function setupFileHandlers() {
   });
 
   ipcMain.handle('files:readBinary', async (_event, filePath: string) => {
+    // 云端 URL：通过 Electron net 下载后转 base64，避免 <img> 直接请求因缺少认证头 401/403
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-      return filePath;
+      try {
+        const validated = validateExternalUrl(filePath);
+        return await new Promise<string>((resolve, reject) => {
+          const req = net.request({ method: 'GET', url: validated.href });
+          const chunks: Buffer[] = [];
+          req.on('response', (res) => {
+            if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300) {
+              reject(new Error("图片加载失败: HTTP " + res.statusCode));
+              return;
+            }
+            const contentType = res.headers['content-type']?.[0] || 'image/png';
+            res.on('data', (c: Buffer) => chunks.push(c));
+            res.on('end', () => {
+              const buf = Buffer.concat(chunks);
+              resolve('data:' + contentType + ';base64,' + buf.toString('base64'));
+            });
+            res.on('error', reject);
+          });
+          req.on('error', reject);
+          req.end();
+        });
+      } catch {
+        return null;
+      }
     }
     const safePath = safeResolve(currentWorkspace, filePath);
     if (!fs.existsSync(safePath)) return null;

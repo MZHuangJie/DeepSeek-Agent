@@ -16,6 +16,7 @@ import TerminalPanel from './components/terminal/TerminalPanel';
 import TerminalTabs from './components/terminal/TerminalTabs';
 import TerminalList from './components/terminal/TerminalList';
 import StatusBar from './components/statusbar/StatusBar';
+import TimelinePanel from './components/chat/TimelinePanel';
 import ModelSettings from './components/settings/ModelSettings';
 import MultiAgentSettings from './components/settings/MultiAgentSettings';
 import ThemeSettings from './components/settings/ThemeSettings';
@@ -254,6 +255,7 @@ export default function App() {
             {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
             {!isBrowserVisible && openView === 'git' && <GitPanel />}
             {!isBrowserVisible && openView === 'roleplay' && <CharacterPickerPanel />}
+            {!isBrowserVisible && openView === 'timeline' && <TimelinePanel />}
             {isBrowserVisible && <BrowserView initialUrl={browserUrl} />}
           </div>
         </div>

@@ -162,6 +162,10 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     setImages(prev => prev.filter(img => img.id !== id));
   }, []);
 
+  const pendingImagesRef = useRef(0);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -172,18 +176,19 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         const blob = item.getAsFile();
         if (!blob) continue;
         const id = `img-${Date.now()}-${i}`;
+        const mimeType = item.type;
+        pendingImagesRef.current++;
         const reader = new FileReader();
         reader.onload = async () => {
           const dataUrl = reader.result as string;
           const base64 = dataUrl.split(',')[1];
-          const mimeType = item.type;
           try {
             const filePath = await window.api.files.saveClipboardImage(base64, mimeType);
             setImages(prev => [...prev, { id, dataUrl, path: filePath, mimeType }]);
           } catch {
-            // 保存失败时仍用 dataUrl 显示缩略图
             setImages(prev => [...prev, { id, dataUrl, path: '', mimeType }]);
           }
+          pendingImagesRef.current--;
         };
         reader.readAsDataURL(blob);
       }
@@ -192,7 +197,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
 
   const clearImages = useCallback(() => setImages([]), []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (hasDropdownOpen && (e.key === 'Enter' || e.key === 'Escape')) {
       return;
     }
@@ -213,17 +218,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
         return;
       }
       if (trimmed || images.length > 0) {
-        const cmd = matchCommand(trimmed, pluginCommands);
-        const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
-        const prefix = refs.refFiles.map(p => `@${p} `).join('');
-        const suffix = refs.textRefs.length > 0 ? '\n\n---\n引用消息：\n' + refs.textRefs.join('\n---\n') : '';
-        onSend(prefix + (msg || trimmed || (images.length > 0 ? '请描述这张图片' : '')) + suffix, cmd || undefined, images.length > 0 ? images : undefined);
-        setValue('');
-        refs.clearRefs();
-        clearImages();
-        setAtMaxHeight(false);
-        if (textareaRef.current) textareaRef.current.style.height = `${MIN_HEIGHT}px`;
-        focusInput();
+        await sendMessage();
       }
     }
     if (e.key === 'Escape') {
@@ -252,7 +247,7 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
     textareaRef.current?.focus();
   };
 
-  const handleSend = () => {
+  const sendMessage = async () => {
     if (isStreaming) return;
     const trimmed = value.trim();
     if (trimmed.startsWith('/browse')) {
@@ -267,11 +262,16 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       return;
     }
     if (trimmed || images.length > 0) {
+      // 等待粘贴的图片完成异步保存（FileReader + IPC）
+      while (pendingImagesRef.current > 0) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      const latestImages = imagesRef.current;
       const cmd = matchCommand(trimmed, pluginCommands);
       const msg = cmd ? trimmed.slice(cmd.name.length + 1).trim() : trimmed;
       const prefix = refs.refFiles.map(p => `@${p} `).join('');
       const suffix = refs.textRefs.length > 0 ? '\n\n---\n引用消息：\n' + refs.textRefs.join('\n---\n') : '';
-      onSend(prefix + (msg || trimmed || (images.length > 0 ? '请描述这张图片' : '')) + suffix, cmd || undefined, images.length > 0 ? images : undefined);
+      onSend(prefix + (msg || trimmed || (latestImages.length > 0 ? '请描述这张图片' : '')) + suffix, cmd || undefined, latestImages.length > 0 ? latestImages : undefined);
       setValue('');
       refs.clearRefs();
       clearImages();
@@ -280,6 +280,8 @@ export default function ChatInput({ onSend, disabled, isStreaming, onStop }: Pro
       focusInput();
     }
   };
+
+  const handleSend = () => { void sendMessage(); };
 
   return (
     <>

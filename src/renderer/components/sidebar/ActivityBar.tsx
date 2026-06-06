@@ -3,7 +3,7 @@ import styles from '../../styles/components.module.css';
 import barStyles from './ActivityBar.module.css';
 import { useModeStore } from '../../stores/mode';
 
-export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify' | 'git' | 'roleplay';
+export type PanelView = 'files' | 'sessions' | 'browser' | 'agent' | 'modify' | 'git' | 'roleplay' | 'timeline';
 
 export type SystemMenuAction = 'theme' | 'terminal' | 'model' | 'characters' | 'agent-roles' | 'about';
 
@@ -23,6 +23,7 @@ const ITEMS: Array<{ id: PanelView; label: string; icon?: string; glyph?: string
   { id: 'browser', label: '浏览器', icon: './assets/web.png' },
   { id: 'agent', label: 'AGENT', icon: './assets/usaged.png' },
   { id: 'modify', label: '文件修改', icon: './assets/modify.png' },
+  { id: 'timeline', label: '时间轴', glyph: '⏱' },
 ];
 
 const SYSTEM_MENU: Array<{ id: SystemMenuAction; label: string }> = [
