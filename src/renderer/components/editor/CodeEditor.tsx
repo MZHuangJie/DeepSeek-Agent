@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import Editor, { loader, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../../stores/editor';
+import { useRefsStore } from '../../stores/refs';
 
 // 配置 Monaco 从本地 public/vs 加载
 try {
@@ -73,6 +74,88 @@ export default function CodeEditor({ filePath, content, language, onChange, read
     editor.onDidChangeModel(updateIndent);
     editor.onDidChangeModelOptions(updateIndent);
     monaco.editor.onDidChangeMarkers(updateDiagnostics);
+
+    // 禁用默认英文菜单，替换为中文自定义菜单
+    editor.updateOptions({ contextmenu: false });
+    const menuEl = document.createElement('div');
+    menuEl.style.cssText = 'position:fixed;z-index:9999;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px 0;min-width:200px;box-shadow:0 4px 16px rgba(0,0,0,0.4);display:none;font-size:12px';
+    menuEl.className = 'cn-editor-menu';
+    document.body.appendChild(menuEl);
+
+    const menuItems: Array<{ label: string; key: string; sep?: boolean }> = [
+      { label: '剪切', key: 'cut' },
+      { label: '复制', key: 'copy' },
+      { label: '粘贴', key: 'paste' },
+      { label: '', key: '', sep: true },
+      { label: '引用代码到对话', key: 'codeRef' },
+      { label: '', key: '', sep: true },
+      { label: '全选', key: 'selectAll' },
+      { label: '', key: '', sep: true },
+      { label: '查找所有引用', key: 'references' },
+      { label: '转到定义', key: 'definition' },
+      { label: '速览定义', key: 'peek' },
+      { label: '', key: '', sep: true },
+      { label: '重命名符号', key: 'rename' },
+      { label: '格式化文档', key: 'format' },
+      { label: '更改所有匹配项', key: 'changeAll' },
+    ];
+
+    const buildMenu = () => {
+      const sel = editor.getSelection();
+      const hasSel = sel && !sel.isEmpty();
+      menuEl.innerHTML = '';
+      for (const item of menuItems) {
+        if (item.sep) { const d = document.createElement('div'); d.style.cssText = 'height:1px;background:var(--border);margin:3px 0'; menuEl.appendChild(d); continue; }
+        const el = document.createElement('div');
+        el.textContent = item.label;
+        const disabled = (item.key === 'cut' || item.key === 'copy' || item.key === 'codeRef') && !hasSel;
+        el.style.cssText = 'padding:5px 12px;cursor:pointer;color:var(--text-primary)' + (disabled ? ';opacity:0.4;pointer-events:none' : '');
+        el.onmouseenter = () => { el.style.background = 'var(--accent)'; };
+        el.onmouseleave = () => { el.style.background = ''; };
+        el.onclick = () => {
+          hideMenu();
+          if (item.key === 'cut' && hasSel) editor.getAction('editor.action.clipboardCutAction')?.run();
+          else if (item.key === 'copy' && hasSel) editor.getAction('editor.action.clipboardCopyAction')?.run();
+          else if (item.key === 'paste') editor.getAction('editor.action.clipboardPasteAction')?.run();
+          else if (item.key === 'selectAll') editor.getAction('editor.action.selectAll')?.run();
+          else if (item.key === 'references') editor.getAction('editor.action.goToReferences')?.run();
+          else if (item.key === 'definition') editor.getAction('editor.action.revealDefinition')?.run();
+          else if (item.key === 'peek') editor.getAction('editor.action.peekDefinition')?.run();
+          else if (item.key === 'rename') editor.getAction('editor.action.rename')?.run();
+          else if (item.key === 'format') editor.getAction('editor.action.formatDocument')?.run();
+          else if (item.key === 'changeAll') editor.getAction('editor.action.changeAll')?.run();
+          else if (item.key === 'codeRef' && hasSel) {
+            const selection = editor.getSelection()!;
+            const model = editor.getModel();
+            if (model) {
+              const startLine = selection.startLineNumber;
+              const endLine = selection.endLineNumber;
+              const code = model.getValueInRange(selection);
+              const lineRange = startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
+              const ref = `@${filePath}:${lineRange}\n\`\`\`\n${code}\n\`\`\``;
+              useRefsStore.getState().addTextRef(ref);
+            }
+          }
+        };
+        menuEl.appendChild(el);
+      }
+    };
+
+    const hideMenu = () => { menuEl.style.display = 'none'; };
+    document.addEventListener('click', hideMenu);
+
+    editor.onContextMenu((e) => {
+      e.event.preventDefault();
+      buildMenu();
+      const ev = (e.event as any).browserEvent ?? e.event;
+      menuEl.style.display = 'block';
+      menuEl.style.left = `${ev.clientX}px`;
+      menuEl.style.top = `${ev.clientY}px`;
+      // Keep menu within viewport
+      const rect = menuEl.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight) menuEl.style.top = `${window.innerHeight - rect.height - 4}px`;
+      if (rect.right > window.innerWidth) menuEl.style.left = `${window.innerWidth - rect.width - 4}px`;
+    });
 
     updateCursor();
     updateIndent();

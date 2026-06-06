@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, BrowserWindow } from 'electron';
 import { getCurrentWorkspace } from './files';
 import { setupGitAskpassHandlers } from '../utils/gitAskpass';
 import {
@@ -38,6 +38,13 @@ function wrap<T>(fn: () => Promise<T>) {
     }));
 }
 
+/** git 操作完成后通知所有渲染进程刷新面板 */
+function notifyAll() {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('files:tree-changed');
+  }
+}
+
 export function setupGitHandlers() {
   setupGitAskpassHandlers();
   const cwd = () => getCurrentWorkspace();
@@ -54,11 +61,13 @@ export function setupGitHandlers() {
 
   ipcMain.handle('git:checkout', async (_event, payload: { branch: string; create?: boolean }) => {
     const res = await wrap(() => checkoutGitBranch(cwd(), payload.branch, payload.create));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
   ipcMain.handle('git:init', async () => {
     const res = await wrap(() => initGitRepo(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
@@ -74,71 +83,85 @@ export function setupGitHandlers() {
 
   ipcMain.handle('git:stage', async (_event, paths: string[]) => {
     const res = await wrap(() => stageGitPaths(cwd(), paths));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
   ipcMain.handle('git:stage-all', async () => {
     const res = await wrap(() => stageAllGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
   ipcMain.handle('git:unstage', async (_event, paths: string[]) => {
     const res = await wrap(() => unstageGitPaths(cwd(), paths));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
   ipcMain.handle('git:unstage-all', async () => {
     const res = await wrap(() => unstageAllGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
   ipcMain.handle('git:discard', async (_event, paths: string[]) => {
     const res = await wrap(() => discardGitPaths(cwd(), paths));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
   ipcMain.handle('git:discard-all', async () => {
     const res = await wrap(() => discardAllGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const } : res;
   });
 
   ipcMain.handle('git:clean-untracked', async () => {
     const res = await wrap(() => cleanUntrackedGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
   ipcMain.handle('git:commit', async (_event, message: string) => {
     const res = await wrap(() => commitGit(cwd(), message));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, hash: res.data } : res;
   });
 
   ipcMain.handle('git:fetch', async () => {
     const res = await wrap(() => fetchGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
   ipcMain.handle('git:pull', async () => {
     const res = await wrap(() => pullGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
   ipcMain.handle('git:push', async () => {
     const res = await wrap(() => pushGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
   ipcMain.handle('git:pull-rebase', async () => {
     const res = await wrap(() => pullRebaseGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
   ipcMain.handle('git:publish', async () => {
     const res = await wrap(() => publishGitBranch(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
   ipcMain.handle('git:sync', async () => {
     const res = await wrap(() => syncGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, result: res.data } : res;
   });
 
@@ -159,11 +182,13 @@ export function setupGitHandlers() {
 
   ipcMain.handle('git:stash-push', async (_event, message?: string) => {
     const res = await wrap(() => stashPushGit(cwd(), message));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 
   ipcMain.handle('git:stash-pop', async () => {
     const res = await wrap(() => stashPopGit(cwd()));
+    if (res.success) notifyAll();
     return res.success ? { success: true as const, output: res.data } : res;
   });
 }

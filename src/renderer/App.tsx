@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import styles from './styles/components.module.css';
 import Sidebar from './components/sidebar/Sidebar';
 import ChatList from './components/sidebar/ChatList';
-import ModifyPanel from './components/agent/ModifyPanel';
+
 import GitPanel from './components/sidebar/GitPanel';
 import ActivityBar, { PanelView, SystemMenuAction } from './components/sidebar/ActivityBar';
 import BrowserView from './components/chat/BrowserView';
@@ -252,7 +252,7 @@ export default function App() {
           <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
             {!isBrowserVisible && openView === 'files' && <Sidebar />}
             {!isBrowserVisible && openView === 'sessions' && <ChatList />}
-            {!isBrowserVisible && openView === 'modify' && <ModifyPanel />}
+
             {!isBrowserVisible && openView === 'git' && <GitPanel />}
             {!isBrowserVisible && openView === 'roleplay' && <CharacterPickerPanel />}
             {!isBrowserVisible && openView === 'timeline' && <TimelinePanel />}
